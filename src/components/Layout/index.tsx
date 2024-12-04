@@ -45,11 +45,6 @@ const AppLayout: React.FC = () => {
       label: '供货单列表'
     },
     {
-      key: '/customer-orders',
-      icon: <OrderedListOutlined />,
-      label: '客户供货单'
-    },
-    {
       key: '/permissions',
       icon: <LockOutlined />,
       label: '权限管理'

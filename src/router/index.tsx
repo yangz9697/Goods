@@ -5,7 +5,6 @@ import Inventory from '../pages/Inventory';
 import Pricing from '../pages/Pricing';
 import Customers from '../pages/Customers';
 import SupplyOrders from '../pages/SupplyOrders';
-import CustomerOrders from '../pages/CustomerOrders';
 import OrderDetail from '../pages/OrderDetail';
 import Permissions from '../pages/Permissions';
 
@@ -37,10 +36,6 @@ export const router = createBrowserRouter([
       {
         path: '/supply-orders',
         element: <SupplyOrders />
-      },
-      {
-        path: '/customer-orders',
-        element: <CustomerOrders />
       },
       {
         path: '/order/:id',
