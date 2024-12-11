@@ -54,6 +54,7 @@ export const ItemList: React.FC<ItemListProps> = ({
       key: 'unit',
       render: (_: any, record: OrderItem) => (
         <Select
+          defaultValue={defaultUnit}
           value={record.unit}
           onChange={(value) => onItemChange(record.id, { unit: value })}
         >

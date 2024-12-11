@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Form, DatePicker, AutoComplete, Space, Button } from 'antd';
+import { Modal, Form, DatePicker, Space, Button } from 'antd';
 import dayjs from 'dayjs';
 import type { CustomerType } from '../../types/customer';
 
@@ -8,13 +8,15 @@ interface OrderModalProps {
   onCancel: () => void;
   onSubmit: (values: any) => void;
   selectedCustomer: CustomerType | null;
+  children?: React.ReactNode;
 }
 
 export const OrderModal: React.FC<OrderModalProps> = ({
   visible,
   onCancel,
   onSubmit,
-  selectedCustomer
+  selectedCustomer,
+  children
 }) => {
   const [form] = Form.useForm();
 
@@ -47,11 +49,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           label="客户"
           rules={[{ required: true, message: '请选择客户' }]}
         >
-          <AutoComplete
-            disabled={!!selectedCustomer}
-            placeholder="搜索客户姓名或手机号"
-            // TODO: 实现客户搜索功能
-          />
+          {children}
         </Form.Item>
         <Form.Item>
           <Space>

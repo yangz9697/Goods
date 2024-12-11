@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Empty, Row, Col, Modal } from 'antd';
+import { Tabs, Empty, Row, Col, Modal, AutoComplete } from 'antd';
 import { CustomerCard } from '../../components/SupplyOrders/CustomerCard';
 import { OrderList } from '../../components/SupplyOrders/OrderList';
 import { OrderDetail } from '../../components/SupplyOrders/OrderDetail';
@@ -25,6 +25,7 @@ const SupplyOrders: React.FC = () => {
     searchText: '',
     searchPhone: ''
   });
+  const [searchResults, setSearchResults] = useState<CustomerType[]>([]);
 
   // 自定义 hooks
   const { orders, addOrder, updateOrder, deleteOrder, toggleUrgent, filterOrders } = useOrders(mockOrders);
@@ -180,7 +181,26 @@ const SupplyOrders: React.FC = () => {
         onCancel={() => setAddModalVisible(false)}
         onSubmit={handleAddOrder}
         selectedCustomer={selectedCustomer}
-      />
+      >
+        <AutoComplete
+          disabled={!!selectedCustomer}
+          placeholder="搜索客户姓名或手机号"
+          onSearch={(value) => {
+            const matchedCustomers = searchCustomers(value);
+            setSearchResults(matchedCustomers);
+          }}
+          options={searchResults.map(customer => ({
+            value: customer.id,
+            label: `${customer.name} (${customer.phone})`
+          }))}
+          onChange={(value) => {
+            const customer = searchResults.find(c => c.id === value);
+            if (customer) {
+              setSelectedCustomer(customer);
+            }
+          }}
+        />
+      </OrderModal>
     </div>
   );
 };

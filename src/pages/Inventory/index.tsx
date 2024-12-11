@@ -2,36 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message, Descriptions } from 'antd';
 import type { InventoryItem, InventoryLog, UnitType } from '../../types/inventory';
 import dayjs from 'dayjs';
+import { addObject, pageObjectDetail } from '../../api/objectDetail';
 
 const { Search } = Input;
 const { Option } = Select;
 
-// 模拟数据
-const mockInventoryData: InventoryItem[] = [
-  {
-    id: '1',
-    name: '大白菜',
-    boxQuantity: 10,
-    jinQuantity: 200,
-    pieceQuantity: 0,
-    jinPerBox: 20,
-    piecePerBox: 0,
-    updateTime: '2024-03-14 10:00:00',
-    operator: '张三'
-  },
-  {
-    id: '2',
-    name: '土豆',
-    boxQuantity: 5,
-    jinQuantity: 150,
-    pieceQuantity: 0,
-    jinPerBox: 30,
-    piecePerBox: 0,
-    updateTime: '2024-03-14 11:00:00',
-    operator: '李四'
-  }
-];
-
+// 删除未使用的模拟数据
 const mockLogs: InventoryLog[] = [];
 
 const Inventory: React.FC = () => {
@@ -46,11 +22,51 @@ const Inventory: React.FC = () => {
   const [adjustUnit, setAdjustUnit] = useState<UnitType>('box');
   const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
   const [form] = Form.useForm();
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
+  // 获取商品列表
+  const fetchObjectList = async (page: number, size: number) => {
+    setLoading(true);
+    try {
+      const response = await pageObjectDetail({
+        currentPage: page,
+        pageSize: size
+      });
+
+      if (response.success) {
+        // 将返回的数据转换为 InventoryItem 格式
+        const items: InventoryItem[] = response.data.content.map(item => ({
+          id: String(item.objectDetailId),
+          name: item.objectDetailName,
+          boxQuantity: item.box,
+          jinQuantity: item.jin,
+          pieceQuantity: 0, // 根据实际情况设置
+          jinPerBox: item.jinForBox,
+          piecePerBox: 0, // 根据实际情况设置
+          updateTime: dayjs(item.updateTime.time).format('YYYY-MM-DD HH:mm:ss'),
+          operator: item.updater
+        }));
+
+        setInventoryData(items);
+        setTotal(response.data.totalElements);
+      } else {
+        message.error(response.displayMsg || '获取商品列表失败');
+      }
+    } catch (error) {
+      message.error('获取商品列表失败：' + (error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 在组件加载时获取数据
   useEffect(() => {
-    // 加载模拟数据
-    setInventoryData(mockInventoryData);
-  }, []);
+    fetchObjectList(currentPage, pageSize);
+  }, [currentPage, pageSize]);
 
   // 搜索功能
   const filteredData = inventoryData.filter(item => 
@@ -59,81 +75,27 @@ const Inventory: React.FC = () => {
 
   // 添加新商品
   const handleAdd = async (values: any) => {
+    setLoading(true);
     try {
-      // 检查名称是否重复
-      if (inventoryData.some(item => item.name === values.name)) {
-        message.error(`${values.name}菜品已存在`);
-        return;
-      }
-
-      // 计算各单位数量
-      let boxQuantity = 0;
-      let jinQuantity = 0;
-      let pieceQuantity = 0;
-
-      switch (values.unit) {
-        case 'box':
-          boxQuantity = values.quantity;
-          jinQuantity = values.quantity * values.jinPerBox;
-          pieceQuantity = values.quantity * values.piecePerBox;
-          break;
-        case 'jin':
-          jinQuantity = values.quantity;
-          boxQuantity = Math.floor(values.quantity / values.jinPerBox);
-          pieceQuantity = boxQuantity * values.piecePerBox;
-          break;
-        case 'piece':
-          pieceQuantity = values.quantity;
-          boxQuantity = Math.floor(values.quantity / values.piecePerBox);
-          jinQuantity = boxQuantity * values.jinPerBox;
-          break;
-      }
-
-      const newItem: InventoryItem = {
-        id: String(Date.now()),
-        name: values.name,
-        boxQuantity,
-        jinQuantity,
-        pieceQuantity,
-        jinPerBox: values.jinPerBox,
-        piecePerBox: values.piecePerBox,
-        updateTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        operator: '当前用户'
-      };
-
-      // 添加操作日志
-      mockLogs.push({
-        id: String(Date.now()),
-        itemId: newItem.id,
-        itemName: newItem.name,
-        operationType: 'new_item',
-        quantity: values.quantity,
-        unit: values.unit,
-        boxQuantity: newItem.boxQuantity,
-        jinQuantity: newItem.jinQuantity,
-        pieceQuantity: newItem.pieceQuantity,
-        jinPerBox: newItem.jinPerBox,
-        piecePerBox: newItem.piecePerBox,
-        remark: '新增商品',
-        operateTime: newItem.updateTime,
-        operator: newItem.operator
+      const response = await addObject({
+        amountForBox: values.amountForBox,
+        jinForBox: values.jinForBox,
+        objectDetailName: values.name,
+        tenant: 'default' // 这里可以根据实际情况设置租户
       });
 
-      setInventoryData([...inventoryData, newItem]);
-      message.success('添加成功');
-      setAddModalVisible(false);
-      form.resetFields();
-
-      // 提示添加价格
-      Modal.confirm({
-        title: '提示',
-        content: '商品添加成功，是否立即添加价格？',
-        onOk: () => {
-          // TODO: 跳转到价格管理页面
-        }
-      });
+      if (response.success) {
+        message.success('添加商品成功');
+        setIsModalVisible(false);
+        form.resetFields();
+        // 这里可以刷新列表
+      } else {
+        message.error(response.displayMsg || '添加失败');
+      }
     } catch (error) {
-      message.error('添加失败');
+      message.error('添加商品失败：' + (error as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -435,7 +397,7 @@ const Inventory: React.FC = () => {
             onSearch={value => setSearchText(value)}
             style={{ width: 200 }}
           />
-          <Button type="primary" onClick={() => setAddModalVisible(true)}>
+          <Button type="primary" onClick={() => setIsModalVisible(true)}>
             添加
           </Button>
         </Space>
@@ -443,6 +405,18 @@ const Inventory: React.FC = () => {
           columns={columns} 
           dataSource={filteredData}
           rowKey="id"
+          loading={loading}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: total,
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size || 10);
+            },
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条记录`
+          }}
         />
       </Space>
 
@@ -606,6 +580,50 @@ const Inventory: React.FC = () => {
                 取消
               </Button>
             </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 添加商品的弹窗 */}
+      <Modal
+        title="添加商品"
+        open={isModalVisible}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
+      >
+        <Form
+          form={form}
+          onFinish={handleAdd}
+          layout="vertical"
+        >
+          <Form.Item
+            name="name"
+            label="商品名称"
+            rules={[{ required: true, message: '请输入商品名称' }]}
+          >
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            name="jinForBox"
+            label="每箱斤数"
+            rules={[{ required: true, message: '请输入每箱斤数' }]}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item
+            name="amountForBox"
+            label="每箱数量"
+            rules={[{ required: true, message: '请输入每箱数量' }]}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={loading} block>
+              确认添加
+            </Button>
           </Form.Item>
         </Form>
       </Modal>

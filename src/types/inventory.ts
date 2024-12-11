@@ -1,3 +1,5 @@
+import { ObjectDetailResponse } from './objectDetail';
+
 // 单位类型
 export type UnitType = 'box' | 'jin' | 'piece';
 
@@ -34,4 +36,16 @@ export interface InventoryLog {
   remark: string;
   operateTime: string;
   operator: string;
+}
+
+// 添加新的类型定义
+export interface AddInventoryItemRequest {
+  amountForBox: number;
+  jinForBox: number;
+  objectDetailName: string;
+  tenant: string;
+}
+
+export interface AddInventoryItemResponse extends ObjectDetailResponse {
+  // 继承 ObjectDetailResponse 的所有字段
 } 

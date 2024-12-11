@@ -7,7 +7,6 @@ import {
   DollarOutlined,
   TeamOutlined,
   FileTextOutlined,
-  OrderedListOutlined,
   LockOutlined
 } from '@ant-design/icons';
 
