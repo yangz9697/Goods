@@ -1,89 +1,127 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Modal, Form, Input, message } from 'antd';
+import { addUser, pageUser, updateUser } from '../../api/customer';
 import dayjs from 'dayjs';
 
+const { Search } = Input;
 const { TextArea } = Input;
 
 export interface CustomerType {
-  id: string;
+  userId: number;
   name: string;
-  phone: string;
-  remark?: string;
-  preference?: string;
+  mobile: string;
+  remark: string;
+  favorite: string;
   updateTime: string;
+  updater: string;
 }
-
-export const mockCustomers: CustomerType[] = [
-  {
-    id: '1',
-    name: '张三',
-    phone: '13800138000',
-    remark: '重要客户',
-    preference: '喜欢新鲜蔬菜',
-    updateTime: '2024-03-14 10:00:00'
-  }
-];
 
 const Customers: React.FC = () => {
   const [customers, setCustomers] = useState<CustomerType[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'add' | 'edit'>('add');
   const [currentCustomer, setCurrentCustomer] = useState<CustomerType | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [searchText, setSearchText] = useState('');
   const [form] = Form.useForm();
 
+  // 获取客户列表
+  const fetchCustomerList = async (page: number, size: number, name: string = '') => {
+    setLoading(true);
+    try {
+      const response = await pageUser({
+        currentPage: page,
+        pageSize: size,
+        filters: {
+          name,
+          mobile: ''
+        }
+      });
+
+      if (response.success) {
+        const items = response.data.items.map(item => ({
+          userId: item.id,
+          name: item.name,
+          mobile: item.mobile,
+          remark: item.remark,
+          favorite: item.favorite,
+          updateTime: item.updateTime,
+          updater: item.updater
+        }));
+
+        setCustomers(items);
+        setTotal(response.data.total);
+      } else {
+        message.error(response.displayMsg || '获取客户列表失败');
+      }
+    } catch (error) {
+      message.error('获取客户列表失败：' + (error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 搜索功能
+  const handleSearch = (value: string) => {
+    setSearchText(value);
+    setCurrentPage(1);
+    fetchCustomerList(1, pageSize, value);
+  };
+
+  // 在组件加载时获取数据
   useEffect(() => {
-    // 加载模拟数据
-    setCustomers(mockCustomers);
-  }, []);
+    fetchCustomerList(currentPage, pageSize, searchText);
+  }, [currentPage, pageSize]);
 
   // 处理添加/编辑
   const handleSubmit = async (values: any) => {
     try {
+      setLoading(true);
       if (modalType === 'add') {
-        // 添加新客户
-        const newCustomer: CustomerType = {
-          id: String(Date.now()),
-          ...values,
-          updateTime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-        };
-        setCustomers([...customers, newCustomer]);
-        message.success('添加成功');
+        const response = await addUser({
+          name: values.name,
+          mobile: values.phone,
+          remark: values.remark || '',
+          favorite: values.preference || ''
+        });
+
+        if (response.success) {
+          message.success('添加成功');
+          fetchCustomerList(currentPage, pageSize, searchText);
+          setModalVisible(false);
+          form.resetFields();
+        } else {
+          message.error(response.displayMsg || '添加失败');
+        }
       } else {
         // 编辑客户
         if (!currentCustomer) return;
-        const updatedCustomer = {
-          ...currentCustomer,
-          ...values,
-          updateTime: dayjs().format('YYYY-MM-DD HH:mm:ss')
-        };
-        setCustomers(customers.map(item => 
-          item.id === currentCustomer.id ? updatedCustomer : item
-        ));
-        message.success('编辑成功');
-      }
-      setModalVisible(false);
-      form.resetFields();
-    } catch (error) {
-      message.error(modalType === 'add' ? '添加失败' : '编辑失败');
-    }
-  };
+        
+        const response = await updateUser({
+          id: currentCustomer.userId,
+          name: values.name,
+          mobile: values.phone,
+          remark: values.remark || '',
+          favorite: values.preference || ''
+        });
 
-  // 处理删除
-  const handleDelete = (record: CustomerType) => {
-    // TODO: 检查客户是否被其他地方引用
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除客户"${record.name}"吗？删除后无法恢复。`,
-      onOk: async () => {
-        try {
-          // TODO: 检查客户是否被引用
-          setCustomers(customers.filter(item => item.id !== record.id));
-          message.success('删除成功');
-        } catch (error) {
-          message.error('删除失败');
+        if (response.success) {
+          message.success('编辑成功');
+          fetchCustomerList(currentPage, pageSize, searchText);
+          setModalVisible(false);
+          form.resetFields();
+        } else {
+          message.error(response.displayMsg || '编辑失败');
         }
       }
-    });
+    } catch (error) {
+      message.error(modalType === 'add' ? '添加失败' : '编辑失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const columns = [
@@ -94,8 +132,8 @@ const Customers: React.FC = () => {
     },
     {
       title: '手机号',
-      dataIndex: 'phone',
-      key: 'phone',
+      dataIndex: 'mobile',
+      key: 'mobile',
     },
     {
       title: '备注',
@@ -104,13 +142,19 @@ const Customers: React.FC = () => {
     },
     {
       title: '偏好',
-      dataIndex: 'preference',
-      key: 'preference',
+      dataIndex: 'favorite',
+      key: 'favorite',
     },
     {
       title: '更新时间',
       dataIndex: 'updateTime',
       key: 'updateTime',
+      render: (time: number) => dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+    },
+    {
+      title: '操作人',
+      dataIndex: 'updater',
+      key: 'updater',
     },
     {
       title: '操作',
@@ -122,7 +166,12 @@ const Customers: React.FC = () => {
             onClick={() => {
               setModalType('edit');
               setCurrentCustomer(record);
-              form.setFieldsValue(record);
+              form.setFieldsValue({
+                name: record.name,
+                phone: record.mobile,
+                remark: record.remark,
+                preference: record.favorite
+              });
               setModalVisible(true);
             }}
           >
@@ -143,27 +192,46 @@ const Customers: React.FC = () => {
   return (
     <div>
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <Button 
-          type="primary" 
-          onClick={() => {
-            setModalType('add');
-            setCurrentCustomer(null);
-            form.resetFields();
-            setModalVisible(true);
-          }}
-        >
-          添加
-        </Button>
+        <Space>
+          <Search
+            placeholder="请输入客户姓名"
+            onSearch={handleSearch}
+            style={{ width: 200 }}
+          />
+          <Button 
+            type="primary" 
+            onClick={() => {
+              setModalType('add');
+              setCurrentCustomer(null);
+              form.resetFields();
+              setModalVisible(true);
+            }}
+          >
+            添加客户
+          </Button>
+        </Space>
         <Table 
           columns={columns} 
           dataSource={customers}
-          rowKey="id"
+          rowKey="userId"
+          loading={loading}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: total,
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size || 10);
+            },
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条记录`
+          }}
         />
       </Space>
 
       {/* 添加/编辑客户弹窗 */}
       <Modal
-        title={modalType === 'add' ? '添加用户' : '编辑用户'}
+        title={modalType === 'add' ? '添加客户' : '编辑客户'}
         visible={modalVisible}
         onCancel={() => {
           setModalVisible(false);
@@ -207,7 +275,7 @@ const Customers: React.FC = () => {
           </Form.Item>
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit">
+              <Button type="primary" htmlType="submit" loading={loading}>
                 确认
               </Button>
               <Button onClick={() => {

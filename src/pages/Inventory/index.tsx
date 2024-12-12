@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message, Descriptions } from 'antd';
 import type { InventoryItem, InventoryLog, UnitType } from '../../types/inventory';
 import dayjs from 'dayjs';
-import { addObject, pageObjectDetail } from '../../api/objectDetail';
+import { addObject, pageObjectDetail, deleteObject, updateObjectInventory } from '../../api/objectDetail';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -28,33 +28,42 @@ const Inventory: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
 
+  // 搜索功能
+  const handleSearch = (value: string) => {
+    setSearchText(value);
+    setCurrentPage(1); // 重置页码到第一页
+    fetchObjectList(1, pageSize, value); // 传入搜���关键字
+  };
+
   // 获取商品列表
-  const fetchObjectList = async (page: number, size: number) => {
+  const fetchObjectList = async (page: number, size: number, searchKey: string = '') => {
     setLoading(true);
     try {
       const response = await pageObjectDetail({
         currentPage: page,
-        pageSize: size
+        pageSize: size,
+        filters: {
+          objectDetailName: searchKey // 添加名称搜索条件
+        }
       });
 
-      if (response.success) {
-        // 将返回的数据转换为 InventoryItem 格式
-        const items: InventoryItem[] = response.data.content.map(item => ({
+      if (response.data) {
+        const items: InventoryItem[] = response.data.items.map(item => ({
           id: String(item.objectDetailId),
           name: item.objectDetailName,
           boxQuantity: item.box,
           jinQuantity: item.jin,
-          pieceQuantity: 0, // 根据实际情况设置
+          pieceQuantity: item.amount,
           jinPerBox: item.jinForBox,
-          piecePerBox: 0, // 根据实际情况设置
-          updateTime: dayjs(item.updateTime.time).format('YYYY-MM-DD HH:mm:ss'),
+          piecePerBox: item.amountForBox,
+          updateTime: dayjs(item.updateTime).format('YYYY-MM-DD HH:mm:ss'),
           operator: item.updater
         }));
 
         setInventoryData(items);
-        setTotal(response.data.totalElements);
+        setTotal(response.data.total);
       } else {
-        message.error(response.displayMsg || '获取商品列表失败');
+        message.error('获取商品列表失败');
       }
     } catch (error) {
       message.error('获取商品列表失败：' + (error as Error).message);
@@ -65,13 +74,8 @@ const Inventory: React.FC = () => {
 
   // 在组件加载时获取数据
   useEffect(() => {
-    fetchObjectList(currentPage, pageSize);
-  }, [currentPage, pageSize]);
-
-  // 搜索功能
-  const filteredData = inventoryData.filter(item => 
-    item.name.toLowerCase().includes(searchText.toLowerCase())
-  );
+    fetchObjectList(currentPage, pageSize, searchText);
+  }, [currentPage, pageSize]); // searchText 不需要加入依��，因为我们在 handleSearch 中单独处理
 
   // 添加新商品
   const handleAdd = async (values: any) => {
@@ -81,14 +85,27 @@ const Inventory: React.FC = () => {
         amountForBox: values.amountForBox,
         jinForBox: values.jinForBox,
         objectDetailName: values.name,
-        tenant: 'default' // 这里可以根据实际情况设置租户
+        tenant: 'default'
       });
 
       if (response.success) {
         message.success('添加商品成功');
         setIsModalVisible(false);
         form.resetFields();
-        // 这里可以刷新列表
+        // 刷新列表
+        fetchObjectList(currentPage, pageSize);
+        
+        // 弹出提醒设置价格的对话框
+        Modal.confirm({
+          title: '提醒',
+          content: '商品添加成功，请及时设置商品价格',
+          okText: '去设置',
+          cancelText: '稍后设置',
+          onOk() {
+            // TODO: 跳转到价格设置页面
+            // 可以使用 history.push 或 window.location.href 进行跳转
+          }
+        });
       } else {
         message.error(response.displayMsg || '添加失败');
       }
@@ -104,75 +121,40 @@ const Inventory: React.FC = () => {
     try {
       if (!currentItem) return;
 
-      const updatedItem = { ...currentItem };
       const quantity = values.quantity * (adjustType === 'reduce' ? -1 : 1);
+      
+      // 准备请求数据
+      const requestData: any = {
+        detailObjectId: Number(currentItem.id),
+        remark: values.remark
+      };
 
-      // 检查是否会导致负库存
-      let newBoxQuantity = updatedItem.boxQuantity;
-      let newJinQuantity = updatedItem.jinQuantity;
-      let newPieceQuantity = updatedItem.pieceQuantity;
-
+      // 根据调整单位设置对应的数量
       switch (adjustUnit) {
         case 'box':
-          newBoxQuantity += quantity;
-          newJinQuantity += quantity * updatedItem.jinPerBox;
-          if (updatedItem.piecePerBox) {
-            newPieceQuantity += quantity * updatedItem.piecePerBox;
-          }
+          requestData.box = quantity;
           break;
         case 'jin':
-          newJinQuantity += quantity;
-          newBoxQuantity = Math.floor(newJinQuantity / updatedItem.jinPerBox);
-          if (updatedItem.piecePerBox) {
-            newPieceQuantity = newBoxQuantity * updatedItem.piecePerBox;
-          }
+          requestData.jin = quantity;
           break;
         case 'piece':
-          newPieceQuantity += quantity;
-          newBoxQuantity = Math.floor(newPieceQuantity / updatedItem.piecePerBox);
-          newJinQuantity = newBoxQuantity * updatedItem.jinPerBox;
+          requestData.amount = quantity;
           break;
       }
 
-      // 检查负库存
-      if (newBoxQuantity < 0 || newJinQuantity < 0 || newPieceQuantity < 0) {
-        message.error('库存不足，无法减少');
-        return;
+      const response = await updateObjectInventory(requestData);
+
+      if (response.success) {
+        message.success('库存调整成功');
+        setAdjustModalVisible(false);
+        form.resetFields();
+        // 刷新列表
+        fetchObjectList(currentPage, pageSize);
+      } else {
+        message.error(response.displayMsg || '库存调整失败');
       }
-
-      updatedItem.boxQuantity = newBoxQuantity;
-      updatedItem.jinQuantity = newJinQuantity;
-      updatedItem.pieceQuantity = newPieceQuantity;
-      updatedItem.updateTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
-      updatedItem.operator = '当前用户';
-
-      // 添加操作日志
-      mockLogs.push({
-        id: String(Date.now()),
-        itemId: updatedItem.id,
-        itemName: updatedItem.name,
-        operationType: adjustType === 'add' ? 'add_inventory' : 'reduce_inventory',
-        quantity: values.quantity,
-        unit: adjustUnit,
-        boxQuantity: updatedItem.boxQuantity,
-        jinQuantity: updatedItem.jinQuantity,
-        pieceQuantity: updatedItem.pieceQuantity,
-        jinPerBox: updatedItem.jinPerBox,
-        piecePerBox: updatedItem.piecePerBox,
-        remark: values.remark,
-        operateTime: updatedItem.updateTime,
-        operator: updatedItem.operator
-      });
-
-      setInventoryData(inventoryData.map(item => 
-        item.id === currentItem.id ? updatedItem : item
-      ));
-
-      message.success('库存调整成功');
-      setAdjustModalVisible(false);
-      form.resetFields();
     } catch (error) {
-      message.error('库存调整失败');
+      message.error('库存调整失败：' + (error as Error).message);
     }
   };
 
@@ -241,28 +223,17 @@ const Inventory: React.FC = () => {
       content: `确定要删除${item.name}吗？删除后该商品将无法在其他页面被选择。`,
       onOk: async () => {
         try {
-          // 添加操作日志
-          mockLogs.push({
-            id: String(Date.now()),
-            itemId: item.id,
-            itemName: item.name,
-            operationType: 'delete_item',
-            quantity: 0,
-            unit: 'box',
-            boxQuantity: item.boxQuantity,
-            jinQuantity: item.jinQuantity,
-            pieceQuantity: item.pieceQuantity,
-            jinPerBox: item.jinPerBox,
-            piecePerBox: item.piecePerBox,
-            remark: '删除商品',
-            operateTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            operator: '当前用户' // TODO: 替换为实际登录用户
-          });
-
-          setInventoryData(inventoryData.filter(i => i.id !== item.id));
-          message.success('删除成功');
+          const response = await deleteObject(Number(item.id));
+          
+          if (response.success) {
+            message.success('删除成功');
+            // 刷新列表
+            fetchObjectList(currentPage, pageSize);
+          } else {
+            message.error(response.displayMsg || '删除失败');
+          }
         } catch (error) {
-          message.error('删除失败');
+          message.error('删除失败：' + (error as Error).message);
         }
       }
     });
@@ -394,7 +365,7 @@ const Inventory: React.FC = () => {
         <Space>
           <Search
             placeholder="请输入商品名称"
-            onSearch={value => setSearchText(value)}
+            onSearch={handleSearch}
             style={{ width: 200 }}
           />
           <Button type="primary" onClick={() => setIsModalVisible(true)}>
@@ -403,7 +374,7 @@ const Inventory: React.FC = () => {
         </Space>
         <Table 
           columns={columns} 
-          dataSource={filteredData}
+          dataSource={inventoryData} // 直接使用 inventoryData，不需要 filteredData
           rowKey="id"
           loading={loading}
           pagination={{

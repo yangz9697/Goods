@@ -7,6 +7,7 @@ import Customers from '../pages/Customers';
 import SupplyOrders from '../pages/SupplyOrders';
 import OrderDetail from '../pages/OrderDetail';
 import Permissions from '../pages/Permissions';
+import PriceManagement from '../pages/PriceManagement';
 
 export const router = createBrowserRouter([
   {
@@ -44,6 +45,10 @@ export const router = createBrowserRouter([
       {
         path: '/permissions',
         element: <Permissions />
+      },
+      {
+        path: '/price-management',
+        element: <PriceManagement />,
       }
     ]
   }

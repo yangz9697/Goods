@@ -1,79 +1,76 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Input, Modal, Form, InputNumber, message, DatePicker, Typography, Tag } from 'antd';
 import type { Dayjs } from 'dayjs';
+import type { ObjectPrice } from '../../types/objectDetail';
+import { pageObjectPrice } from '../../api/objectDetail';
 import dayjs from 'dayjs';
 
 const { Search } = Input;
 const { Title } = Typography;
 
-interface PriceItem {
-  id: string;
-  name: string;
-  jinPrice: number;
-  boxPrice: number;
-  piecePrice: number;
-  yesterdayJinPrice?: number;
-  yesterdayBoxPrice?: number;
-  yesterdayPiecePrice?: number;
-  operator: string;
-  updateTime: string;
-}
-
-// 模拟数据
-const mockPriceData: PriceItem[] = [
-  {
-    id: '1',
-    name: '大白菜',
-    jinPrice: 5,
-    boxPrice: 100,
-    piecePrice: 0,
-    yesterdayJinPrice: 4.5,
-    yesterdayBoxPrice: 90,
-    yesterdayPiecePrice: 0,
-    operator: '张三',
-    updateTime: '2024-03-14 10:00:00'
-  }
-];
-
 const Pricing: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [currentItem, setCurrentItem] = useState<PriceItem | null>(null);
-  const [priceData, setPriceData] = useState<PriceItem[]>([]);
+  const [currentItem, setCurrentItem] = useState<ObjectPrice | null>(null);
+  const [priceData, setPriceData] = useState<ObjectPrice[]>([]);
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    // 加载模拟数据
-    setPriceData(mockPriceData);
-  }, []);
+  // 获取价格列表
+  const fetchPriceList = async (page: number, size: number, searchKey: string = '') => {
+    setLoading(true);
+    try {
+      const response = await pageObjectPrice({
+        currentPage: page,
+        pageSize: size,
+        filters: searchKey ? { detailObjectName: searchKey } : {}
+      });
+
+      if (response.data) {
+        const items = response.data.items.map(item => ({
+          ...item,
+          updateTime: dayjs(item.updateTime).format('YYYY-MM-DD HH:mm:ss')
+        }));
+
+        setPriceData(items);
+        setTotal(response.data.total);
+      } else {
+        message.error('获取价格列表失败');
+      }
+    } catch (error) {
+      message.error('获取价格列表失败：' + (error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 搜索功能
-  const filteredData = priceData.filter(item => 
-    item.name.toLowerCase().includes(searchText.toLowerCase())
-  );
+  const handleSearch = (value: string) => {
+    setSearchText(value);
+    setCurrentPage(1);
+    fetchPriceList(1, pageSize, value);
+  };
+
+  // 在组件加载时获取数据
+  useEffect(() => {
+    fetchPriceList(currentPage, pageSize, searchText);
+  }, [currentPage, pageSize]);
 
   // 编辑价格
   const handleEdit = async (values: any) => {
     try {
       if (!currentItem) return;
 
-      const updatedItem = {
-        ...currentItem,
-        jinPrice: values.jinPrice,
-        boxPrice: values.boxPrice,
-        piecePrice: values.piecePrice,
-        updateTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        operator: '当前用户' // TODO: 替换为实际登录用户
-      };
-
-      setPriceData(priceData.map(item => 
-        item.id === currentItem.id ? updatedItem : item
-      ));
-
+      // TODO: 实现编辑价格的 API 调用
       message.success('价格更新成功');
       setEditModalVisible(false);
       form.resetFields();
+      // 刷新列表
+      fetchPriceList(currentPage, pageSize, searchText);
     } catch (error) {
       message.error('价格更新失败');
     }
@@ -82,58 +79,19 @@ const Pricing: React.FC = () => {
   const columns = [
     {
       title: '名称',
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'detailObjectName',
+      key: 'detailObjectName',
     },
     {
-      title: '单价(斤)',
-      dataIndex: 'jinPrice',
-      key: 'jinPrice',
-      render: (price: number, record: PriceItem) => (
-        <Space direction="vertical" size={0}>
-          <span>{price}</span>
-          {record.yesterdayJinPrice && (
-            <span style={{ fontSize: '12px', color: '#999' }}>
-              昨日价格：{record.yesterdayJinPrice}
-            </span>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '单价(箱)',
-      dataIndex: 'boxPrice',
-      key: 'boxPrice',
-      render: (price: number, record: PriceItem) => (
-        <Space direction="vertical" size={0}>
-          <span>{price}</span>
-          {record.yesterdayBoxPrice && (
-            <span style={{ fontSize: '12px', color: '#999' }}>
-              昨日价格：{record.yesterdayBoxPrice}
-            </span>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '单价(个)',
-      dataIndex: 'piecePrice',
-      key: 'piecePrice',
-      render: (price: number, record: PriceItem) => (
-        <Space direction="vertical" size={0}>
-          <span>{price}</span>
-          {record.yesterdayPiecePrice && (
-            <span style={{ fontSize: '12px', color: '#999' }}>
-              昨日价格：{record.yesterdayPiecePrice}
-            </span>
-          )}
-        </Space>
-      ),
+      title: '价格',
+      dataIndex: 'price',
+      key: 'price',
+      render: (price: number) => `¥${price.toFixed(2)}`
     },
     {
       title: '操作人',
-      dataIndex: 'operator',
-      key: 'operator',
+      dataIndex: 'updater',
+      key: 'updater',
     },
     {
       title: '更新时间',
@@ -143,10 +101,13 @@ const Pricing: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: PriceItem) => (
+      render: (_: any, record: ObjectPrice) => (
         <Button type="link" onClick={() => {
           setCurrentItem(record);
-          form.setFieldsValue(record);
+          form.setFieldsValue({
+            name: record.detailObjectName,
+            price: record.price
+          });
           setEditModalVisible(true);
         }}>
           编辑
@@ -179,15 +140,27 @@ const Pricing: React.FC = () => {
         {/* 搜索框 */}
         <Search
           placeholder="请输入商品名称"
-          onSearch={value => setSearchText(value)}
+          onSearch={handleSearch}
           style={{ width: 200 }}
         />
 
         {/* 数据表格 */}
         <Table 
           columns={columns} 
-          dataSource={filteredData}
-          rowKey="id"
+          dataSource={priceData}
+          rowKey="detailObjectId"
+          loading={loading}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: total,
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size || 10);
+            },
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条记录`
+          }}
         />
       </Space>
 
@@ -206,23 +179,9 @@ const Pricing: React.FC = () => {
             <Input disabled />
           </Form.Item>
           <Form.Item
-            name="jinPrice"
-            label="单价(斤)"
-            rules={[{ required: true, message: '请输入单价' }]}
-          >
-            <InputNumber min={0} precision={2} />
-          </Form.Item>
-          <Form.Item
-            name="boxPrice"
-            label="单价(箱)"
-            rules={[{ required: true, message: '请输入单价' }]}
-          >
-            <InputNumber min={0} precision={2} />
-          </Form.Item>
-          <Form.Item
-            name="piecePrice"
-            label="单价(个)"
-            rules={[{ required: true, message: '请输入单价' }]}
+            name="price"
+            label="价格"
+            rules={[{ required: true, message: '请输入价格' }]}
           >
             <InputNumber min={0} precision={2} />
           </Form.Item>

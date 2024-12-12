@@ -48,4 +48,10 @@ export interface AddInventoryItemRequest {
 
 export interface AddInventoryItemResponse extends ObjectDetailResponse {
   // 继承 ObjectDetailResponse 的所有字段
+}
+
+export interface PageObjectDetailRequest {
+  currentPage: number;
+  pageSize: number;
+  filter?: Record<string, any>;
 } 

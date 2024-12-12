@@ -43,32 +43,48 @@ export interface ObjectDetailResponse {
 export interface PageObjectDetailRequest {
   currentPage: number;
   pageSize: number;
+  filters?: Record<string, any>;
 }
 
 export interface PageObjectDetailResponse {
   data: {
-    content: {
-      amount: number;
-      amountForBox: number;
-      box: number;
-      jin: number;
-      jinForBox: number;
+    total: number;
+    totalPage: number;
+    items: {
       objectDetailId: number;
       objectDetailName: string;
       tenant: string;
-      updateTime: UpdateTime;
+      amountForBox: number;
+      jinForBox: number;
+      amount: number;
+      jin: number;
+      box: number;
+      updateTime: number;
       updater: string;
     }[];
-    totalElements: number;
-    totalPages: number;
-    size: number;
-    number: number;
   };
-  debugMsg: string;
-  displayMsg: string;
-  requestId: string;
-  resultCode: string;
-  serverTime: number;
-  success: boolean;
-  txId: string;
+}
+
+export interface PageObjectPriceRequest {
+  currentPage: number;
+  pageSize: number;
+  filters: {
+    detailObjectName?: string;
+  };
+}
+
+export interface ObjectPrice {
+  detailObjectId: number;
+  detailObjectName: string;
+  price: number;
+  updateTime: number;
+  updater: string;
+}
+
+export interface PageObjectPriceResponse {
+  data: {
+    total: number;
+    totalPage: number;
+    items: ObjectPrice[];
+  };
 }
