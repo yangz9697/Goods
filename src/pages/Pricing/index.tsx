@@ -33,7 +33,7 @@ const Pricing: React.FC = () => {
       if (response.data) {
         const items = response.data.items.map(item => ({
           ...item,
-          updateTime: dayjs(item.updateTime).format('YYYY-MM-DD HH:mm:ss')
+          updateTime: new Date(item.updateTime).getTime()
         }));
 
         setPriceData(items);
@@ -61,7 +61,7 @@ const Pricing: React.FC = () => {
   }, [currentPage, pageSize]);
 
   // 编辑价格
-  const handleEdit = async (values: any) => {
+  const handleEdit = async (_values: any) => {
     try {
       if (!currentItem) return;
 

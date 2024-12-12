@@ -32,7 +32,10 @@ const PriceManagement: React.FC = () => {
           updateTime: dayjs(item.updateTime).format('YYYY-MM-DD HH:mm:ss')
         }));
 
-        setPriceData(items);
+        setPriceData(items.map(item => ({
+          ...item,
+          updateTime: new Date(item.updateTime).getTime()
+        })));
         setTotal(response.data.total);
       } else {
         message.error('获取价格列表失败');
@@ -81,7 +84,7 @@ const PriceManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: ObjectPrice) => (
+      render: (_: any, _record: ObjectPrice) => (
         <Space>
           <a onClick={() => {/* TODO: 实现编辑价格功能 */}}>编辑</a>
         </Space>

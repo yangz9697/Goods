@@ -48,7 +48,7 @@ const Customers: React.FC = () => {
           mobile: item.mobile,
           remark: item.remark,
           favorite: item.favorite,
-          updateTime: item.updateTime,
+          updateTime: item.updateTime.toString(),
           updater: item.updater
         }));
 
@@ -122,6 +122,10 @@ const Customers: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = (_record: CustomerType) => {
+    // 删除逻辑
   };
 
   const columns = [
