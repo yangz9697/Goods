@@ -35,4 +35,15 @@ export const updateUser = async (data: UpdateUserRequest): Promise<UserResponse>
   } catch (error) {
     throw new Error('修改客户信息失败：' + (error as Error).message);
   }
+};
+
+export const deleteUser = async (userId: number) => {
+  try {
+    const response = await request.post('/erp/objectUser/deleteUser', {
+      userId
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error('删除客户失败：' + (error as Error).message);
+  }
 }; 

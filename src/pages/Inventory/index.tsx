@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message, Descriptions } from 'antd';
+import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message, Descriptions, Divider } from 'antd';
 import type { InventoryItem, InventoryLog, UnitType } from '../../types/inventory';
-import dayjs from 'dayjs';
-import { addObject, pageObjectDetail, deleteObject, updateObjectInventory } from '../../api/objectDetail';
+import type { ObjectOpLog } from '../../types/objectDetail';
+import dayjs, { Dayjs } from 'dayjs';
+import { addObject, pageObjectDetail, deleteObject, updateObjectInventory, queryObjectOpLog } from '../../api/objectDetail';
+import { useNavigate } from 'react-router-dom';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -11,6 +13,8 @@ const { Option } = Select;
 const mockLogs: InventoryLog[] = [];
 
 const Inventory: React.FC = () => {
+  const navigate = useNavigate();
+
   // 状态管理
   const [searchText, setSearchText] = useState('');
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -22,17 +26,17 @@ const Inventory: React.FC = () => {
   const [adjustUnit, setAdjustUnit] = useState<UnitType>('box');
   const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
   const [form] = Form.useForm();
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [opLogs, setOpLogs] = useState<ObjectOpLog[]>([]);
 
   // 搜索功能
   const handleSearch = (value: string) => {
     setSearchText(value);
     setCurrentPage(1); // 重置页码到第一页
-    fetchObjectList(1, pageSize, value); // 传入搜���关键字
+    fetchObjectList(1, pageSize, value); // 传入搜索关键字
   };
 
   // 获取商品列表
@@ -43,7 +47,7 @@ const Inventory: React.FC = () => {
         currentPage: page,
         pageSize: size,
         filters: {
-          objectDetailName: searchKey // 添加名称搜索条件
+          objectDetailName: searchKey
         }
       });
 
@@ -75,35 +79,35 @@ const Inventory: React.FC = () => {
   // 在组件加载时获取数据
   useEffect(() => {
     fetchObjectList(currentPage, pageSize, searchText);
-  }, [currentPage, pageSize]); // searchText 不需要加入依��，因为我们在 handleSearch 中单独处理
+  }, [currentPage, pageSize]);
 
   // 添加新商品
   const handleAdd = async (values: any) => {
     setLoading(true);
     try {
-      const response = await addObject({
+      const requestData = {
         amountForBox: values.amountForBox,
         jinForBox: values.jinForBox,
         objectDetailName: values.name,
-        tenant: 'default'
-      });
+        tenant: 'default',
+        [values.unit === 'piece' ? 'amount' : values.unit]: values.quantity
+      };
+
+      const response = await addObject(requestData);
 
       if (response.success) {
         message.success('添加商品成功');
-        setIsModalVisible(false);
+        setAddModalVisible(false);
         form.resetFields();
-        // 刷新列表
         fetchObjectList(currentPage, pageSize);
         
-        // 弹出提醒设置价格的对话框
         Modal.confirm({
           title: '提醒',
           content: '商品添加成功，请及时设置商品价格',
           okText: '去设置',
           cancelText: '稍后设置',
           onOk() {
-            // TODO: 跳转到价格设置页面
-            // 可以使用 history.push 或 window.location.href 进行跳转
+            navigate('/pricing');
           }
         });
       } else {
@@ -220,14 +224,13 @@ const Inventory: React.FC = () => {
   const handleDelete = (item: InventoryItem) => {
     Modal.confirm({
       title: '确认删除',
-      content: `确定要删除${item.name}吗？删除后该商品将无法在其他页面被选择。`,
+      content: `确定要删除${item.name}吗？删除后该商品将无法在其他页面选择。`,
       onOk: async () => {
         try {
           const response = await deleteObject(Number(item.id));
           
           if (response.success) {
             message.success('删除成功');
-            // 刷新列表
             fetchObjectList(currentPage, pageSize);
           } else {
             message.error(response.displayMsg || '删除失败');
@@ -237,6 +240,27 @@ const Inventory: React.FC = () => {
         }
       }
     });
+  };
+
+  // 获取操作记录
+  const fetchOpLogs = async (id: number) => {
+    try {
+      const response = await queryObjectOpLog(id);
+      if (response.success) {
+        setOpLogs(response.data);
+      } else {
+        message.error(response.displayMsg || '获取操作记录失败');
+      }
+    } catch (error) {
+      message.error('获取操作记录失败：' + (error as Error).message);
+    }
+  };
+
+  // 修改打开详情弹窗的处理函数
+  const handleShowDetail = (record: InventoryItem) => {
+    setCurrentItem(record);
+    setDetailModalVisible(true);
+    fetchOpLogs(Number(record.id));
   };
 
   const columns = [
@@ -342,10 +366,7 @@ const Inventory: React.FC = () => {
       key: 'action',
       render: (_: any, record: InventoryItem) => (
         <Space>
-          <Button type="link" onClick={() => {
-            setCurrentItem(record);
-            setDetailModalVisible(true);
-          }}>详情</Button>
+          <Button type="link" onClick={() => handleShowDetail(record)}>详情</Button>
           <Button type="link" onClick={() => {
             setCurrentItem(record);
             form.setFieldsValue(record);
@@ -368,13 +389,13 @@ const Inventory: React.FC = () => {
             onSearch={handleSearch}
             style={{ width: 200 }}
           />
-          <Button type="primary" onClick={() => setIsModalVisible(true)}>
-            添加
+          <Button type="primary" onClick={() => setAddModalVisible(true)}>
+            添加商品
           </Button>
         </Space>
         <Table 
           columns={columns} 
-          dataSource={inventoryData} // 直接使用 inventoryData，不需要 filteredData
+          dataSource={inventoryData}
           rowKey="id"
           loading={loading}
           pagination={{
@@ -389,215 +410,220 @@ const Inventory: React.FC = () => {
             showTotal: (total) => `共 ${total} 条记录`
           }}
         />
-      </Space>
 
-      {/* 添加商品弹窗 */}
-      <Modal
-        title="添加菜品库存"
-        visible={addModalVisible}
-        onCancel={() => setAddModalVisible(false)}
-        footer={null}
-      >
-        <Form form={form} onFinish={handleAdd}>
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="jinPerBox"
-            label="单位(斤/箱)"
-            rules={[{ required: true, message: '请输入单位' }]}
-          >
-            <InputNumber min={0} />
-          </Form.Item>
-          <Form.Item
-            name="piecePerBox"
-            label="单位(个/箱)"
-            rules={[{ required: true, message: '请输入单位' }]}
-          >
-            <InputNumber min={0} />
-          </Form.Item>
-          <Form.Item
-            name="quantity"
-            label="数量"
-            rules={[{ required: true, message: '请输入数量' }]}
-          >
-            <InputNumber min={0} />
-          </Form.Item>
-          <Form.Item
-            name="unit"
-            label="单位"
-            rules={[{ required: true, message: '请选择单位' }]}
-          >
-            <Select>
-              <Option value="box">箱</Option>
-              <Option value="jin">斤</Option>
-              <Option value="piece">个</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                确认
-              </Button>
-              <Button onClick={() => setAddModalVisible(false)}>
-                取消
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 调整库存弹窗 */}
-      <Modal
-        title={`${adjustType === 'add' ? '添加' : '减少'}库存`}
-        visible={adjustModalVisible}
-        onCancel={() => setAdjustModalVisible(false)}
-        footer={null}
-      >
-        <Form form={form} onFinish={handleAdjustInventory}>
-          <Form.Item
-            name="quantity"
-            label="数量"
-            rules={[{ required: true, message: '请输入数量' }]}
-          >
-            <InputNumber min={0} />
-          </Form.Item>
-          <Form.Item
-            name="remark"
-            label="备注原因"
-            rules={[{ required: true, message: '请输入备注原因' }]}
-          >
-            <Input.TextArea />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                确认
-              </Button>
-              <Button onClick={() => setAdjustModalVisible(false)}>
-                取消
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 详情弹窗 */}
-      <Modal
-        title="库存详情"
-        visible={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={null}
-      >
-        {currentItem && (
-          <Descriptions bordered column={1}>
-            <Descriptions.Item label="名称">{currentItem.name}</Descriptions.Item>
-            <Descriptions.Item label="数量(箱)">{currentItem.boxQuantity}</Descriptions.Item>
-            <Descriptions.Item label="数量(斤)">{currentItem.jinQuantity}</Descriptions.Item>
-            <Descriptions.Item label="数量(个)">{currentItem.pieceQuantity}</Descriptions.Item>
-            <Descriptions.Item label="单位(斤/箱)">{currentItem.jinPerBox}</Descriptions.Item>
-            <Descriptions.Item label="单位(个/箱)">{currentItem.piecePerBox}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">{currentItem.updateTime}</Descriptions.Item>
-            <Descriptions.Item label="操作人">{currentItem.operator}</Descriptions.Item>
-          </Descriptions>
-        )}
-      </Modal>
-
-      {/* 编辑弹窗 */}
-      <Modal
-        title="编辑菜品库存"
-        visible={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
-        footer={null}
-      >
-        <Form form={form} onFinish={handleEdit}>
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="jinPerBox"
-            label="单位(斤/箱)"
-            rules={[{ required: true, message: '请输入单位' }]}
-          >
-            <InputNumber min={0} />
-          </Form.Item>
-          <Form.Item
-            name="piecePerBox"
-            label="单位(个/箱)"
-            rules={[{ required: true, message: '请输入单位' }]}
-          >
-            <InputNumber min={0} />
-          </Form.Item>
-          <Form.Item
-            name="remark"
-            label="备注"
-          >
-            <Input.TextArea />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                确认
-              </Button>
-              <Button onClick={() => setEditModalVisible(false)}>
-                取消
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 添加商品的弹窗 */}
-      <Modal
-        title="添加商品"
-        open={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
-        footer={null}
-      >
-        <Form
-          form={form}
-          onFinish={handleAdd}
-          layout="vertical"
+        {/* 添加商品弹窗 */}
+        <Modal
+          title="添加商品"
+          visible={addModalVisible}
+          onCancel={() => setAddModalVisible(false)}
+          footer={null}
         >
-          <Form.Item
-            name="name"
-            label="商品名称"
-            rules={[{ required: true, message: '请输入商品名称' }]}
+          <Form
+            form={form}
+            onFinish={handleAdd}
+            layout="vertical"
           >
-            <Input />
-          </Form.Item>
+            <Form.Item
+              name="name"
+              label="商品名称"
+              rules={[{ required: true, message: '请输入商品名称' }]}
+            >
+              <Input placeholder="请输入商品名称" />
+            </Form.Item>
 
-          <Form.Item
-            name="jinForBox"
-            label="每箱斤数"
-            rules={[{ required: true, message: '请输入每箱斤数' }]}
-          >
-            <InputNumber min={0} style={{ width: '100%' }} />
-          </Form.Item>
+            <Form.Item
+              name="jinForBox"
+              label="每箱斤数"
+              rules={[{ required: true, message: '请输入每箱斤数' }]}
+            >
+              <InputNumber 
+                min={0} 
+                style={{ width: '100%' }} 
+                placeholder="请输入每箱斤数"
+              />
+            </Form.Item>
 
-          <Form.Item
-            name="amountForBox"
-            label="每箱数量"
-            rules={[{ required: true, message: '请输入每箱数量' }]}
-          >
-            <InputNumber min={0} style={{ width: '100%' }} />
-          </Form.Item>
+            <Form.Item
+              name="amountForBox"
+              label="每箱个数"
+              rules={[{ required: true, message: '请输入每箱个数' }]}
+            >
+              <InputNumber 
+                min={0} 
+                style={{ width: '100%' }} 
+                placeholder="请输入每箱个数"
+              />
+            </Form.Item>
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>
-              确认添加
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
+            <Form.Item
+              name="quantity"
+              label="初始库存数量"
+              rules={[{ required: true, message: '请输入初始库存数量' }]}
+            >
+              <InputNumber 
+                min={0} 
+                style={{ width: '100%' }} 
+                placeholder="请输入初始库存数量"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="unit"
+              label="库存单位"
+              initialValue="piece"
+              rules={[{ required: true, message: '请选择库存单位' }]}
+            >
+              <Select>
+                <Option value="piece">个</Option>
+                <Option value="jin">斤</Option>
+                <Option value="box">箱</Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item>
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button onClick={() => setAddModalVisible(false)}>
+                  取消
+                </Button>
+                <Button type="primary" htmlType="submit" loading={loading}>
+                  确认添加
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* 调整库存弹窗 */}
+        <Modal
+          title={`${adjustType === 'add' ? '添加' : '减少'}库存`}
+          visible={adjustModalVisible}
+          onCancel={() => setAdjustModalVisible(false)}
+          footer={null}
+        >
+          <Form form={form} onFinish={handleAdjustInventory}>
+            <Form.Item
+              name="quantity"
+              label="数量"
+              rules={[{ required: true, message: '请输入数量' }]}
+            >
+              <InputNumber min={0} />
+            </Form.Item>
+            <Form.Item
+              name="remark"
+              label="备注原因"
+              rules={[{ required: true, message: '请输入备注原因' }]}
+            >
+              <Input.TextArea />
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  确认
+                </Button>
+                <Button onClick={() => setAdjustModalVisible(false)}>
+                  取消
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* 详情弹窗 */}
+        <Modal
+          title="库存详情"
+          visible={detailModalVisible}
+          onCancel={() => {
+            setDetailModalVisible(false);
+            setOpLogs([]);
+          }}
+          width={800}
+          footer={null}
+        >
+          {currentItem && (
+            <Table
+              dataSource={opLogs}
+              rowKey={(record) => `${record.objectDetailId}-${record.opType}-${record.operator}`}
+              pagination={false}
+              columns={[
+                {
+                  title: '操作名称',
+                  dataIndex: 'opName',
+                  key: 'opName',
+                },
+                {
+                  title: '操作内容',
+                  dataIndex: 'content',
+                  key: 'content',
+                },
+                {
+                  title: '备注',
+                  dataIndex: 'userRemark',
+                  key: 'userRemark',
+                },
+                {
+                  title: '操作人',
+                  dataIndex: 'operator',
+                  key: 'operator',
+                },
+                {
+                  title: '操作时间',
+                  dataIndex: 'operatorTime',
+                  key: 'operatorTime',
+                  render: (time: number) => dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+                }
+              ]}
+            />
+          )}
+        </Modal>
+
+        {/* 编辑弹窗 */}
+        <Modal
+          title="编辑菜品库存"
+          visible={editModalVisible}
+          onCancel={() => setEditModalVisible(false)}
+          footer={null}
+        >
+          <Form form={form} onFinish={handleEdit}>
+            <Form.Item
+              name="name"
+              label="名称"
+              rules={[{ required: true, message: '请输入名称' }]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              name="jinPerBox"
+              label="单位(斤/箱)"
+              rules={[{ required: true, message: '请输入单位' }]}
+            >
+              <InputNumber min={0} />
+            </Form.Item>
+            <Form.Item
+              name="piecePerBox"
+              label="单位(个/箱)"
+              rules={[{ required: true, message: '请输入单位' }]}
+            >
+              <InputNumber min={0} />
+            </Form.Item>
+            <Form.Item
+              name="remark"
+              label="备注"
+            >
+              <Input.TextArea />
+            </Form.Item>
+            <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  确认
+                </Button>
+                <Button onClick={() => setEditModalVisible(false)}>
+                  取消
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </Modal>
+      </Space>
     </div>
   );
 };

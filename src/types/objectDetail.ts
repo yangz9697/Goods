@@ -70,13 +70,21 @@ export interface PageObjectPriceRequest {
   pageSize: number;
   filters: {
     detailObjectName?: string;
+    startTime?: number;
+    endTime?: number;
   };
 }
 
 export interface ObjectPrice {
-  detailObjectId: number;
-  detailObjectName: string;
-  price: number;
+  amount: number;
+  createTime: number;
+  creator: string;
+  jin: number;
+  objectDetailId: number;
+  objectDetailName: string;
+  priceForAmount: number;
+  priceForBox: number;
+  priceForJin: number;
   updateTime: number;
   updater: string;
 }
@@ -87,4 +95,20 @@ export interface PageObjectPriceResponse {
     totalPage: number;
     items: ObjectPrice[];
   };
+}
+
+export interface ObjectOpLog {
+  content: string;
+  objectDetailId: number;
+  objectDetailName: string;
+  opName: string;
+  opType: string;
+  operator: string;
+  userRemark: string;
+}
+
+export interface QueryObjectOpLogResponse {
+  data: ObjectOpLog[];
+  success: boolean;
+  displayMsg?: string;
 }

@@ -5,7 +5,8 @@ import {
   PageObjectDetailRequest,
   PageObjectDetailResponse,
   PageObjectPriceRequest,
-  PageObjectPriceResponse
+  PageObjectPriceResponse,
+  QueryObjectOpLogResponse
 } from '../types/objectDetail';
 
 export const addObject = async (data: ObjectDetailRequest): Promise<ObjectDetailResponse> => {
@@ -69,5 +70,32 @@ export const pageObjectPrice = async (params: PageObjectPriceRequest): Promise<P
     return response.data;
   } catch (error) {
     throw new Error('获取价格列表失败：' + (error as Error).message);
+  }
+};
+
+export const queryObjectOpLog = async (objectDetailId: number): Promise<QueryObjectOpLogResponse> => {
+  try {
+    const response = await request.get<QueryObjectOpLogResponse>(
+      `/erp/objectDetail/queryObjectOpLog?objectDetailId=${objectDetailId}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('获取操作记录失败：' + (error as Error).message);
+  }
+};
+
+interface UpdatePriceRequest {
+  objectDetailId: number;
+  priceForAmount: number;
+  priceForBox: number;
+  priceForJin: number;
+}
+
+export const updateObjectPrice = async (data: UpdatePriceRequest) => {
+  try {
+    const response = await request.post('/erp/objectDetail/updateObjectPrice', data);
+    return response.data;
+  } catch (error) {
+    throw new Error('修改价格失败：' + (error as Error).message);
   }
 }; 

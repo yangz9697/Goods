@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Input, Modal, Form, InputNumber, message, DatePicker, Typography, Tag } from 'antd';
 import type { Dayjs } from 'dayjs';
 import type { ObjectPrice } from '../../types/objectDetail';
-import { pageObjectPrice } from '../../api/objectDetail';
+import { pageObjectPrice, updateObjectPrice } from '../../api/objectDetail';
 import dayjs from 'dayjs';
 
 const { Search } = Input;
@@ -24,10 +24,19 @@ const Pricing: React.FC = () => {
   const fetchPriceList = async (page: number, size: number, searchKey: string = '') => {
     setLoading(true);
     try {
+      const filters: any = {
+        startTime: selectedDate.format('YYYY-MM-DD 00:00:00'),
+        endTime: selectedDate.format('YYYY-MM-DD 23:59:59')
+      };
+
+      if (searchKey) {
+        filters.detailObjectName = searchKey;
+      }
+
       const response = await pageObjectPrice({
         currentPage: page,
         pageSize: size,
-        filters: searchKey ? { detailObjectName: searchKey } : {}
+        filters
       });
 
       if (response.data) {
@@ -58,45 +67,68 @@ const Pricing: React.FC = () => {
   // 在组件加载时获取数据
   useEffect(() => {
     fetchPriceList(currentPage, pageSize, searchText);
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, selectedDate]);
 
   // 编辑价格
-  const handleEdit = async (_values: any) => {
+  const handleEdit = async (values: any) => {
     try {
       if (!currentItem) return;
 
-      // TODO: 实现编辑价格的 API 调用
-      message.success('价格更新成功');
-      setEditModalVisible(false);
-      form.resetFields();
-      // 刷新列表
-      fetchPriceList(currentPage, pageSize, searchText);
+      const response = await updateObjectPrice({
+        objectDetailId: currentItem.objectDetailId,
+        priceForAmount: values.priceForAmount,
+        priceForBox: values.priceForBox,
+        priceForJin: values.priceForJin
+      });
+
+      if (response.success) {
+        message.success('价格更新成功');
+        setEditModalVisible(false);
+        form.resetFields();
+        // 刷新列表
+        fetchPriceList(currentPage, pageSize, searchText);
+      } else {
+        message.error(response.displayMsg || '价格更新失败');
+      }
     } catch (error) {
-      message.error('价格更新失败');
+      message.error('价格更新失败：' + (error as Error).message);
     }
   };
 
   const columns = [
     {
       title: '名称',
-      dataIndex: 'detailObjectName',
-      key: 'detailObjectName',
+      dataIndex: 'objectDetailName',
+      key: 'objectDetailName',
     },
     {
-      title: '价格',
-      dataIndex: 'price',
-      key: 'price',
-      render: (price: number) => `¥${price.toFixed(2)}`
+      title: '价格(个)',
+      dataIndex: 'priceForAmount',
+      key: 'priceForAmount',
+      render: (price: number) => price ? `¥${price.toFixed(2)}` : '-'
     },
     {
-      title: '操作人',
-      dataIndex: 'updater',
-      key: 'updater',
+      title: '价格(斤)',
+      dataIndex: 'priceForJin',
+      key: 'priceForJin',
+      render: (price: number) => price ? `¥${price.toFixed(2)}` : '-'
+    },
+    {
+      title: '价格(箱)',
+      dataIndex: 'priceForBox',
+      key: 'priceForBox',
+      render: (price: number) => price ? `¥${price.toFixed(2)}` : '-'
     },
     {
       title: '更新时间',
       dataIndex: 'updateTime',
       key: 'updateTime',
+      render: (time: number) => dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+    },
+    {
+      title: '操作人',
+      dataIndex: 'updater',
+      key: 'updater',
     },
     {
       title: '操作',
@@ -105,8 +137,10 @@ const Pricing: React.FC = () => {
         <Button type="link" onClick={() => {
           setCurrentItem(record);
           form.setFieldsValue({
-            name: record.detailObjectName,
-            price: record.price
+            name: record.objectDetailName,
+            priceForAmount: record.priceForAmount,
+            priceForJin: record.priceForJin,
+            priceForBox: record.priceForBox
           });
           setEditModalVisible(true);
         }}>
@@ -166,7 +200,7 @@ const Pricing: React.FC = () => {
 
       {/* 编辑价格弹窗 */}
       <Modal
-        title="编辑菜品价格"
+        title="编辑价格"
         visible={editModalVisible}
         onCancel={() => setEditModalVisible(false)}
         footer={null}
@@ -179,8 +213,22 @@ const Pricing: React.FC = () => {
             <Input disabled />
           </Form.Item>
           <Form.Item
-            name="price"
-            label="价格"
+            name="priceForAmount"
+            label="价格(个)"
+            rules={[{ required: true, message: '请输入价格' }]}
+          >
+            <InputNumber min={0} precision={2} />
+          </Form.Item>
+          <Form.Item
+            name="priceForJin"
+            label="价格(斤)"
+            rules={[{ required: true, message: '请输入价格' }]}
+          >
+            <InputNumber min={0} precision={2} />
+          </Form.Item>
+          <Form.Item
+            name="priceForBox"
+            label="价格(箱)"
             rules={[{ required: true, message: '请输入价格' }]}
           >
             <InputNumber min={0} precision={2} />

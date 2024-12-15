@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Modal, Form, Input, message } from 'antd';
-import { addUser, pageUser, updateUser } from '../../api/customer';
+import { addUser, pageUser, updateUser, deleteUser } from '../../api/customer';
 import dayjs from 'dayjs';
 
 const { Search } = Input;
@@ -124,8 +124,26 @@ const Customers: React.FC = () => {
     }
   };
 
-  const handleDelete = (_record: CustomerType) => {
-    // 删除逻辑
+  // 删除客户
+  const handleDelete = (record: CustomerType) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除客户"${record.name}"吗？`,
+      onOk: async () => {
+        try {
+          const response = await deleteUser(record.userId);
+          
+          if (response.success) {
+            message.success('删除成功');
+            fetchCustomerList(currentPage, pageSize, searchText);
+          } else {
+            message.error(response.displayMsg || '删除失败');
+          }
+        } catch (error) {
+          message.error('删除失败：' + (error as Error).message);
+        }
+      }
+    });
   };
 
   const columns = [
