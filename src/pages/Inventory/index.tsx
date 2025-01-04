@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message, Descriptions, Divider } from 'antd';
+import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message } from 'antd';
 import type { InventoryItem, InventoryLog, UnitType } from '../../types/inventory';
 import type { ObjectOpLog } from '../../types/objectDetail';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import { addObject, pageObjectDetail, deleteObject, updateObjectInventory, queryObjectOpLog } from '../../api/objectDetail';
 import { useNavigate } from 'react-router-dom';
 
@@ -256,7 +256,7 @@ const Inventory: React.FC = () => {
     }
   };
 
-  // 修改打开详情弹窗的处理函数
+  // 修改打开详情弹窗的��理函数
   const handleShowDetail = (record: InventoryItem) => {
     setCurrentItem(record);
     setDetailModalVisible(true);

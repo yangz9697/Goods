@@ -25,8 +25,8 @@ const Pricing: React.FC = () => {
     setLoading(true);
     try {
       const filters: any = {
-        startTime: selectedDate.format('YYYY-MM-DD 00:00:00'),
-        endTime: selectedDate.format('YYYY-MM-DD 23:59:59')
+        startTime: selectedDate.startOf('day').valueOf(),
+        endTime: selectedDate.endOf('day').valueOf()
       };
 
       if (searchKey) {

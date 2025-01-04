@@ -5,7 +5,9 @@ import Inventory from '../pages/Inventory';
 import Pricing from '../pages/Pricing';
 import Customers from '../pages/Customers';
 import SupplyOrders from '../pages/SupplyOrders';
-import OrderDetail from '../pages/OrderDetail';
+import SupplyOrderList from '../pages/SupplyOrders/List';
+import CustomerOrders from '../pages/SupplyOrders/CustomerOrders';
+import OrderDetail from '../pages/SupplyOrders/OrderDetail';
 import Permissions from '../pages/Permissions';
 import PriceManagement from '../pages/PriceManagement';
 
@@ -36,11 +38,21 @@ export const router = createBrowserRouter([
       },
       {
         path: '/supply-orders',
-        element: <SupplyOrders />
-      },
-      {
-        path: '/order/:id',
-        element: <OrderDetail />
+        element: <SupplyOrders />,
+        children: [
+          {
+            path: '',
+            element: <SupplyOrderList />
+          },
+          {
+            path: 'customer/:id',
+            element: <CustomerOrders />
+          },
+          {
+            path: 'order/:id',
+            element: <OrderDetail />
+          }
+        ]
       },
       {
         path: '/permissions',

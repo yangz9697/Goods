@@ -39,13 +39,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     <div>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-          <Title level={3}>供货单</Title>
           <Space>
-            {scaleWeight > 0 && (
-              <Tag color="blue" style={{ fontSize: '16px' }}>
-                电子秤: {scaleWeight} 斤
-              </Tag>
-            )}
+            <Tag color="blue" style={{ fontSize: '16px' }}>
+              电子秤: {scaleWeight} 斤
+            </Tag>
             <Button onClick={() => onPrint(order.id)}>打印</Button>
             <Button onClick={() => onExport(order.id)}>导出PDF</Button>
             {order.deliveryStatus !== 'settled' && (

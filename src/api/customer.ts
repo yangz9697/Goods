@@ -46,4 +46,28 @@ export const deleteUser = async (userId: number) => {
   } catch (error) {
     throw new Error('删除客户失败：' + (error as Error).message);
   }
+};
+
+interface SelectUserResponse {
+  success: boolean;
+  data: Array<{
+    id: number;
+    name: string;
+    mobile: string;
+    remark: string;
+    favorite: string;
+    updateTime: number;
+  }>;
+  displayMsg?: string;
+}
+
+export const selectUser = async (keyword: string): Promise<SelectUserResponse> => {
+  try {
+    const response = await request.get<SelectUserResponse>(
+      `/erp/objectUser/selectUser?keyword=${encodeURIComponent(keyword)}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('搜索客户失败：' + (error as Error).message);
+  }
 }; 
