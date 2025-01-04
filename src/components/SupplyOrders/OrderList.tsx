@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Space, Button, Table, Tag, Tooltip, message } from 'antd';
+import { Space, Button, Table, Tooltip, message } from 'antd';
 import type { OrderType, OrderFilters } from '../../types/order';
-import { getStatusColor, getStatusText } from '../../utils/status';
 import { formatPhone } from '../../utils/format';
 import { OrderModal } from './OrderModal';
 import { addObjectOrder } from '../../api/orders';
@@ -22,6 +21,7 @@ interface OrderListProps {
     name: string;
   } | null;
   onSuccess?: () => void;
+  loading?: boolean;
 }
 
 export const OrderList: React.FC<OrderListProps> = ({
@@ -33,7 +33,8 @@ export const OrderList: React.FC<OrderListProps> = ({
   onPrint,
   onExport,
   selectedCustomer,
-  onSuccess
+  onSuccess,
+  loading
 }) => {
   const [addModalVisible, setAddModalVisible] = useState(false);
 
@@ -67,6 +68,7 @@ export const OrderList: React.FC<OrderListProps> = ({
 
       {/* 订单列表 */}
       <Table
+        loading={loading}
         rowSelection={{
           type: 'checkbox',
           selectedRowKeys: selectedOrders,

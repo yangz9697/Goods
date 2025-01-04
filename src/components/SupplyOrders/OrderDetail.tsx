@@ -1,12 +1,10 @@
 import React from 'react';
-import { Space, Button, Typography, Tag, Form, Row, Col, DatePicker, Input, Select, AutoComplete, Card, Tabs, Popconfirm } from 'antd';
+import { Space, Button, Tag, Form, Row, Col, DatePicker, Input, Select, AutoComplete, Card, Tabs, Popconfirm } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { OrderType, OrderItem } from '../../types/order';
 import { ItemList } from './ItemList';
 import { formatPhone } from '../../utils/format';
-
-const { Title } = Typography;
 
 interface OrderDetailProps {
   order: OrderType;

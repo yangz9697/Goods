@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Space, Button, Typography, Tag, Form, Row, Col, DatePicker, Input, Select, AutoComplete, Card, Tabs, Popconfirm, message, Table, Modal, InputNumber } from 'antd';
+import { Space, Button, Form, Row, Col, DatePicker, Input, Select, AutoComplete, Card, Tabs, Popconfirm, message, Table, Modal, InputNumber, Tag } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { getOrderDetail } from '../../api/orders';
 import { formatPhone } from '../../utils/format';
 import dayjs from 'dayjs';
-
-const { Title } = Typography;
 
 interface OrderItem {
   id: string;
@@ -164,10 +162,6 @@ const OrderDetail: React.FC = () => {
   if (!order) {
     return null;
   }
-
-  const renderQuantity = (record: OrderItem) => {
-    return `${record.quantity}${record.unit === 'jin' ? '斤' : record.unit === 'box' ? '箱' : '个'}`;
-  };
 
   return (
     <div>

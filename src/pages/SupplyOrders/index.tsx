@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs } from 'antd';
+import { Space, Tabs } from 'antd';
 import { useNavigate, useLocation, useSearchParams, Outlet } from 'react-router-dom';
-import { Space } from 'antd';
-import dayjs from 'dayjs';
 
 const SupplyOrders: React.FC = () => {
   const navigate = useNavigate();

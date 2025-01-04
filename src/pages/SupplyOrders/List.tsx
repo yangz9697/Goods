@@ -22,13 +22,13 @@ const SupplyOrderList: React.FC = () => {
       updateTime: number;
     }>;
   }>>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
   const [searchText, setSearchText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // 获取供货单列表
   const fetchOrders = async () => {
-    setLoading(true);
+    setIsLoading(true);
     try {
       const response = await queryObjectOrder({
         startTime: selectedDate.startOf('day').valueOf(),
@@ -43,7 +43,7 @@ const SupplyOrderList: React.FC = () => {
     } catch (error) {
       message.error('获取供货单列表失败: ' + (error as Error).message);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -155,7 +155,7 @@ const SupplyOrderList: React.FC = () => {
       </Card>
 
       {/* 客户列表 */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} style={{ opacity: isLoading ? 0.5 : 1 }}>
         {customerOrders.map(customer => (
           <Col key={customer.userId} xs={24} sm={12} md={8} lg={6}>
             {renderCustomerCard(customer)}

@@ -34,11 +34,11 @@ const CustomerOrders: React.FC = () => {
     const dateParam = searchParams.get('date');
     return dateParam ? dayjs(dateParam) : dayjs();
   });
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchOrders = async () => {
     if (!id) return;
-    setLoading(true);
+    setIsLoading(true);
     try {
       const response = await pageOrder({
         currentPage: 1,
@@ -78,7 +78,7 @@ const CustomerOrders: React.FC = () => {
     } catch (error) {
       message.error('获取供货单列表失败：' + (error as Error).message);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -101,8 +101,9 @@ const CustomerOrders: React.FC = () => {
             value={selectedDate}
             onChange={handleDateChange}
             allowClear={false}
+            disabled={isLoading}
           />
-          <Button onClick={() => navigate('/supply-orders')}>返回</Button>
+          <Button onClick={() => navigate('/supply-orders')} disabled={isLoading}>返回</Button>
         </Space>
       </Card>
 
@@ -114,6 +115,7 @@ const CustomerOrders: React.FC = () => {
           searchText: '',
           searchPhone: ''
         }}
+        loading={isLoading}
         onFiltersChange={() => {}}
         onOrderSelect={setSelectedOrders}
         onOrderEdit={(order) => navigate(`/supply-orders/order/${order.id}`)}

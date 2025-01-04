@@ -133,20 +133,6 @@ export const pageOrder = async (params: PageOrderRequest): Promise<PageOrderResp
   }
 };
 
-interface GetOrderDetailResponse {
-  success: boolean;
-  data: {
-    items: Array<{
-      objectDetailId: number;
-      objectDetailName: string;
-      amount: number;
-      jin: number;
-      box: number;
-    }>;
-  };
-  displayMsg?: string;
-}
-
 export const getOrderDetail = async (id: string) => {
   const response = await fetch(`http://139.224.63.0:8000/erp/orderObject/getObjectListByOrderNo?orderNo=${id}`, {
     headers: {

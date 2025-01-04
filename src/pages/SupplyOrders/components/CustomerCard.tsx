@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Card, List, Button, Tag } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, List, Button } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { pageOrder } from '@/api/orders';
+import { pageOrder } from '../../../api/orders';
 import dayjs from 'dayjs';
 
 interface CustomerCardProps {
@@ -12,7 +12,7 @@ interface CustomerCardProps {
   };
 }
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer }) => {
+export const CustomerCard: React.FC<CustomerCardProps> = ({ customer }) => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer }) => {
     navigate(`/supply-orders/${customer.id}`);
   };
 
-  const handleUrgentClick = async (orderNo: string, e: React.MouseEvent) => {
+  const handleUrgentClick = async (_: string, e: React.MouseEvent) => {
     e.stopPropagation();
     // TODO: 实现加急功能
   };
