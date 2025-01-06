@@ -15,14 +15,20 @@ export interface OrderType {
   customerId: string;
   customerName: string;
   customerPhone: string;
+  status: string;
   date: string;
-  status: 'urgent' | 'adding' | 'preparing' | 'completed' | 'unpaid' | 'settled';
-  remark?: string;
-  isUrgent?: boolean;
-  items: OrderItem[];
   createTime: string;
-  deliveryStatus: 'preparing' | 'adding' | 'checking' | 'completed' | 'settled';
+  items: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    unit: string;
+  }>;
+  remark: string;
+  isUrgent: boolean;
+  deliveryStatus: string;
   deliveryPerson: string;
+  updateTime: number;
 }
 
 export interface OrderFilters {

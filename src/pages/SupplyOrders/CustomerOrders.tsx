@@ -9,7 +9,7 @@ import type { OrderType } from '../../types/order';
 interface OrderResponse {
   orderNo: string;
   orderStatusName: string;
-  orderStatusCode: 'wait' | 'processing' | 'completed';
+  orderStatusCode: string;
   mobile: string;
   userName: string;
   createTime: number;
@@ -57,7 +57,8 @@ const CustomerOrders: React.FC = () => {
           customerId: id,
           customerName: order.userName,
           customerPhone: order.mobile,
-          status: order.orderStatusName,
+          status: order.orderStatusCode,
+          statusName: order.orderStatusName,
           date: dayjs(order.createTime).format('YYYY-MM-DD'),
           createTime: dayjs(order.createTime).format('YYYY-MM-DD HH:mm:ss'),
           items: (order.orderObjectDetailList || []).map(item => ({
@@ -68,9 +69,10 @@ const CustomerOrders: React.FC = () => {
           })),
           remark: order.remark,
           isUrgent: false,
-          deliveryStatus: 'preparing',
-          deliveryPerson: ''
-        } as OrderType));
+          deliveryStatus: order.orderStatusCode,
+          deliveryPerson: '',
+          updateTime: order.updateTime
+        }));
         setOrders(items);
       } else {
         message.error(response.displayMsg || '获取供货单列表失败');
@@ -118,7 +120,16 @@ const CustomerOrders: React.FC = () => {
         loading={isLoading}
         onFiltersChange={() => {}}
         onOrderSelect={setSelectedOrders}
-        onOrderEdit={(order) => navigate(`/supply-orders/order/${order.id}`)}
+        onOrderEdit={(order) => {
+          const params = new URLSearchParams({
+            updateTime: order.updateTime.toString(),
+            customerName: order.customerName,
+            customerPhone: order.customerPhone,
+            orderStatusCode: order.status
+          });
+          
+          navigate(`/supply-orders/order/${order.id}?${params.toString()}`);
+        }}
         onOrderDelete={(id) => {
           // TODO: 实现删除功能
           console.log('删除订单:', id);

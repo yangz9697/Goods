@@ -140,4 +140,81 @@ export const getOrderDetail = async (id: string) => {
     }
   });
   return response.json();
+};
+
+interface DeleteOrderRequest {
+  orderNo: string;
+}
+
+interface DeleteOrderResponse {
+  success: boolean;
+  data: any;
+  displayMsg?: string;
+}
+
+export const deleteOrder = async (orderNo: string): Promise<DeleteOrderResponse> => {
+  try {
+    const response = await fetch('http://139.224.63.0:8000/erp/order/deleteOrder', {
+      method: 'POST',
+      headers: {
+        'x-domain-id': '1000',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ orderNo })
+    });
+    return response.json();
+  } catch (error) {
+    throw new Error('删除订单失败：' + (error as Error).message);
+  }
+};
+
+interface OrderStatus {
+  orderStatusCode: 'add' | 'wait' | 'ready' | 'waitCheck' | 'end';
+  orderStatusName: string;
+}
+
+interface GetOrderStatusResponse {
+  success: boolean;
+  data: OrderStatus[];
+  displayMsg?: string;
+}
+
+export const getOrderAllStatus = async (): Promise<GetOrderStatusResponse> => {
+  try {
+    const response = await fetch('http://139.224.63.0:8000/erp/order/getOrderAllStatus', {
+      headers: {
+        'x-domain-id': '1000'
+      }
+    });
+    return response.json();
+  } catch (error) {
+    throw new Error('获取订单状态列表失败：' + (error as Error).message);
+  }
+};
+
+interface UpdateOrderStatusRequest {
+  orderNo: string;
+  orderStatusCode: 'add' | 'wait' | 'ready' | 'waitCheck' | 'end';
+}
+
+interface UpdateOrderStatusResponse {
+  success: boolean;
+  data: any;
+  displayMsg?: string;
+}
+
+export const updateOrderStatus = async (params: UpdateOrderStatusRequest): Promise<UpdateOrderStatusResponse> => {
+  try {
+    const response = await fetch('http://139.224.63.0:8000/erp/order/updateOrderStatus', {
+      method: 'POST',
+      headers: {
+        'x-domain-id': '1000',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  } catch (error) {
+    throw new Error('更新订单状态失败：' + (error as Error).message);
+  }
 }; 
