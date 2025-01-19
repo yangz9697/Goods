@@ -79,12 +79,9 @@ interface UpdateOrderUrgentResponse {
   displayMsg?: string;
 }
 
-export const updateOrderUrgent = async (data: UpdateOrderUrgentRequest): Promise<UpdateOrderUrgentResponse> => {
+export const updateOrderUrgent = async (data: { orderNo: string, isUrgent: boolean }) => {
   try {
-    const response = await request.post<UpdateOrderUrgentResponse>(
-      '/erp/order/updateOrderUrgent',
-      data
-    );
+    const response = await request.post('/erp/order/urgentOrder', data);
     return response.data;
   } catch (error) {
     throw new Error('更新订单加急状态失败：' + (error as Error).message);
@@ -154,15 +151,11 @@ interface DeleteOrderResponse {
 
 export const deleteOrder = async (orderNo: string): Promise<DeleteOrderResponse> => {
   try {
-    const response = await fetch('http://139.224.63.0:8000/erp/order/deleteOrder', {
-      method: 'POST',
-      headers: {
-        'x-domain-id': '1000',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ orderNo })
-    });
-    return response.json();
+    const response = await request.post<DeleteOrderResponse>(
+      '/erp/order/deleteOrder',
+      { orderNo }
+    );
+    return response.data;
   } catch (error) {
     throw new Error('删除订单失败：' + (error as Error).message);
   }
@@ -216,5 +209,33 @@ export const updateOrderStatus = async (params: UpdateOrderStatusRequest): Promi
     return response.json();
   } catch (error) {
     throw new Error('更新订单状态失败：' + (error as Error).message);
+  }
+};
+
+// 添加搜索用户的接口
+interface SelectUserResponse {
+  success: boolean;
+  data: Array<{
+    id: number;
+    name: string;
+    mobile: string;
+    favorite?: string;
+    remark?: string;
+    createTime: number;
+    updateTime: number;
+    creator: string;
+    updater: string;
+  }>;
+  displayMsg?: string;
+}
+
+export const selectUser = async (keyword: string): Promise<SelectUserResponse> => {
+  try {
+    const response = await request.get<SelectUserResponse>(
+      `/erp/objectUser/selectUser?keyword=${encodeURIComponent(keyword)}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('搜索客户失败：' + (error as Error).message);
   }
 }; 

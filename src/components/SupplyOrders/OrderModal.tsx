@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, DatePicker, Input, message } from 'antd';
+import { Modal, Form, DatePicker, Input, message, AutoComplete } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import { selectUser } from '../../api/orders';
 
 interface OrderModalProps {
   visible: boolean;
@@ -27,6 +28,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [options, setOptions] = useState<Array<{
+    label: string;
+    value: string;
+    userId: number;
+  }>>([]);
 
   useEffect(() => {
     if (visible && selectedCustomer) {
@@ -40,18 +46,42 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
-      await onSubmit({
-        orderSupplyDate: values.date.format('YYYY-MM-DD'),
-        remark: values.remark || '',
-        userId: values.userId
-      });
+      await onSubmit(values);
       form.resetFields();
     } catch (error) {
-      message.error('提交失败：' + (error as Error).message);
-    } finally {
-      setLoading(false);
+      console.error('Form validation error:', error);
+      message.error((error as Error).message || '提交失败');
     }
+  };
+
+  const handleSearch = async (value: string) => {
+    if (!value) {
+      setOptions([]);
+      return;
+    }
+
+    try {
+      const response = await selectUser(value);
+      if (response.success) {
+        const newOptions = response.data.map(user => ({
+          label: `${user.name} (${user.mobile})${user.favorite ? ` - ${user.favorite}` : ''}`,
+          value: user.name,
+          userId: user.id
+        }));
+        setOptions(newOptions);
+      }
+    } catch (error) {
+      message.error('搜索客户失败：' + (error as Error).message);
+    }
+  };
+
+  const handleSelect = (value: string, option: any) => {
+    console.log('Selected option:', option);
+    form.setFieldsValue({
+      userId: Number(option.userId),
+      customerName: option.value,
+      date: form.getFieldValue('date') || defaultDate
+    });
   };
 
   return (
@@ -72,13 +102,27 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           date: defaultDate
         }}
       >
+        {!selectedCustomer && (
+          <Form.Item
+            label="搜索客户"
+            required
+          >
+            <AutoComplete
+              options={options}
+              onSearch={handleSearch}
+              onSelect={handleSelect}
+              placeholder="输入姓名或手机号搜索"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        )}
+
         <Form.Item
-          label="客户ID"
           name="userId"
-          hidden={!!selectedCustomer}
-          rules={[{ required: true, message: '请输入客户ID' }]}
+          hidden
+          rules={[{ required: true, message: '请选择客户' }]}
         >
-          <Input disabled={!!selectedCustomer} />
+          <Input />
         </Form.Item>
 
         <Form.Item

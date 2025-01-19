@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { OrderList } from '../../components/SupplyOrders/OrderList';
-import { pageOrder } from '../../api/orders';
+import { pageOrder, deleteOrder } from '../../api/orders';
 import { message, Card, DatePicker, Space, Button } from 'antd';
 import dayjs from 'dayjs';
 import type { OrderType } from '../../types/order';
@@ -88,20 +88,13 @@ const CustomerOrders: React.FC = () => {
     fetchOrders();
   }, [id, selectedDate]);
 
-  const handleDateChange = (date: dayjs.Dayjs | null) => {
-    if (date) {
-      setSelectedDate(date);
-      navigate(`/supply-orders/customer/${id}?date=${date.format('YYYY-MM-DD')}`);
-    }
-  };
-
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Card>
         <Space>
           <DatePicker
             value={selectedDate}
-            onChange={handleDateChange}
+            onChange={(date) => date && setSelectedDate(date)}
             allowClear={false}
             disabled={isLoading}
           />
@@ -127,12 +120,20 @@ const CustomerOrders: React.FC = () => {
             customerPhone: order.customerPhone,
             orderStatusCode: order.status
           });
-          
           navigate(`/supply-orders/order/${order.id}?${params.toString()}`);
         }}
-        onOrderDelete={(id) => {
-          // TODO: 实现删除功能
-          console.log('删除订单:', id);
+        onOrderDelete={async (orderNo) => {
+          try {
+            const response = await deleteOrder(orderNo);
+            if (response.success) {
+              message.success('删除订单成功');
+              fetchOrders();
+            } else {
+              message.error(response.displayMsg || '删除订单失败');
+            }
+          } catch (error) {
+            message.error((error as Error).message);
+          }
         }}
         onPrint={(ids) => console.log('打印订单:', ids)}
         onExport={(ids) => console.log('导出订单:', ids)}

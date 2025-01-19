@@ -808,16 +808,18 @@ const OrderDetail: React.FC = () => {
                   }
                 ]}
               />
-              <Button
-                type="dashed"
-                block
-                icon={<PlusOutlined />}
-                onClick={() => setIsAdding(true)}
-                style={{ marginTop: 16 }}
-                disabled={isAdding}
-              >
-                添加货品
-              </Button>
+              {activeTab === 'all' && (
+                <Button
+                  type="dashed"
+                  block
+                  icon={<PlusOutlined />}
+                  onClick={() => setIsAdding(true)}
+                  style={{ marginTop: 16 }}
+                  disabled={isAdding}
+                >
+                  添加货品
+                </Button>
+              )}
             </Card>
 
             <Row justify="end" style={{ marginTop: 16 }}>

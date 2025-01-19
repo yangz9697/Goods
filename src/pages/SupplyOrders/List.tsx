@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Space, DatePicker, Input, Button, message } from 'antd';
+import { Row, Col, Card, Space, DatePicker, Input, Button, message, Tag, Modal } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { OrderModal } from '../../components/SupplyOrders/OrderModal';
-import { queryObjectOrder, addObjectOrder } from '../../api/orders';
+import { queryObjectOrder, addObjectOrder, updateOrderUrgent } from '../../api/orders';
 import dayjs from 'dayjs';
 
 const { Search } = Input;
+
+interface QueryObjectOrderRequest {
+  startTime: number;
+  endTime: number;
+  keyWord?: string;
+}
 
 const SupplyOrderList: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +31,12 @@ const SupplyOrderList: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+  } | null>(null);
+  const [expandedCustomer, setExpandedCustomer] = useState<typeof customerOrders[0] | null>(null);
 
   // 获取供货单列表
   const fetchOrders = async () => {
@@ -32,7 +44,8 @@ const SupplyOrderList: React.FC = () => {
     try {
       const response = await queryObjectOrder({
         startTime: selectedDate.startOf('day').valueOf(),
-        endTime: selectedDate.endOf('day').valueOf()
+        endTime: selectedDate.endOf('day').valueOf(),
+        keyWord: searchText || undefined
       });
 
       if (response.success) {
@@ -74,56 +87,157 @@ const SupplyOrderList: React.FC = () => {
 
   // 处理新建供货单
   const handleAddOrder = async (values: any) => {
+    if (!values.userId) {
+      message.error('请选择客户');
+      return;
+    }
+
     try {
       const response = await addObjectOrder({
-        orderSupplyDate: values.date.format('YYYY-MM-DD'),
+        orderSupplyDate: (values.date || selectedDate).format('YYYY-MM-DD'),
         remark: values.remark || '',
-        userId: Number(values.customerId)
+        userId: Number(values.userId)
       });
 
-      if (response.success) {
+      if (response?.success) {
         message.success('供货单创建成功');
         setAddModalVisible(false);
-        // 刷新列表
+        setSelectedCustomer(null);
         fetchOrders();
-        // 跳转到新创建的订单详情页
         if (response.data?.orderNo) {
           navigate(`/supply-orders/order/${response.data.orderNo}`);
         }
       } else {
-        message.error(response.displayMsg || '创建供货单失败');
+        message.error(response?.displayMsg || '创建供货单失败');
       }
     } catch (error) {
-      message.error('创建供货单失败：' + (error as Error).message);
+      message.error('创建供货单失败：' + (error instanceof Error ? error.message : '未知错误'));
     }
   };
 
   // 渲染客户卡片
   const renderCustomerCard = (customer: typeof customerOrders[0]) => (
     <Card
-      title={customer.userName || '未命名客户'}
-      extra={customer.mobile}
+      title={
+        <Space>
+          <span>{customer.userName || '未命名客户'}</span>
+          <span style={{ color: '#666' }}>{customer.mobile}</span>
+        </Space>
+      }
       hoverable
-      onClick={() => navigate(`/supply-orders/customer/${customer.userId}?name=${encodeURIComponent(customer.userName || '')}&date=${selectedDate.format('YYYY-MM-DD')}`)}
+      onClick={() => {
+        // 如果只有一个订单，直接进入订单详情
+        if (customer.orderInfoList.length === 1) {
+          navigate(`/supply-orders/order/${customer.orderInfoList[0].orderNo}`);
+        } else if (customer.orderInfoList.length > 1) {
+          // 如果有多个订单，展开订单列表
+          setExpandedCustomer(customer);
+        }
+      }}
     >
-      <p>最近订单：{customer.orderInfoList.length}个</p>
-      {customer.orderInfoList.slice(0, 2).map(order => (
-        <div key={order.orderNo} style={{ marginBottom: 8 }}>
-          <div style={{ 
-            display: 'grid',
-            gridTemplateColumns: '1fr auto',
-            fontSize: '12px',
-            color: '#666'
-          }}>
-            <span>{order.orderNo}</span>
-            <span>{order.isUrgent ? '加急' : '普通'}</span>
-          </div>
-          <div style={{ fontSize: '14px' }}>{order.remark || '无备注'}</div>
+      {/* 订单列表 */}
+      <div style={{ marginBottom: 16 }}>
+        {/* 表头 */}
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: '2fr 1fr 2fr auto',
+          gap: '8px',
+          padding: '8px 0',
+          borderBottom: '1px solid #f0f0f0',
+          fontSize: '12px',
+          color: '#666'
+        }}>
+          <span>订单号</span>
+          <span>状态</span>
+          <span>备注</span>
+          <span>操作</span>
         </div>
-      ))}
-      {customer.orderInfoList.length > 2 && (
-        <div style={{ textAlign: 'center', color: '#999', fontSize: 12 }}>...</div>
-      )}
+        
+        {/* 订单数据 */}
+        {customer.orderInfoList.slice(0, 2).map(order => (
+          <div key={order.orderNo} style={{ 
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr 2fr auto',
+            gap: '8px',
+            padding: '8px 0',
+            borderBottom: '1px solid #f0f0f0',
+            alignItems: 'center'
+          }}>
+            <span>
+              {order.isUrgent && (
+                <Tag color="red" style={{ marginRight: 8 }}>加急</Tag>
+              )}
+              {order.orderNo}
+            </span>
+            <span>{order.orderStatus}</span>
+            <span style={{ 
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>{order.remark || '无备注'}</span>
+            <div>
+              {!order.isUrgent && (
+                <Button 
+                  type="link" 
+                  size="small"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      const response = await updateOrderUrgent({
+                        orderNo: order.orderNo,
+                        isUrgent: true
+                      });
+                      
+                      if (response.success) {
+                        message.success('设置加急成功');
+                        fetchOrders();
+                      } else {
+                        message.error(response.displayMsg || '设置加急失败');
+                      }
+                    } catch (error) {
+                      message.error('设置加急失败：' + (error as Error).message);
+                    }
+                  }}
+                >
+                  加急
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* 如果有更多订单，显示省略号 */}
+        {customer.orderInfoList.length > 2 && (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '8px 0',
+            color: '#999',
+            fontSize: '12px',
+            borderBottom: '1px solid #f0f0f0'
+          }}>
+            ···
+          </div>
+        )}
+      </div>
+
+      {/* 底部按钮 */}
+      <Button 
+        type="dashed" 
+        block
+        onClick={(e) => {
+          e.stopPropagation();  // 阻止卡片点击事件
+          setAddModalVisible(true);
+          // 传入当前客户信息到 OrderModal
+          const selectedCustomer = {
+            id: String(customer.userId),
+            name: customer.userName || '',
+            phone: customer.mobile || ''
+          };
+          setSelectedCustomer(selectedCustomer);  // 需要添加这个状态
+        }}
+      >
+        新建供货单
+      </Button>
     </Card>
   );
 
@@ -166,11 +280,105 @@ const SupplyOrderList: React.FC = () => {
       {/* 新建供货单弹窗 */}
       <OrderModal
         visible={addModalVisible}
-        onCancel={() => setAddModalVisible(false)}
+        onCancel={() => {
+          setAddModalVisible(false);
+          setSelectedCustomer(null);  // 关闭时清空选中的客户
+        }}
         onSubmit={handleAddOrder}
-        selectedCustomer={null}
+        selectedCustomer={selectedCustomer}  // 传入选中的客户
         defaultDate={selectedDate}
       />
+
+      {/* 订单列表弹窗 */}
+      <Modal
+        title={`${expandedCustomer?.userName || '未命名客户'}的订单列表`}
+        open={!!expandedCustomer}
+        onCancel={() => setExpandedCustomer(null)}
+        footer={null}
+        width={800}
+      >
+        {expandedCustomer && (
+          <div>
+            {/* 表头 */}
+            <div style={{ 
+              display: 'grid',
+              gridTemplateColumns: '2fr 1fr 2fr auto',
+              gap: '8px',
+              padding: '12px 0',
+              borderBottom: '1px solid #f0f0f0',
+              fontWeight: 'bold'
+            }}>
+              <span>订单号</span>
+              <span>状态</span>
+              <span>备注</span>
+              <span>操作</span>
+            </div>
+            
+            {/* 订单列表 */}
+            {expandedCustomer.orderInfoList.map(order => (
+              <div 
+                key={order.orderNo} 
+                style={{ 
+                  display: 'grid',
+                  gridTemplateColumns: '2fr 1fr 2fr auto',
+                  gap: '8px',
+                  padding: '12px 0',
+                  borderBottom: '1px solid #f0f0f0',
+                  cursor: 'pointer',
+                  alignItems: 'center',
+                  ':hover': {
+                    backgroundColor: '#f5f5f5'
+                  }
+                }}
+                onClick={() => {
+                  navigate(`/supply-orders/order/${order.orderNo}`);
+                  setExpandedCustomer(null);
+                }}
+              >
+                <span>
+                  {order.isUrgent && (
+                    <Tag color="red" style={{ marginRight: 8 }}>加急</Tag>
+                  )}
+                  {order.orderNo}
+                </span>
+                <span>{order.orderStatus}</span>
+                <span style={{ 
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>{order.remark || '无备注'}</span>
+                <div onClick={e => e.stopPropagation()}>
+                  {!order.isUrgent && (
+                    <Button 
+                      type="link" 
+                      size="small"
+                      onClick={async () => {
+                        try {
+                          const response = await updateOrderUrgent({
+                            orderNo: order.orderNo,
+                            isUrgent: true
+                          });
+                          
+                          if (response.success) {
+                            message.success('设置加急成功');
+                            fetchOrders();
+                          } else {
+                            message.error(response.displayMsg || '设置加急失败');
+                          }
+                        } catch (error) {
+                          message.error('设置加急失败：' + (error as Error).message);
+                        }
+                      }}
+                    >
+                      加急
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </Space>
   );
 };

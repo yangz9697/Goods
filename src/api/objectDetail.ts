@@ -98,4 +98,57 @@ export const updateObjectPrice = async (data: UpdatePriceRequest) => {
   } catch (error) {
     throw new Error('修改价格失败：' + (error as Error).message);
   }
+};
+
+interface UpdateObjectRequest {
+  objectDetailId: number;
+  amountForBox: number;
+  jinForBox: number;
+  objectDetailName: string;
+  tenant?: string;
+}
+
+interface UpdateObjectResponse {
+  success: boolean;
+  data: any;
+  displayMsg?: string;
+}
+
+export const updateObject = async (data: UpdateObjectRequest): Promise<UpdateObjectResponse> => {
+  try {
+    const response = await request.post<UpdateObjectResponse>(
+      '/erp/objectDetail/updateObject',
+      data
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('更新商品失败：' + (error as Error).message);
+  }
+};
+
+export interface UpdateObjectUnitAndPriceRequest {
+  objectDetailId: number;
+  amount?: number;  // 每箱个数
+  jin?: number;     // 每箱斤数
+  priceForAmount?: number;
+  priceForBox?: number;
+  priceForJin?: number;
+}
+
+export interface UpdateObjectUnitAndPriceResponse {
+  success: boolean;
+  data: any;
+  displayMsg?: string;
+}
+
+export const updateObjectUnitAndPrice = async (data: UpdateObjectUnitAndPriceRequest): Promise<UpdateObjectUnitAndPriceResponse> => {
+  try {
+    const response = await request.post<UpdateObjectUnitAndPriceResponse>(
+      '/erp/objectDetail/updateObjectUnitAndPrice',
+      data
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('更新商品单位和价格失败：' + (error as Error).message);
+  }
 }; 

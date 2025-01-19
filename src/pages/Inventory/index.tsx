@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message } from 'antd';
-import type { InventoryItem, InventoryLog, UnitType } from '../../types/inventory';
+import type { InventoryItem, UnitType } from '../../types/inventory';
 import type { ObjectOpLog } from '../../types/objectDetail';
 import dayjs from 'dayjs';
-import { addObject, pageObjectDetail, deleteObject, updateObjectInventory, queryObjectOpLog } from '../../api/objectDetail';
+import { addObject, pageObjectDetail, deleteObject, updateObjectInventory, queryObjectOpLog, updateObjectUnitAndPrice, UpdateObjectUnitAndPriceRequest } from '../../api/objectDetail';
 import { useNavigate } from 'react-router-dom';
 
 const { Search } = Input;
 const { Option } = Select;
-
-// 删除未使用的模拟数据
-const mockLogs: InventoryLog[] = [];
 
 const Inventory: React.FC = () => {
   const navigate = useNavigate();
@@ -85,12 +82,37 @@ const Inventory: React.FC = () => {
   const handleAdd = async (values: any) => {
     setLoading(true);
     try {
+      const { amountForBox, jinForBox, name, unit, quantity } = values;
+      
+      // 根据选择的单位和数量,计算其他单位的数量
+      let amount = 0, jin = 0, box = 0;
+      
+      switch (unit) {
+        case 'piece':
+          amount = quantity;
+          box = quantity / amountForBox;
+          jin = box * jinForBox;
+          break;
+        case 'jin':
+          jin = quantity;
+          box = quantity / jinForBox;
+          amount = box * amountForBox;
+          break;
+        case 'box':
+          box = quantity;
+          jin = quantity * jinForBox;
+          amount = quantity * amountForBox;
+          break;
+      }
+
       const requestData = {
-        amountForBox: values.amountForBox,
-        jinForBox: values.jinForBox,
-        objectDetailName: values.name,
+        amountForBox,
+        jinForBox,
+        objectDetailName: name,
         tenant: 'default',
-        [values.unit === 'piece' ? 'amount' : values.unit]: values.quantity
+        amount: Math.round(amount * 100) / 100,
+        jin: Math.round(jin * 100) / 100,
+        box: Math.round(box * 100) / 100
       };
 
       const response = await addObject(requestData);
@@ -145,7 +167,7 @@ const Inventory: React.FC = () => {
           requestData.amount = quantity;
           break;
       }
-
+      
       const response = await updateObjectInventory(requestData);
 
       if (response.success) {
@@ -167,56 +189,24 @@ const Inventory: React.FC = () => {
     try {
       if (!currentItem) return;
 
-      // 检查名称是否与其他商品重复
-      if (values.name !== currentItem.name && 
-          inventoryData.some(item => item.name === values.name)) {
-        message.error(`${values.name}菜品已存在`);
-        return;
-      }
-
-      // 重新计算库存数量
-      const boxQuantity = currentItem.boxQuantity;
-      const jinQuantity = boxQuantity * values.jinPerBox;
-      const pieceQuantity = boxQuantity * values.piecePerBox;
-
-      const updatedItem = {
-        ...currentItem,
-        name: values.name,
-        jinPerBox: values.jinPerBox,
-        piecePerBox: values.piecePerBox,
-        jinQuantity,
-        pieceQuantity,
-        updateTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        operator: '当前用户'
+      const requestData: UpdateObjectUnitAndPriceRequest = {
+        objectDetailId: Number(currentItem.id),
+        amount: values.piecePerBox,  // 每箱个数
+        jin: values.jinPerBox        // 每箱斤数
       };
 
-      // 添加操作日志
-      mockLogs.push({
-        id: String(Date.now()),
-        itemId: updatedItem.id,
-        itemName: updatedItem.name,
-        operationType: 'edit_item',
-        quantity: 0,
-        unit: 'box',
-        boxQuantity: updatedItem.boxQuantity,
-        jinQuantity: updatedItem.jinQuantity,
-        pieceQuantity: updatedItem.pieceQuantity,
-        jinPerBox: updatedItem.jinPerBox,
-        piecePerBox: updatedItem.piecePerBox,
-        remark: values.remark || '编辑商品信息',
-        operateTime: updatedItem.updateTime,
-        operator: updatedItem.operator
-      });
+      const response = await updateObjectUnitAndPrice(requestData);
 
-      setInventoryData(inventoryData.map(item => 
-        item.id === currentItem.id ? updatedItem : item
-      ));
-
-      message.success('编辑成功');
-      setEditModalVisible(false);
-      form.resetFields();
+      if (response.success) {
+        message.success('编辑成功');
+        setEditModalVisible(false);
+        form.resetFields();
+        fetchObjectList(currentPage, pageSize);
+      } else {
+        message.error(response.displayMsg || '编辑失败');
+      }
     } catch (error) {
-      message.error('编辑失败');
+      message.error('编辑失败：' + (error as Error).message);
     }
   };
 
@@ -256,7 +246,7 @@ const Inventory: React.FC = () => {
     }
   };
 
-  // 修改打开详情弹窗的��理函数
+  // 修改打开详情弹窗的理函数
   const handleShowDetail = (record: InventoryItem) => {
     setCurrentItem(record);
     setDetailModalVisible(true);
@@ -281,6 +271,7 @@ const Inventory: React.FC = () => {
               setCurrentItem(record);
               setAdjustType('add');
               setAdjustUnit('box');
+              form.resetFields();  // 重置表单
               setAdjustModalVisible(true);
             }}>+</Button>
             <Button onClick={() => {
@@ -422,6 +413,7 @@ const Inventory: React.FC = () => {
             form={form}
             onFinish={handleAdd}
             layout="vertical"
+            preserve={false}
           >
             <Form.Item
               name="name"
@@ -497,10 +489,17 @@ const Inventory: React.FC = () => {
         <Modal
           title={`${adjustType === 'add' ? '添加' : '减少'}库存`}
           visible={adjustModalVisible}
-          onCancel={() => setAdjustModalVisible(false)}
+          onCancel={() => {
+            setAdjustModalVisible(false);
+            form.resetFields();  // 关闭时重置表单
+          }}
           footer={null}
         >
-          <Form form={form} onFinish={handleAdjustInventory}>
+          <Form 
+            form={form} 
+            onFinish={handleAdjustInventory}
+            preserve={false}
+          >
             <Form.Item
               name="quantity"
               label="数量"
@@ -520,7 +519,10 @@ const Inventory: React.FC = () => {
                 <Button type="primary" htmlType="submit">
                   确认
                 </Button>
-                <Button onClick={() => setAdjustModalVisible(false)}>
+                <Button onClick={() => {
+                  setAdjustModalVisible(false);
+                  form.resetFields();
+                }}>
                   取消
                 </Button>
               </Space>
@@ -578,12 +580,20 @@ const Inventory: React.FC = () => {
 
         {/* 编辑弹窗 */}
         <Modal
-          title="编辑菜品库存"
+          title="编辑菜品"
           visible={editModalVisible}
-          onCancel={() => setEditModalVisible(false)}
+          onCancel={() => {
+            setEditModalVisible(false);
+            form.resetFields();
+          }}
           footer={null}
         >
-          <Form form={form} onFinish={handleEdit}>
+          <Form 
+            form={form} 
+            onFinish={handleEdit}
+            preserve={false}
+            initialValues={currentItem || undefined}
+          >
             <Form.Item
               name="name"
               label="名称"
@@ -596,27 +606,24 @@ const Inventory: React.FC = () => {
               label="单位(斤/箱)"
               rules={[{ required: true, message: '请输入单位' }]}
             >
-              <InputNumber min={0} />
+              <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item
               name="piecePerBox"
               label="单位(个/箱)"
               rules={[{ required: true, message: '请输入单位' }]}
             >
-              <InputNumber min={0} />
-            </Form.Item>
-            <Form.Item
-              name="remark"
-              label="备注"
-            >
-              <Input.TextArea />
+              <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item>
               <Space>
                 <Button type="primary" htmlType="submit">
                   确认
                 </Button>
-                <Button onClick={() => setEditModalVisible(false)}>
+                <Button onClick={() => {
+                  setEditModalVisible(false);
+                  form.resetFields();
+                }}>
                   取消
                 </Button>
               </Space>
