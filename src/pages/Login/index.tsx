@@ -19,10 +19,14 @@ const Login: React.FC = () => {
   const onFinish = async (values: { username: string; password: string }) => {
     try {
       const res = await authApi.login(values);
-      console.log(res);
       if (res.success) {
+        // 存储所有需要的用户信息
         localStorage.setItem('accountId', res.data.accountId.toString());
-        localStorage.setItem('username', res.data.name);
+        localStorage.setItem('name', res.data.name);
+        localStorage.setItem('role', res.data.role);
+        localStorage.setItem('tenant', res.data.tenant);
+        localStorage.setItem('username', res.data.username);
+        
         message.success('登录成功');
         navigate('/');
       } else {
@@ -50,11 +54,10 @@ const Login: React.FC = () => {
           <Form.Item
             name="username"
             rules={[
-              { required: true, message: '请输入手机号' },
-              { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }
+              { required: true, message: '请输入账户名称' }
             ]}
           >
-            <Input placeholder="请输入手机号" />
+            <Input placeholder="请输入账户名称" />
           </Form.Item>
 
           <Form.Item

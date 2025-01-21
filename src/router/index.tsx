@@ -11,6 +11,7 @@ import OrderDetail from '../pages/SupplyOrders/OrderDetail';
 import Permissions from '../pages/Permissions';
 import PriceManagement from '../pages/PriceManagement';
 import Login from '../pages/Login';
+import Tenants from '../pages/Tenants';
 
 // 创建一个需要认证的路由包装组件
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -81,6 +82,10 @@ export const routes: RouteObject[] = [
       {
         path: '/price-management',
         element: <PriceManagement />,
+      },
+      {
+        path: '/tenants',
+        element: <Tenants />
       }
     ]
   }
