@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouteObject } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Dashboard from '../pages/Dashboard';
 import Inventory from '../pages/Inventory';
@@ -10,11 +10,31 @@ import CustomerOrders from '../pages/SupplyOrders/CustomerOrders';
 import OrderDetail from '../pages/SupplyOrders/OrderDetail';
 import Permissions from '../pages/Permissions';
 import PriceManagement from '../pages/PriceManagement';
+import Login from '../pages/Login';
 
-export const router = createBrowserRouter([
+// 创建一个需要认证的路由包装组件
+const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const accountId = localStorage.getItem('accountId');
+  
+  if (!accountId) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export const routes: RouteObject[] = [
+  {
+    path: '/login',
+    element: <Login />,
+  },
   {
     path: '/',
-    element: <Layout />,
+    element: (
+      <RequireAuth>
+        <Layout />
+      </RequireAuth>
+    ),
     children: [
       {
         path: '/',
@@ -64,4 +84,6 @@ export const router = createBrowserRouter([
       }
     ]
   }
-]); 
+];
+
+export const router = createBrowserRouter(routes); 

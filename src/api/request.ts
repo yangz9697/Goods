@@ -7,7 +7,6 @@ const request = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
   headers: {
-    'X-DOMAIN-ID': '1000',
     'Content-Type': 'application/json'
   }
 });
@@ -15,8 +14,14 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
-    // 确保每个请求都带上 X-DOMAIN-ID
-    config.headers['X-DOMAIN-ID'] = '1000';
+    // 添加 x-domain-id 头部
+    const accountId = localStorage.getItem('accountId');
+    if (accountId) {
+      config.headers['x-domain-id'] = accountId;
+    } else {
+      // 临时写死的 domain-id，后续移除
+      // config.headers['x-domain-id'] = '1737289376029';
+    }
     return config;
   },
   (error) => {
