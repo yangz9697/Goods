@@ -55,17 +55,17 @@ const AppLayout: React.FC = () => {
       icon: <FileTextOutlined />,
       label: '供货单列表'
     },
-    {
+    (role === 'admin' || role === 'manager') && {
       key: '/permissions',
       icon: <LockOutlined />,
       label: '权限管理'
     },
-    {
+    role === 'admin' && {
       key: '/tenants',
       icon: <ShopOutlined />,
       label: '门店管理'
     }
-  ];
+  ].filter(Boolean);
 
   useEffect(() => {
     if (role === 'admin') {

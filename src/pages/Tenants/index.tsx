@@ -2,11 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { Table, Input, Button, Space, message, Modal, Form, Popconfirm } from 'antd';
 import { SearchOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { tenantApi, TenantItem } from '@/api/tenant';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
 const { Search } = Input;
 
 const Tenants: React.FC = () => {
+  const navigate = useNavigate();
+  const role = localStorage.getItem('role');
+  
+  // 如果不是管理员，重定向到首页
+  useEffect(() => {
+    if (role !== 'admin') {
+      message.error('没有访问权限');
+      navigate('/');
+    }
+  }, [role, navigate]);
+
+  // 如果不是管理员，不渲染内容
+  if (role !== 'admin') {
+    return null;
+  }
+
   const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<TenantItem[]>([]);
   const [total, setTotal] = useState(0);

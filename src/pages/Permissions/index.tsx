@@ -2,10 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Tag, message, Modal, Form, Input, Select } from 'antd';
 import { accountApi, AccountItem } from '@/api/account';
 import { authApi } from '@/api/auth';
+import { useNavigate } from 'react-router-dom';
 
 const { Option } = Select;
 
 const Permissions: React.FC = () => {
+  const navigate = useNavigate();
+  const role = localStorage.getItem('role');
+  
+  // 如果不是管理员或经理，重定向到首页
+  useEffect(() => {
+    if (role !== 'admin' && role !== 'manager') {
+      message.error('没有访问权限');
+      navigate('/');
+    }
+  }, [role, navigate]);
+
+  // 如果不是管理员或经理，不渲染内容
+  if (role !== 'admin' && role !== 'manager') {
+    return null;
+  }
+
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [total, setTotal] = useState(0);

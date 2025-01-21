@@ -24,6 +24,17 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// 创建一个需要管理员或经理权限的路由包装组件
+const RequireManagerOrAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const role = localStorage.getItem('role');
+  
+  if (role !== 'admin' && role !== 'manager') {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export const routes: RouteObject[] = [
   {
     path: '/login',
@@ -77,7 +88,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: '/permissions',
-        element: <Permissions />
+        element: (
+          <RequireManagerOrAdmin>
+            <Permissions />
+          </RequireManagerOrAdmin>
+        )
       },
       {
         path: '/price-management',
@@ -85,7 +100,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: '/tenants',
-        element: <Tenants />
+        element: (
+          <RequireAdmin>
+            <Tenants />
+          </RequireAdmin>
+        )
       }
     ]
   }
