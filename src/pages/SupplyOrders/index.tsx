@@ -2,21 +2,17 @@ import React from 'react';
 import { Tabs } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-const { TabPane } = Tabs;
-
 const SupplyOrders: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  console.log('SupplyOrders render, location:', location.pathname);
 
-  // 根据当前路径确定激活的 tab
   const getActiveKey = () => {
-    if (location.pathname.includes('/detail/')) {
-      return 'detail';
-    }
-    if (location.pathname.includes('/list')) {
-      return 'list';
-    }
-    return 'customers';
+    const key = location.pathname.includes('/detail/') ? 'detail' 
+      : location.pathname.includes('/list') ? 'list' 
+      : 'customers';
+    console.log('Active tab key:', key);
+    return key;
   };
 
   const handleTabChange = (key: string) => {
@@ -28,7 +24,6 @@ const SupplyOrders: React.FC = () => {
         navigate('/supply-orders/list');
         break;
       case 'detail':
-        // 如果已经在详情页，保持当前 URL
         if (!location.pathname.includes('/detail/')) {
           navigate('/supply-orders/list');
         }
@@ -40,11 +35,24 @@ const SupplyOrders: React.FC = () => {
 
   return (
     <div>
-      <Tabs activeKey={getActiveKey()} onChange={handleTabChange}>
-        <TabPane tab="客户供货单" key="customers" />
-        <TabPane tab="供货单列表" key="list" />
-        <TabPane tab="供货单详情" key="detail" />
-      </Tabs>
+      <Tabs 
+        activeKey={getActiveKey()} 
+        onChange={handleTabChange}
+        items={[
+          {
+            key: 'customers',
+            label: '客户供货单'
+          },
+          {
+            key: 'list',
+            label: '供货单列表'
+          },
+          {
+            key: 'detail',
+            label: '供货单详情'
+          }
+        ]}
+      />
       <div style={{ padding: '16px 0' }}>
         <Outlet />
       </div>

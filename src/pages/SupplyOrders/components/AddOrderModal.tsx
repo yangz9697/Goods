@@ -71,7 +71,7 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
       
       const res = await orderApi.addObjectOrder({
         userId: values.userId,
-        orderSupplyDate: values.orderSupplyDate,
+        orderSupplyDate: values.orderSupplyDate.format('YYYY-MM-DD'),
         remark: values.remark || ''
       });
 
@@ -122,7 +122,10 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
           label="供货日期"
           rules={[{ required: true, message: '请选择供货日期' }]}
         >
-          <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: '100%' }} />
+          <DatePicker 
+            format="YYYY-MM-DD" 
+            style={{ width: '100%' }} 
+          />
         </Form.Item>
 
         <Form.Item

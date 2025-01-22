@@ -1,11 +1,5 @@
 import request from './request';
 
-// 使用统一的请求实例
-export const someOrderApi = async () => {
-  const response = await request.get('/some/endpoint');
-  return response.data;
-};
-
 interface QueryObjectOrderRequest {
   startTime: number;
   endTime: number;
@@ -134,19 +128,6 @@ export const pageOrder = async (params: PageOrderRequest): Promise<PageOrderResp
   }
 };
 
-export const getOrderDetail = async (id: string) => {
-  const response = await fetch(`http://139.224.63.0:8000/erp/orderObject/getObjectListByOrderNo?orderNo=${id}`, {
-    headers: {
-      'x-domain-id': '1000'
-    }
-  });
-  return response.json();
-};
-
-interface DeleteOrderRequest {
-  orderNo: string;
-}
-
 interface DeleteOrderResponse {
   success: boolean;
   data: any;
@@ -175,19 +156,6 @@ interface GetOrderStatusResponse {
   data: OrderStatus[];
   displayMsg?: string;
 }
-
-export const getOrderAllStatus = async (): Promise<GetOrderStatusResponse> => {
-  try {
-    const response = await fetch('http://139.224.63.0:8000/erp/order/getOrderAllStatus', {
-      headers: {
-        'x-domain-id': '1000'
-      }
-    });
-    return response.json();
-  } catch (error) {
-    throw new Error('获取订单状态列表失败：' + (error as Error).message);
-  }
-};
 
 interface UpdateOrderStatusRequest {
   orderNo: string;
@@ -292,6 +260,40 @@ interface AddOrderResponse {
   displayMsg?: string;
 }
 
+interface UpdateOrderPayStatusRequest {
+  orderNo: string;
+  orderPayStatusCode: 'waitPay' | 'paySuccess';
+}
+
+interface UpdateOrderPayStatusResponse {
+  success: boolean;
+  displayMsg?: string;
+}
+
+interface GetObjectListResponse {
+  success: boolean;
+  data: any;
+  displayMsg?: string;
+}
+
+// 添加接口定义
+interface DeliveryUser {
+  name: string;
+  username: string;
+  role: string;
+  tenant: string;
+  creator: string | null;
+  updater: string | null;
+  createTime: string;
+  updateTime: string;
+}
+
+interface SelectDeliveryResponse {
+  success: boolean;
+  data: DeliveryUser[];
+  displayMsg?: string;
+}
+
 export const orderApi = {
   pageOrder: async (params: OrderListParams): Promise<OrderListResponse> => {
     try {
@@ -379,9 +381,21 @@ export const orderApi = {
       throw new Error('获取供货单详情失败：' + (error as Error).message);
     }
   },
+  getOrderDetail: async (id: string): Promise<GetObjectListResponse> => {
+    try {
+      const response = await request.get<GetObjectListResponse>(
+        `/erp/orderObject/getObjectListByOrderNo?orderNo=${id}`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('获取订单详情失败：' + (error as Error).message);
+    }
+  },
   getOrderAllStatus: async (): Promise<GetOrderStatusResponse> => {
     try {
-      const response = await request.get<GetOrderStatusResponse>('/erp/order/getOrderAllStatus');
+      const response = await request.get<GetOrderStatusResponse>(
+        '/erp/order/getOrderAllStatus'
+      );
       return response.data;
     } catch (error) {
       throw new Error('获取订单状态列表失败：' + (error as Error).message);
@@ -394,5 +408,26 @@ export const orderApi = {
     } catch (error) {
       throw new Error('删除订单失败：' + (error as Error).message);
     }
+  },
+  updateOrderPayStatus: async (params: UpdateOrderPayStatusRequest): Promise<UpdateOrderPayStatusResponse> => {
+    try {
+      const response = await request.post<UpdateOrderPayStatusResponse>(
+        '/erp/order/updateOrderPayStatus',
+        params
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('更新订单支付状态失败：' + (error as Error).message);
+    }
+  },
+  selectDelivery: async (): Promise<SelectDeliveryResponse> => {
+    try {
+      const response = await request.get<SelectDeliveryResponse>(
+        '/erp/account/selectDelivery'
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('获取配货员列表失败：' + (error as Error).message);
+    }
   }
-}; 
+};

@@ -108,6 +108,10 @@ const SupplyOrderList: React.FC = () => {
     }
   };
 
+  const handleOrderClick = (orderNo: string) => {
+    navigate(`/supply-orders/detail/${orderNo}`);
+  };
+
   // 渲染客户卡片
   const renderCustomerCard = (customer: typeof customerOrders[0]) => (
     <Card
@@ -120,7 +124,7 @@ const SupplyOrderList: React.FC = () => {
       hoverable
       onClick={() => {
         if (customer.orderInfoList.length === 1) {
-          navigate(`/supply-orders/detail/${customer.orderInfoList[0].orderNo}`);
+          handleOrderClick(customer.orderInfoList[0].orderNo);
         } else if (customer.orderInfoList.length > 1) {
           setExpandedCustomer(customer);
         }
@@ -327,7 +331,7 @@ const SupplyOrderList: React.FC = () => {
                   }
                 }}
                 onClick={() => {
-                  navigate(`/supply-orders/order/${order.orderNo}`);
+                  handleOrderClick(order.orderNo);
                   setExpandedCustomer(null);
                 }}
               >

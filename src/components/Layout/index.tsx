@@ -28,6 +28,7 @@ const AppLayout: React.FC = () => {
   const [tenantList, setTenantList] = useState<{ tenant: string; tenantName: string }[]>([]);
   const role = localStorage.getItem('role');
   const currentTenant = localStorage.getItem('tenant');
+  const [loading, setLoading] = useState(false);
 
   const menuItems = [
     {
@@ -126,6 +127,7 @@ const AppLayout: React.FC = () => {
     }
 
     try {
+      setLoading(true);
       const res = await authApi.updatePassword({
         accountId: parseInt(accountId),
         password: values.newPassword,
@@ -142,32 +144,38 @@ const AppLayout: React.FC = () => {
       if (error instanceof Error) {
         message.error(error.message);
       }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const userMenu = (
-    <Menu>
-      {role === 'admin' && (
-        <Menu.SubMenu key="tenant" title="切换门店" icon={<ShopOutlined />}>
-          {tenantList.map(item => (
-            <Menu.Item 
-              key={item.tenant}
-              onClick={() => handleTenantChange(item.tenant)}
-              disabled={item.tenant === currentTenant}
-            >
-              {item.tenantName}
-            </Menu.Item>
-          ))}
-        </Menu.SubMenu>
-      )}
-      <Menu.Item key="changePassword" onClick={() => setChangePasswordVisible(true)} icon={<KeyOutlined />}>
-        修改密码
-      </Menu.Item>
-      <Menu.Item key="logout" onClick={handleLogout} icon={<LogoutOutlined />}>
-        退出登录
-      </Menu.Item>
-    </Menu>
-  );
+  const userMenuItems = {
+    items: [
+      role === 'admin' && {
+        key: 'tenant',
+        label: '切换门店',
+        icon: <ShopOutlined />,
+        children: tenantList.map(item => ({
+          key: item.tenant,
+          label: item.tenantName,
+          disabled: item.tenant === currentTenant,
+          onClick: () => handleTenantChange(item.tenant)
+        }))
+      },
+      {
+        key: 'changePassword',
+        label: '修改密码',
+        icon: <KeyOutlined />,
+        onClick: () => setChangePasswordVisible(true)
+      },
+      {
+        key: 'logout',
+        label: '退出登录',
+        icon: <LogoutOutlined />,
+        onClick: handleLogout
+      }
+    ].filter(Boolean)
+  };
 
   return (
     <Layout className="app-layout">
@@ -187,7 +195,10 @@ const AppLayout: React.FC = () => {
         <Header className="app-header">
           <div className="header-left" />
           <div className="header-right">
-            <Dropdown overlay={userMenu} placement="bottomRight">
+            <Dropdown 
+              menu={userMenuItems} 
+              placement="bottomRight"
+            >
               <span className="user-info">
                 <UserOutlined />
                 <span className="username">
@@ -209,9 +220,10 @@ const AppLayout: React.FC = () => {
 
       <Modal
         title="修改密码"
-        visible={changePasswordVisible}
+        open={changePasswordVisible}
+        onOk={handleChangePassword}
         onCancel={() => setChangePasswordVisible(false)}
-        onOk={() => form.submit()}
+        confirmLoading={loading}
       >
         <Form
           form={form}

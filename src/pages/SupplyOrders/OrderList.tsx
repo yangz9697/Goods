@@ -73,6 +73,11 @@ const OrderList: React.FC = () => {
     }
   };
 
+  const handleRowClick = (record: OrderItem) => {
+    console.log('Navigating to detail:', `/supply-orders/detail/${record.orderNo}`);
+    navigate(`/supply-orders/detail/${record.orderNo}`);
+  };
+
   const columns = [
     {
       title: '供货单号',
@@ -130,7 +135,7 @@ const OrderList: React.FC = () => {
         <Space size="middle">
           <Button 
             type="link" 
-            onClick={() => navigate(`/supply-orders/detail/${record.orderNo}`)}
+            onClick={() => handleRowClick(record)}
           >
             查看详情
           </Button>

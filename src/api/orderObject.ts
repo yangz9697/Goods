@@ -20,8 +20,27 @@ interface OrderObjectItem {
   updater: string;
 }
 
+interface OrderObjectInfo {
+  objectDetailId: number;
+  objectDetailName: string;
+  count: number;
+  unitName: string;
+  remark: string;
+  deliveryName: string | null;
+  price: number;
+  unitPrice: number;
+  totalPrice: number;
+  creator: string;
+  createTime: number;
+  updater: string;
+  updateTime: number;
+}
+
 interface GetObjectListResponse extends BaseResponse {
-  data: OrderObjectItem[];
+  data: {
+    objectInfoList: OrderObjectInfo[];
+    orderTotalPrice: number;
+  };
 }
 
 export interface AddOrderObjectRequest {
@@ -109,7 +128,7 @@ export const orderObjectApi = {
   getObjectInventory: async (objectDetailId: number, unitName: string): Promise<GetInventoryResponse> => {
     try {
       const response = await request.get<GetInventoryResponse>(
-        `/erp/orderObject/getObjectInventory?objectDetailId=${objectDetailId}&unitName=${encodeURIComponent(unitName)}`
+        `/erp/orderObject/getObjectInventoryByUnitName?detailObjectId=${objectDetailId}&unitName=${encodeURIComponent(unitName)}`
       );
       return response.data;
     } catch (error) {
