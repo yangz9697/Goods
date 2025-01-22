@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { message } from 'antd';
 import { orderApi } from '@/api/orders';
 import { orderObjectApi, AddOrderObjectRequest } from '@/api/orderObject';
-import { OrderStatusMap, OrderStatusCode, Order } from '@/types/order';
+import { OrderStatusMap, OrderStatusCode, Order, OrderDetailItem } from '@/types/order';
 
 // 创建本地状态列表常量
 const STATUS_LIST = Object.entries(OrderStatusMap).map(([code, name]) => ({
@@ -20,17 +20,9 @@ export const useOrderDetail = (orderNo: string | undefined) => {
     setLoading(true);
     
     try {
-      // 获取订单基本信息
-      const orderRes = await orderApi.getOrderInfo(orderNo);
+      const orderRes = await orderApi.getOrderInfo(orderNo);  // 移除类型断言
       if (!orderRes.success) {
         message.error(orderRes.displayMsg || '获取供货单详情失败');
-        return;
-      }
-
-      // 获取订单商品列表
-      const itemsRes = await orderObjectApi.getObjectListByOrderNo(orderNo);
-      if (!itemsRes.success) {
-        message.error(itemsRes.displayMsg || '获取订单商品失败');
         return;
       }
 
@@ -52,13 +44,13 @@ export const useOrderDetail = (orderNo: string | undefined) => {
         id: orderNo,
         orderNo: orderNo,
         date: orderRes.data.orderSupplyDate,
-        createTime: orderRes.data.createTime,
+        createTime: orderRes.data.createTime || '',
         customerName: orderRes.data.userName,
         customerPhone: orderRes.data.userMobile,
         status: orderRes.data.orderStatus,
         statusName: orderRes.data.orderStatusName,
         remark: orderRes.data.remark,
-        items: (itemsRes.data?.objectInfoList || []).map((item) => ({
+        items: orderRes.data.objectInfoList.map((item): OrderDetailItem => ({
           id: `item-${item.objectDetailId}`,
           name: item.objectDetailName,
           quantity: item.count,
@@ -66,13 +58,19 @@ export const useOrderDetail = (orderNo: string | undefined) => {
           price: item.price,
           unitPrice: item.unitPrice,
           remark: item.remark,
-          deliveryName: item.deliveryName || undefined,
+          deliveryName: item.deliveryName || '',
           objectDetailId: item.objectDetailId,
-          totalPrice: item.totalPrice
+          totalPrice: item.totalPrice,
+          orderNo: orderRes.data.orderNo,
+          userName: orderRes.data.userName,
+          mobile: orderRes.data.userMobile,
+          orderStatusCode: orderRes.data.orderStatus,
+          orderStatusName: orderRes.data.orderStatusName,
+          createTime: item.createTime,
+          updateTime: item.updateTime
         })),
-        totalPrice: itemsRes.data?.orderTotalPrice || 0
+        totalPrice: orderRes.data.orderTotalPrice
       });
-      console.log(order);
 
     } catch (error) {
       message.error('获取订单详情失败：' + (error as Error).message);

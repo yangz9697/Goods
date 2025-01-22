@@ -1,7 +1,6 @@
 import React from 'react';
-import { Card, Form, Row, Col, DatePicker, Input, Select, AutoComplete, Space, Button, Popconfirm, message } from 'antd';
+import { Card, Form, Row, Col, DatePicker, Input, Select, Space, Button, Popconfirm, message } from 'antd';
 import { formatPhone } from '@/utils/format';
-import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { Order, OrderStatus, OrderStatusCode } from '@/types/order';
 import { orderApi } from '@/api/orders';
@@ -23,8 +22,6 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   onPayStatusChange,
   onDeleteSuccess
 }) => {
-  const navigate = useNavigate();
-
   const handleDeleteOrder = async () => {
     try {
       const response = await orderApi.deleteOrder(order.orderNo);

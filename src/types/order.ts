@@ -55,14 +55,34 @@ export interface Order {
   id: string;
   orderNo: string;
   date: string;
-  createTime: string | null;
+  createTime: string;
   customerName: string;
   customerPhone: string;
   status: OrderStatusCode;
   statusName: string;
   remark: string;
-  items: OrderItem[];
+  items: OrderDetailItem[];
   totalPrice: number;
+}
+
+export interface OrderDetailItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  unitPrice: number;
+  remark: string;
+  deliveryName: string;
+  objectDetailId: number;
+  totalPrice: number;
+  orderNo: string;
+  userName: string;
+  mobile: string;
+  orderStatusCode: OrderStatusCode;
+  orderStatusName: string;
+  createTime: number;
+  updateTime: number;
 }
 
 export interface OrderInfo {
@@ -105,4 +125,25 @@ export interface OrderFilters {
   dateRange: [Dayjs | null, Dayjs | null];
   searchText: string;
   searchPhone: string;
+}
+
+export interface TableOrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  unitPrice: number;
+  remark: string;
+  deliveryName?: string;
+  objectDetailId: number;
+  totalPrice?: number;
+  inventory?: number;
+  orderNo?: string;
+  userName?: string;
+  mobile?: string;
+  orderStatusCode?: string;
+  orderStatusName?: string;
+  createTime?: number;
+  updateTime?: number;
 } 

@@ -5,13 +5,24 @@ import { orderApi } from '@/api/orders';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AddOrderModal from './components/AddOrderModal';
-import type { OrderItem } from '@/types/order';
+import { OrderStatusCode } from '@/types/order';
+
+interface PageOrderItem {
+  orderNo: string;
+  userName: string;
+  mobile: string;
+  orderStatusCode: OrderStatusCode;
+  orderStatusName: string;
+  remark: string;
+  createTime: number;
+  updateTime: number;
+}
 
 const OrderList: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [orders, setOrders] = useState<PageOrderItem[]>([]);
   console.log(orders);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,7 +120,7 @@ const OrderList: React.FC = () => {
       title: '状态',
       dataIndex: 'orderStatusCode',
       key: 'orderStatusCode',
-      render: (status: string, record: OrderItem) => {
+      render: (status: string, record: PageOrderItem) => {
         const colorMap = {
           wait: 'orange',
           processing: 'blue',
@@ -142,7 +153,7 @@ const OrderList: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: OrderItem) => (
+      render: (_: unknown, record: PageOrderItem) => (
         <Space size="middle">
           <Button 
             type="link"

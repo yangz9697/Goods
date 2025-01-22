@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Input, Button, Space, message, Modal, Form, Popconfirm } from 'antd';
-import { SearchOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 import { tenantApi, TenantItem } from '@/api/tenant';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';

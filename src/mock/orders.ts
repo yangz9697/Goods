@@ -14,6 +14,7 @@ export const mockOrders: OrderType[] = [
     items: [],
     createTime: '2024-03-14 10:00:00',
     deliveryStatus: 'preparing',
-    deliveryPerson: '张三'
+    deliveryPerson: '张三',
+    updateTime: Date.now()
   }
 ]; 

@@ -1,7 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Modal, Form, DatePicker, Input, message } from 'antd';
-import { addObjectOrder, selectUser } from '@/api/orders';
-import { Select } from 'antd';
+import { Modal, Form, DatePicker, Input, message, Select } from 'antd';
 import { orderApi } from '@/api/orders';
 
 interface AddOrderModalProps {

@@ -247,9 +247,34 @@ interface OrderListResponse {
   displayMsg?: string;
 }
 
-interface GetOrderInfoResponse {
+export interface GetOrderInfoResponse {
   success: boolean;
-  data: OrderInfo;
+  data: {
+    orderSupplyDate: string;
+    orderNo: string;
+    orderStatus: OrderStatusCode;
+    orderStatusName: string;
+    userName: string;
+    userMobile: string;
+    createTime: string | null;
+    remark: string;
+    objectInfoList: Array<{
+      objectDetailId: number;
+      objectDetailName: string;
+      count: number;
+      unitName: string;
+      price: number;
+      unitPrice: number;
+      remark: string;
+      deliveryName: string;
+      totalPrice: number;
+      creator: string;
+      createTime: number;
+      updater: string;
+      updateTime: number;
+    }>;
+    orderTotalPrice: number;
+  };
   displayMsg?: string;
 }
 

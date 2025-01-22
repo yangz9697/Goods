@@ -53,6 +53,15 @@ interface AddAccountResponse {
   displayMsg: string;
 }
 
+interface AccountListResponse {
+  success: boolean;
+  data: {
+    total: number;
+    items: AccountItem[];
+  };
+  displayMsg?: string;
+}
+
 export const accountApi = {
   pageAccount: async (params: AccountListParams): Promise<AccountListResponse> => {
     try {

@@ -5,21 +5,6 @@ interface BaseResponse {
   displayMsg?: string;
 }
 
-interface OrderObjectItem {
-  count: number;
-  createTime: number;
-  creator: string;
-  deliveryName: string | null;
-  objectDetailId: number;
-  objectDetailName: string;
-  price: number;
-  remark: string;
-  unitName: string;
-  unitPrice: number;
-  updateTime: number;
-  updater: string;
-}
-
 interface OrderObjectInfo {
   objectDetailId: number;
   objectDetailName: string;

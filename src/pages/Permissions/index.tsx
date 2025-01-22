@@ -163,7 +163,7 @@ const Permissions: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: AccountItem) => (
+      render: (_: any, _record: AccountItem) => (
         <Space size="middle">
           <Button type="primary">编辑权限</Button>
           <Button>重置密码</Button>

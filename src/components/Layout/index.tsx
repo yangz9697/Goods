@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Dropdown, Modal, Form, Input, message, Select } from 'antd';
+import { Layout, Menu, Dropdown, Modal, Form, Input, message } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import { authApi } from '../../api/auth';
 import './index.less';
+import type { MenuProps } from 'antd';
 
 const { Header, Sider, Content } = Layout;
 
@@ -24,13 +25,13 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
   const [form] = Form.useForm();
-  const [username, setUsername] = useState(localStorage.getItem('name') || '');
+  const [username] = useState(localStorage.getItem('name') || '');
   const [tenantList, setTenantList] = useState<{ tenant: string; tenantName: string }[]>([]);
   const role = localStorage.getItem('role');
   const currentTenant = localStorage.getItem('tenant');
   const [loading, setLoading] = useState(false);
 
-  const menuItems = [
+  const menuItems: MenuProps['items'] = [
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
@@ -56,17 +57,17 @@ const AppLayout: React.FC = () => {
       icon: <FileTextOutlined />,
       label: '供货单列表'
     },
-    (role === 'admin' || role === 'manager') && {
+    role === 'admin' || role === 'manager' ? {
       key: '/permissions',
       icon: <LockOutlined />,
       label: '权限管理'
-    },
-    role === 'admin' && {
+    } : null,
+    role === 'admin' ? {
       key: '/tenants',
       icon: <ShopOutlined />,
       label: '门店管理'
-    }
-  ].filter(Boolean);
+    } : null
+  ].filter((item): item is NonNullable<typeof item> => item !== null);
 
   useEffect(() => {
     if (role === 'admin') {
@@ -149,9 +150,9 @@ const AppLayout: React.FC = () => {
     }
   };
 
-  const userMenuItems = {
+  const userMenuItems: MenuProps = {
     items: [
-      role === 'admin' && {
+      role === 'admin' ? {
         key: 'tenant',
         label: '切换门店',
         icon: <ShopOutlined />,
@@ -161,7 +162,7 @@ const AppLayout: React.FC = () => {
           disabled: item.tenant === currentTenant,
           onClick: () => handleTenantChange(item.tenant)
         }))
-      },
+      } : null,
       {
         key: 'changePassword',
         label: '修改密码',
@@ -174,7 +175,7 @@ const AppLayout: React.FC = () => {
         icon: <LogoutOutlined />,
         onClick: handleLogout
       }
-    ].filter(Boolean)
+    ].filter((item): item is NonNullable<typeof item> => item !== null)
   };
 
   return (
@@ -221,7 +222,10 @@ const AppLayout: React.FC = () => {
       <Modal
         title="修改密码"
         open={changePasswordVisible}
-        onOk={handleChangePassword}
+        onOk={(e) => {
+          e.preventDefault();
+          form.validateFields().then(handleChangePassword);
+        }}
         onCancel={() => setChangePasswordVisible(false)}
         confirmLoading={loading}
       >

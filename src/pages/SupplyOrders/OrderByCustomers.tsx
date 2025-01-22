@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Space, DatePicker, Input, Button, message, Tag, Modal, Form, Popconfirm } from 'antd';
+import { Row, Col, Card, Space, DatePicker, Input, Button, message, Tag, Modal, Form } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
@@ -7,12 +7,6 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import AddOrderModal from './components/AddOrderModal';
 import { formatPhone } from '@/utils/format';
 import { OrderStatusCode, OrderStatusMap } from '@/types/order';
-
-interface QueryObjectOrderRequest {
-  startTime: number;
-  endTime: number;
-  keyWord?: string;
-}
 
 const SupplyOrderList: React.FC = () => {
   const navigate = useNavigate();

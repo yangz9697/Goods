@@ -1,12 +1,33 @@
 import React, { useState } from 'react';
-import { Table, InputNumber, Input, Select, Space, Tag, Button, Popconfirm, Row, Col, message } from 'antd';
+import { Table, InputNumber, Input, Select, Space, Tag, Button, Popconfirm, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { NewOrderItem, ObjectOption } from '@/types/order';
+import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
 
+interface TableOrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  unitPrice: number;
+  remark: string;
+  deliveryName?: string;
+  objectDetailId: number;
+  totalPrice?: number;
+  inventory?: number;
+  orderNo?: string;
+  userName?: string;
+  mobile?: string;
+  orderStatusCode?: string;
+  orderStatusName?: string;
+  createTime?: number;
+  updateTime?: number;
+}
+
 interface OrderItemTableProps {
-  items: NewOrderItem[];
+  items: TableOrderItem[];
   type: 'all' | 'bulk';
   isAdmin: boolean;
   deliveryUsers: { label: string; value: string }[];
@@ -39,7 +60,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [searchOptions, setSearchOptions] = useState<ObjectOption[]>([]);
-  const [newItem, setNewItem] = useState<NewOrderItem>(() => ({
+  const [newItem, setNewItem] = useState<TableOrderItem>(() => ({
     id: 'new-item',
     name: '',
     quantity: 0,
@@ -82,8 +103,8 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     }
   };
 
-  const getColumns = (): ColumnsType<NewOrderItem> => {
-    const baseColumns: ColumnsType<NewOrderItem> = [
+  const getColumns = (): ColumnsType<TableOrderItem> => {
+    const baseColumns: ColumnsType<TableOrderItem> = [
       {
         title: '商品名称',
         dataIndex: 'name',
@@ -305,8 +326,6 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
 
     return baseColumns;
   };
-
-  const totalPrice = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
 
   return (
     <>
