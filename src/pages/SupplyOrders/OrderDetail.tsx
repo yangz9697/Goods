@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Space, Button, Form, Row, Col, DatePicker, Input, Select, AutoComplete, Card, Tabs, Popconfirm, message, Table, InputNumber, Tag, Spin } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
@@ -84,27 +84,28 @@ const OrderDetail: React.FC = () => {
   const isAdmin = role === 'admin';
   const [deliveryUsers, setDeliveryUsers] = useState<{ label: string; value: string }[]>([]);
 
-  const fetchOrderInfo = async () => {
+  const fetchOrderInfo = useCallback(async () => {
     if (!orderNo) return;
     
     try {
       const res = await orderApi.getOrderInfo(orderNo);
       if (res.success) {
         setOrderInfo(res.data);
+        return res.data;
       } else {
         message.error(res.displayMsg || '获取供货单详情失败');
       }
     } catch (error) {
       message.error('获取供货单详情失败：' + (error as Error).message);
     }
-  };
+  }, [orderNo]);
 
-  const fetchOrderDetail = async () => {
+  const fetchOrderDetail = useCallback(async (info: OrderInfo) => {
     if (!orderNo) return;
     setLoading(true);
     try {
       const response = await orderObjectApi.getObjectListByOrderNo(orderNo);
-      if (response.success && orderInfo) {
+      if (response.success) {
         const items = response.data.objectInfoList.map((item) => ({
           id: `item-${item.objectDetailId}`,
           name: item.objectDetailName,
@@ -121,11 +122,11 @@ const OrderDetail: React.FC = () => {
         setOrder({
           id: orderNo,
           orderNumber: orderNo,
-          date: dayjs(orderInfo.orderSupplyDate).format('YYYY-MM-DD'),
-          createTime: dayjs(orderInfo.createTime).format('YYYY-MM-DD HH:mm:ss'),
-          customerName: orderInfo.userName,
-          customerPhone: orderInfo.userMobile,
-          deliveryStatus: orderInfo.orderStatus as 'add' | 'wait' | 'ready' | 'waitCheck' | 'end',
+          date: dayjs(info.orderSupplyDate).format('YYYY-MM-DD'),
+          createTime: dayjs(info.createTime).format('YYYY-MM-DD HH:mm:ss'),
+          customerName: info.userName,
+          customerPhone: info.userMobile,
+          deliveryStatus: info.orderStatus as 'add' | 'wait' | 'ready' | 'waitCheck' | 'end',
           items,
           totalPrice: response.data.orderTotalPrice
         });
@@ -137,9 +138,9 @@ const OrderDetail: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderNo]);
 
-  const fetchStatusList = async () => {
+  const fetchStatusList = useCallback(async () => {
     try {
       const response = await orderApi.getOrderAllStatus();
       if (response.success) {
@@ -150,9 +151,9 @@ const OrderDetail: React.FC = () => {
     } catch (error) {
       message.error('获取状态列表失败：' + (error as Error).message);
     }
-  };
+  }, []);
 
-  const fetchDeliveryUsers = async () => {
+  const fetchDeliveryUsers = useCallback(async () => {
     try {
       const response = await orderApi.selectDelivery();
       if (response.success) {
@@ -166,15 +167,30 @@ const OrderDetail: React.FC = () => {
     } catch (error) {
       message.error('获取配货员列表失败：' + (error as Error).message);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const init = async () => {
-      await fetchOrderInfo();
-      await fetchOrderDetail();
-      await fetchStatusList();
-      await fetchDeliveryUsers();
+      console.log('init', orderNo);
+      if (!orderNo) return;
+      
+      setLoading(true);
+      try {
+        const info = await fetchOrderInfo();
+        if (info) {
+          await fetchOrderDetail(info);
+          await Promise.all([
+            fetchStatusList(),
+            fetchDeliveryUsers()
+          ]);
+        }
+      } catch (error) {
+        console.error('初始化失败:', error);
+      } finally {
+        setLoading(false);
+      }
     };
+
     init();
   }, [orderNo]);
 
@@ -200,7 +216,7 @@ const OrderDetail: React.FC = () => {
           objectDetailId: 0,
           inventory: undefined
         });
-        fetchOrderDetail();
+        fetchOrderDetail(orderInfo!);
       } else {
         message.error(response.displayMsg || '添加失败');
       }
@@ -218,7 +234,7 @@ const OrderDetail: React.FC = () => {
 
       if (response.success) {
         message.success('删除成功');
-        fetchOrderDetail();
+        fetchOrderDetail(orderInfo!);
       } else {
         message.error(response.displayMsg || '删除失败');
       }
@@ -263,7 +279,7 @@ const OrderDetail: React.FC = () => {
 
       if (response.success) {
         message.success('编辑成功');
-        fetchOrderDetail();
+        fetchOrderDetail(orderInfo!);
       } else {
         message.error(response.displayMsg || '编辑失败');
       }
