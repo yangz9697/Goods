@@ -50,7 +50,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
         status: orderRes.data.orderStatus,
         statusName: orderRes.data.orderStatusName,
         remark: orderRes.data.remark,
-        items: orderRes.data.objectInfoList.map((item): OrderDetailItem => ({
+        items: (orderRes.data.objectInfoList || []).map((item): OrderDetailItem => ({
           id: `item-${item.objectDetailId}`,
           name: item.objectDetailName,
           quantity: item.count,
@@ -69,7 +69,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
           createTime: item.createTime,
           updateTime: item.updateTime
         })),
-        totalPrice: orderRes.data.orderTotalPrice
+        totalPrice: orderRes.data.orderTotalPrice || 0
       });
 
     } catch (error) {

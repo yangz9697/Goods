@@ -12,7 +12,7 @@ export interface CustomerType {
   mobile: string;
   remark: string;
   favorite: string;
-  updateTime: string;
+  updateTime: number;
   updater: string;
 }
 
@@ -48,7 +48,7 @@ const Customers: React.FC = () => {
           mobile: item.mobile,
           remark: item.remark,
           favorite: item.favorite,
-          updateTime: item.updateTime.toString(),
+          updateTime: item.updateTime,
           updater: item.updater
         }));
 

@@ -272,8 +272,8 @@ export interface GetOrderInfoResponse {
       createTime: number;
       updater: string;
       updateTime: number;
-    }>;
-    orderTotalPrice: number;
+    }> | null;
+    orderTotalPrice: number | null;
   };
   displayMsg?: string;
 }
