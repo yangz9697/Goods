@@ -1,92 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { Space, Tabs } from 'antd';
-import { useNavigate, useLocation, useSearchParams, Outlet } from 'react-router-dom';
+import React from 'react';
+import { Tabs } from 'antd';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+
+const { TabPane } = Tabs;
 
 const SupplyOrders: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const [customerName, setCustomerName] = useState<string>('');
-  const [customerId, setCustomerId] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [orderNo, setOrderNo] = useState<string>('');
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const name = searchParams.get('name');
-    const date = searchParams.get('date');
-    const pathSegments = location.pathname.split('/');
-    const lastSegment = pathSegments.pop();
-
-    if (name) setCustomerName(name);
-    if (date) setSelectedDate(date);
-
-    if (lastSegment) {
-      if (location.pathname.includes('/supply-orders/customer/')) {
-        setCustomerId(lastSegment);
-      } else if (location.pathname.includes('/supply-orders/order/')) {
-        setOrderNo(lastSegment);
-      }
-    }
-  }, [location.pathname, location.search]);
-
+  // 根据当前路径确定激活的 tab
   const getActiveKey = () => {
-    if (location.pathname === '/supply-orders') {
+    if (location.pathname.includes('/detail/')) {
+      return 'detail';
+    }
+    if (location.pathname.includes('/list')) {
       return 'list';
     }
-    if (location.pathname.includes('/supply-orders/customer/')) {
-      return 'customer';
-    }
-    if (location.pathname.includes('/supply-orders/order/')) {
-      return 'order';
-    }
-    return 'list';
+    return 'customers';
   };
 
-  const getTabLabel = (key: string) => {
+  const handleTabChange = (key: string) => {
     switch (key) {
+      case 'customers':
+        navigate('/supply-orders');
+        break;
       case 'list':
-        return '供货单列表';
-      case 'customer':
-        return customerName ? `${customerName}的供货单 (${selectedDate})` : '客户供货单';
-      case 'order':
-        return orderNo ? `供货单详情 (${orderNo})` : '供货单详情';
+        navigate('/supply-orders/list');
+        break;
+      case 'detail':
+        // 如果已经在详情页，保持当前 URL
+        if (!location.pathname.includes('/detail/')) {
+          navigate('/supply-orders/list');
+        }
+        break;
       default:
-        return '';
+        navigate('/supply-orders');
     }
   };
-
-  const items = [
-    {
-      key: 'list',
-      label: getTabLabel('list'),
-    },
-    {
-      key: 'customer',
-      label: getTabLabel('customer'),
-    },
-    {
-      key: 'order',
-      label: getTabLabel('order'),
-    }
-  ];
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%', display: 'flex' }}>
-      <Tabs
-        activeKey={getActiveKey()}
-        items={items}
-        onChange={(key) => {
-          if (key === 'list') {
-            navigate('/supply-orders');
-          } else if (key === 'customer' && customerName && selectedDate && customerId) {
-            navigate(`/supply-orders/customer/${customerId}?name=${encodeURIComponent(customerName)}&date=${selectedDate}`);
-          } else if (key === 'order' && orderNo) {
-            navigate(`/supply-orders/order/${orderNo}`);
-          }
-        }}
-      />
-      <Outlet />
-    </Space>
+    <div>
+      <Tabs activeKey={getActiveKey()} onChange={handleTabChange}>
+        <TabPane tab="客户供货单" key="customers" />
+        <TabPane tab="供货单列表" key="list" />
+        <TabPane tab="供货单详情" key="detail" />
+      </Tabs>
+      <div style={{ padding: '16px 0' }}>
+        <Outlet />
+      </div>
+    </div>
   );
 };
 

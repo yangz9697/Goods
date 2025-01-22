@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Space, Button, Form, Row, Col, DatePicker, Input, Select, AutoComplete, Card, Tabs, Popconfirm, message, Table, InputNumber, Tag } from 'antd';
+import { Space, Button, Form, Row, Col, DatePicker, Input, Select, AutoComplete, Card, Tabs, Popconfirm, message, Table, InputNumber, Tag, Descriptions, Spin } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { getOrderDetail, deleteOrder, getOrderAllStatus, updateOrderStatus } from '../../api/orders';
 import { addOrderObject, updateOrderObject, deleteOrderObject, selectObjectByName, getObjectInventory } from '../../api/orderObject';
 import { formatPhone } from '../../utils/format';
 import dayjs from 'dayjs';
+import { orderApi } from '@/api/orders';
+import { orderObjectApi } from '@/api/orderObject';
 
 interface OrderItem {
   id: string;
@@ -65,8 +67,20 @@ interface Order {
   items: OrderItem[];
 }
 
+interface OrderInfo {
+  orderSupplyDate: string;
+  orderNo: string;
+  orderStatus: 'wait' | 'processing' | 'completed';
+  orderStatusName: string;
+  remark: string;
+  userId: number;
+  userName: string;
+  userMobile: string;
+  createTime: number | null;
+}
+
 const OrderDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: orderNo } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
@@ -77,18 +91,9 @@ const OrderDetail: React.FC = () => {
     orderStatusCode: searchParams.get('orderStatusCode') as 'add' | 'wait' | 'ready' | 'waitCheck' | 'end'
   };
   
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
-  const [order, setOrder] = useState<{
-    id: string;
-    orderNumber: string;
-    date: string;
-    createTime: string;
-    customerName: string;
-    customerPhone: string;
-    deliveryStatus: 'add' | 'wait' | 'ready' | 'waitCheck' | 'end';
-    items: OrderItem[];
-  } | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [searchOptions, setSearchOptions] = useState<ObjectOption[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newItem, setNewItem] = useState<NewOrderItem>({
@@ -103,12 +108,13 @@ const OrderDetail: React.FC = () => {
     objectDetailId: 0
   });
   const [statusList, setStatusList] = useState<OrderStatus[]>([]);
+  const [orderInfo, setOrderInfo] = useState<OrderInfo | null>(null);
 
   const fetchOrderDetail = async () => {
-    if (!id) return;
+    if (!orderNo) return;
     setLoading(true);
     try {
-      const response = await getOrderDetail(id);
+      const response = await orderObjectApi.getObjectListByOrderNo(orderNo);
       if (response.success) {
         const items = (response.data || []).map((item: ApiOrderItem) => ({
           id: `item-${item.objectDetailId}`,
@@ -123,8 +129,8 @@ const OrderDetail: React.FC = () => {
         }));
         
         setOrder({
-          id,
-          orderNumber: id,
+          id: orderNo,
+          orderNumber: orderNo,
           date: dayjs().format('YYYY-MM-DD'),
           createTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
           customerName: orderState?.customerName || '',
@@ -142,37 +148,45 @@ const OrderDetail: React.FC = () => {
     }
   };
 
+  const fetchOrderInfo = async () => {
+    if (!orderNo) return;
+    
+    try {
+      const res = await orderApi.getOrderInfo(orderNo);
+      if (res.success) {
+        setOrderInfo(res.data);
+      } else {
+        message.error(res.displayMsg || '获取供货单详情失败');
+      }
+    } catch (error) {
+      message.error('获取供货单详情失败：' + (error as Error).message);
+    }
+  };
+
+  const fetchStatusList = async () => {
+    try {
+      const response = await orderApi.getOrderAllStatus();
+      if (response.success) {
+        setStatusList(response.data);
+      } else {
+        message.error(response.displayMsg || '获取状态列表失败');
+      }
+    } catch (error) {
+      message.error('获取状态列表失败：' + (error as Error).message);
+    }
+  };
+
   useEffect(() => {
     fetchOrderDetail();
-  }, [id]);
-
-  useEffect(() => {
-    const fetchStatusList = async () => {
-      try {
-        const response = await getOrderAllStatus();
-        if (response.success) {
-          setStatusList(response.data);
-        }
-      } catch (error) {
-        console.error('获取订单状态失败:', error);
-      }
-    };
-
+    fetchOrderInfo();
     fetchStatusList();
-  }, []);
+  }, [orderNo]);
 
-  const handleAdd = async (values: {
-    objectDetailId: number;
-    objectDetailName: string;
-    count: number;
-    unitName: string;
-    price: number;
-    remark: string;
-  }) => {
+  const handleAdd = async (values: AddOrderObjectRequest) => {
     try {
-      const response = await addOrderObject({
+      const response = await orderObjectApi.addOrderObject({
         ...values,
-        orderNo: id!
+        orderNo: orderNo!
       });
 
       if (response.success) {
@@ -201,9 +215,9 @@ const OrderDetail: React.FC = () => {
 
   const handleDeleteItem = async (objectDetailId: number) => {
     try {
-      const response = await deleteOrderObject({
+      const response = await orderObjectApi.deleteOrderObject({
         objectDetailId,
-        orderNo: id!
+        orderNo: orderNo!
       });
 
       if (response.success) {
@@ -223,14 +237,14 @@ const OrderDetail: React.FC = () => {
       return;
     }
     try {
-      const response = await selectObjectByName(keyword);
+      const response = await orderObjectApi.selectObjectByName(keyword);
       if (response.success) {
         setSearchOptions(response.data || []);
       } else {
-        console.error('搜索商品失败:', response.displayMsg);
+        message.error(response.displayMsg || '搜索商品失败');
       }
     } catch (error) {
-      console.error('搜索商品失败:', (error as Error).message);
+      message.error('搜索商品失败：' + (error as Error).message);
     }
   };
 
@@ -243,9 +257,9 @@ const OrderDetail: React.FC = () => {
     deliveryName?: string;
   }) => {
     try {
-      const response = await updateOrderObject({
+      const response = await orderObjectApi.updateOrderObject({
         ...values,
-        orderNo: id!
+        orderNo: orderNo!
       });
 
       if (response.success) {
@@ -261,51 +275,40 @@ const OrderDetail: React.FC = () => {
 
   const fetchInventory = async (objectDetailId: number, unitName: string) => {
     try {
-      const response = await getObjectInventory(objectDetailId, unitName);
+      const response = await orderObjectApi.getObjectInventory(objectDetailId, unitName);
       if (response.success) {
-        console.log('库存查询结果:', response.data);
-        setNewItem(prev => {
-          const inventory = response.data === null ? 0 : response.data;
-          console.log('设置库存:', inventory);
-          return {
-            ...prev,
-            inventory
-          };
-        });
-      } else {
-        console.error('库存查询失败:', response.displayMsg);
         setNewItem(prev => ({
           ...prev,
-          inventory: 0
+          inventory: response.data === null ? 0 : response.data
         }));
+      } else {
+        message.error(response.displayMsg || '获取库存失败');
+        setNewItem(prev => ({ ...prev, inventory: 0 }));
       }
     } catch (error) {
-      console.error('获取库存失败:', (error as Error).message);
-      setNewItem(prev => ({
-        ...prev,
-        inventory: 0
-      }));
+      message.error('获取库存失败：' + (error as Error).message);
+      setNewItem(prev => ({ ...prev, inventory: 0 }));
     }
   };
 
   const handleDeleteOrder = async () => {
     try {
-      const response = await deleteOrder(id!);
+      const response = await orderApi.deleteOrder(orderNo!);
       if (response.success) {
         message.success('删除订单成功');
-        navigate(-1);
+        navigate('/supply-orders/list');
       } else {
         message.error(response.displayMsg || '删除订单失败');
       }
     } catch (error) {
-      message.error((error as Error).message);
+      message.error('删除订单失败：' + (error as Error).message);
     }
   };
 
   const handleStatusChange = async (statusCode: 'add' | 'wait' | 'ready' | 'waitCheck' | 'end') => {
     try {
-      const response = await updateOrderStatus({
-        orderNo: id!,
+      const response = await orderApi.updateOrderStatus({
+        orderNo: orderNo!,
         orderStatusCode: statusCode
       });
       
@@ -315,16 +318,21 @@ const OrderDetail: React.FC = () => {
           ...prev,
           deliveryStatus: statusCode
         } : null);
+        fetchOrderInfo();
       } else {
         message.error(response.displayMsg || '更新状态失败');
       }
     } catch (error) {
-      message.error((error as Error).message);
+      message.error('更新状态失败：' + (error as Error).message);
     }
   };
 
+  if (loading) {
+    return <Spin />;
+  }
+
   if (!order) {
-    return null;
+    return <div>未找到供货单信息</div>;
   }
 
   return (

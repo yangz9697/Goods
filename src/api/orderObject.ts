@@ -1,6 +1,30 @@
 import request from './request';
 
-interface AddOrderObjectParams {
+interface BaseResponse {
+  success: boolean;
+  displayMsg?: string;
+}
+
+interface OrderObjectItem {
+  count: number;
+  createTime: number;
+  creator: string;
+  deliveryName: string | null;
+  objectDetailId: number;
+  objectDetailName: string;
+  price: number;
+  remark: string;
+  unitName: string;
+  unitPrice: number;
+  updateTime: number;
+  updater: string;
+}
+
+interface GetObjectListResponse extends BaseResponse {
+  data: OrderObjectItem[];
+}
+
+export interface AddOrderObjectRequest {
   orderNo: string;
   objectDetailId: number;
   objectDetailName: string;
@@ -10,113 +34,86 @@ interface AddOrderObjectParams {
   remark: string;
 }
 
-interface AddOrderObjectResponse {
-  success: boolean;
-  data: any;
-  displayMsg?: string;
-}
-
-interface UpdateOrderObjectParams {
-  orderNo: string;
-  objectDetailId: number;
-  count: number;
-  price: number;
-  remark: string;
-  unitName?: string;
+export interface UpdateOrderObjectRequest extends AddOrderObjectRequest {
   deliveryName?: string;
 }
 
-interface UpdateOrderObjectResponse {
-  success: boolean;
-  data: any;
-  displayMsg?: string;
-}
-
-interface DeleteOrderObjectParams {
+export interface DeleteOrderObjectRequest {
   orderNo: string;
   objectDetailId: number;
 }
 
-interface DeleteOrderObjectResponse {
-  success: boolean;
-  data: any;
-  displayMsg?: string;
-}
-
-interface SelectObjectResponse {
-  success: boolean;
-  data: Array<{
-    objectDetailId: number;
-    objectDetailName: string;
-  }>;
-  displayMsg?: string;
-}
-
-interface GetInventoryResponse {
-  success: boolean;
+interface GetInventoryResponse extends BaseResponse {
   data: number | null;
-  displayMsg?: string;
 }
 
-// 添加货品
-export const addOrderObject = async (params: AddOrderObjectParams): Promise<AddOrderObjectResponse> => {
-  try {
-    const response = await request.post<AddOrderObjectResponse>(
-      '/erp/orderObject/addOrderObject',
-      params
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error('添加货品失败：' + (error as Error).message);
-  }
-};
+export const orderObjectApi = {
+  getObjectListByOrderNo: async (orderNo: string): Promise<GetObjectListResponse> => {
+    try {
+      const response = await request.get<GetObjectListResponse>(
+        `/erp/orderObject/getObjectListByOrderNo?orderNo=${orderNo}`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('获取订单商品列表失败：' + (error as Error).message);
+    }
+  },
 
-// 更新货品
-export const updateOrderObject = async (params: UpdateOrderObjectParams): Promise<UpdateOrderObjectResponse> => {
-  try {
-    const response = await request.post<UpdateOrderObjectResponse>(
-      '/erp/orderObject/updateOrderObject',
-      params
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error('更新货品失败：' + (error as Error).message);
-  }
-};
+  addOrderObject: async (data: AddOrderObjectRequest): Promise<BaseResponse> => {
+    try {
+      const response = await request.post<BaseResponse>(
+        '/erp/orderObject/addOrderObject',
+        data
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('添加订单商品失败：' + (error as Error).message);
+    }
+  },
 
-// 删除货品
-export const deleteOrderObject = async (params: DeleteOrderObjectParams): Promise<DeleteOrderObjectResponse> => {
-  try {
-    const response = await request.post<DeleteOrderObjectResponse>(
-      '/erp/orderObject/deleteOrderObject',
-      params
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error('删除货品失败：' + (error as Error).message);
-  }
-};
+  updateOrderObject: async (data: UpdateOrderObjectRequest): Promise<BaseResponse> => {
+    try {
+      const response = await request.post<BaseResponse>(
+        '/erp/orderObject/updateOrderObject',
+        data
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('更新订单商品失败：' + (error as Error).message);
+    }
+  },
 
-// 根据名称搜索货品
-export const selectObjectByName = async (keyword: string): Promise<SelectObjectResponse> => {
-  try {
-    const response = await request.get<SelectObjectResponse>(
-      `/erp/orderObject/selectObjectByName?keyword=${encodeURIComponent(keyword)}`
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error('搜索货品失败：' + (error as Error).message);
-  }
-};
+  deleteOrderObject: async (data: DeleteOrderObjectRequest): Promise<BaseResponse> => {
+    try {
+      const response = await request.post<BaseResponse>(
+        '/erp/orderObject/deleteOrderObject',
+        data
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('删除订单商品失败：' + (error as Error).message);
+    }
+  },
 
-// 获取货品库存
-export const getObjectInventory = async (detailObjectId: number, unitName: string): Promise<GetInventoryResponse> => {
-  try {
-    const response = await request.get<GetInventoryResponse>(
-      `/erp/orderObject/getObjectInventoryByUnitName?detailObjectId=${detailObjectId}&unitName=${encodeURIComponent(unitName)}`
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error('获取库存失败：' + (error as Error).message);
+  selectObjectByName: async (keyword: string): Promise<BaseResponse & { data: Array<{ objectDetailId: number; objectDetailName: string }> }> => {
+    try {
+      const response = await request.get(
+        `/erp/orderObject/selectObjectByName?keyword=${encodeURIComponent(keyword)}`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('搜索商品失败：' + (error as Error).message);
+    }
+  },
+
+  getObjectInventory: async (objectDetailId: number, unitName: string): Promise<GetInventoryResponse> => {
+    try {
+      const response = await request.get<GetInventoryResponse>(
+        `/erp/orderObject/getObjectInventory?objectDetailId=${objectDetailId}&unitName=${encodeURIComponent(unitName)}`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('获取商品库存失败：' + (error as Error).message);
+    }
   }
 }; 

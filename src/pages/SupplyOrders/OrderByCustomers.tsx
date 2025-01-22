@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Space, DatePicker, Input, Button, message, Tag, Modal } from 'antd';
+import { Row, Col, Card, Space, DatePicker, Input, Button, message, Tag, Modal, Form } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { OrderModal } from '../../components/SupplyOrders/OrderModal';
-import { queryObjectOrder, addObjectOrder, updateOrderUrgent } from '../../api/orders';
+import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
-
-const { Search } = Input;
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import AddOrderModal from './components/AddOrderModal';
 
 interface QueryObjectOrderRequest {
   startTime: number;
@@ -15,7 +14,7 @@ interface QueryObjectOrderRequest {
 
 const SupplyOrderList: React.FC = () => {
   const navigate = useNavigate();
-  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [form] = Form.useForm();
   const [customerOrders, setCustomerOrders] = useState<Array<{
     userId: number;
     userName: string | null;
@@ -32,17 +31,24 @@ const SupplyOrderList: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{
-    id: string;
-    name: string;
-    phone: string;
+    userId: number;
+    userName: string | null;
+    mobile: string | null;
   } | null>(null);
   const [expandedCustomer, setExpandedCustomer] = useState<typeof customerOrders[0] | null>(null);
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+
+  // 定义表单初始值
+  const initialValues = {
+    dateRange: selectedDate,
+    keyword: searchText
+  };
 
   // 获取供货单列表
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const response = await queryObjectOrder({
+      const response = await orderApi.queryObjectOrder({
         startTime: selectedDate.startOf('day').valueOf(),
         endTime: selectedDate.endOf('day').valueOf(),
         keyWord: searchText || undefined
@@ -60,58 +66,45 @@ const SupplyOrderList: React.FC = () => {
     }
   };
 
-  // 当日期改变时重新获取数据
   useEffect(() => {
     fetchOrders();
   }, [selectedDate]);
 
-  // 处理搜索
-  const handleSearch = (value: string) => {
-    setSearchText(value);
+  const handleSearch = () => {
+    const values = form.getFieldsValue();
+    setSearchText(values.keyword || '');
     fetchOrders();
   };
 
-  // 处理日期变化
-  const handleDateChange = (date: dayjs.Dayjs | null) => {
-    if (date) {
-      setSelectedDate(date);
-    }
-  };
-
-  // 处理重置
   const handleReset = () => {
+    form.resetFields();
     setSelectedDate(dayjs());
     setSearchText('');
     fetchOrders();
   };
 
-  // 处理新建供货单
-  const handleAddOrder = async (values: any) => {
-    if (!values.userId) {
-      message.error('请选择客户');
-      return;
+  const handleDateChange = (date: dayjs.Dayjs | null) => {
+    if (date) {
+      setSelectedDate(date);
+      form.setFieldsValue({ dateRange: date });
     }
+  };
 
+  const handleUpdateUrgent = async (orderNo: string, isUrgent: boolean) => {
     try {
-      const response = await addObjectOrder({
-        orderSupplyDate: (values.date || selectedDate).format('YYYY-MM-DD'),
-        remark: values.remark || '',
-        userId: Number(values.userId)
+      const response = await orderApi.updateOrderUrgent({
+        orderNo,
+        isUrgent
       });
-
-      if (response?.success) {
-        message.success('供货单创建成功');
-        setAddModalVisible(false);
-        setSelectedCustomer(null);
+      
+      if (response.success) {
+        message.success('设置加急成功');
         fetchOrders();
-        if (response.data?.orderNo) {
-          navigate(`/supply-orders/order/${response.data.orderNo}`);
-        }
       } else {
-        message.error(response?.displayMsg || '创建供货单失败');
+        message.error(response.displayMsg || '设置加急失败');
       }
     } catch (error) {
-      message.error('创建供货单失败：' + (error instanceof Error ? error.message : '未知错误'));
+      message.error('设置加急失败：' + (error as Error).message);
     }
   };
 
@@ -126,11 +119,9 @@ const SupplyOrderList: React.FC = () => {
       }
       hoverable
       onClick={() => {
-        // 如果只有一个订单，直接进入订单详情
         if (customer.orderInfoList.length === 1) {
-          navigate(`/supply-orders/order/${customer.orderInfoList[0].orderNo}`);
+          navigate(`/supply-orders/detail/${customer.orderInfoList[0].orderNo}`);
         } else if (customer.orderInfoList.length > 1) {
-          // 如果有多个订单，展开订单列表
           setExpandedCustomer(customer);
         }
       }}
@@ -182,21 +173,7 @@ const SupplyOrderList: React.FC = () => {
                   size="small"
                   onClick={async (e) => {
                     e.stopPropagation();
-                    try {
-                      const response = await updateOrderUrgent({
-                        orderNo: order.orderNo,
-                        isUrgent: true
-                      });
-                      
-                      if (response.success) {
-                        message.success('设置加急成功');
-                        fetchOrders();
-                      } else {
-                        message.error(response.displayMsg || '设置加急失败');
-                      }
-                    } catch (error) {
-                      message.error('设置加急失败：' + (error as Error).message);
-                    }
+                    await handleUpdateUrgent(order.orderNo, true);
                   }}
                 >
                   加急
@@ -225,15 +202,13 @@ const SupplyOrderList: React.FC = () => {
         type="dashed" 
         block
         onClick={(e) => {
-          e.stopPropagation();  // 阻止卡片点击事件
-          setAddModalVisible(true);
-          // 传入当前客户信息到 OrderModal
-          const selectedCustomer = {
-            id: String(customer.userId),
-            name: customer.userName || '',
-            phone: customer.mobile || ''
-          };
-          setSelectedCustomer(selectedCustomer);  // 需要添加这个状态
+          e.stopPropagation();
+          setIsAddModalVisible(true);
+          setSelectedCustomer({
+            userId: customer.userId,
+            userName: customer.userName,
+            mobile: customer.mobile
+          });
         }}
       >
         新建供货单
@@ -243,30 +218,49 @@ const SupplyOrderList: React.FC = () => {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      {/* 日期筛选和搜索 */}
-      <Card>
-        <Space>
+      <Form
+        form={form}
+        initialValues={initialValues}
+        layout="inline"
+        style={{ marginBottom: 16 }}
+      >
+        <Form.Item name="dateRange">
           <DatePicker
             value={selectedDate}
             onChange={handleDateChange}
             style={{ width: 200 }}
             allowClear={false}
           />
-          <Search
+        </Form.Item>
+        
+        <Form.Item name="keyword">
+          <Input
             placeholder="搜索姓名或手机号"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onSearch={handleSearch}
             style={{ width: 200 }}
             allowClear
-            enterButton
           />
-          <Button onClick={handleReset}>重置</Button>
-          <Button type="primary" onClick={() => setAddModalVisible(true)}>
-            新建供货单
-          </Button>
-        </Space>
-      </Card>
+        </Form.Item>
+
+        <Form.Item>
+          <Space>
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
+              onClick={handleSearch}
+            >
+              搜索
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setIsAddModalVisible(true)}
+            >
+              添加供货单
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
 
       {/* 客户列表 */}
       <Row gutter={[16, 16]} style={{ opacity: isLoading ? 0.5 : 1 }}>
@@ -277,16 +271,18 @@ const SupplyOrderList: React.FC = () => {
         ))}
       </Row>
 
-      {/* 新建供货单弹窗 */}
-      <OrderModal
-        visible={addModalVisible}
+      <AddOrderModal
+        visible={isAddModalVisible}
         onCancel={() => {
-          setAddModalVisible(false);
-          setSelectedCustomer(null);  // 关闭时清空选中的客户
+          setIsAddModalVisible(false);
+          setSelectedCustomer(null);
         }}
-        onSubmit={handleAddOrder}
-        selectedCustomer={selectedCustomer}  // 传入选中的客户
-        defaultDate={selectedDate}
+        onSuccess={() => {
+          setIsAddModalVisible(false);
+          setSelectedCustomer(null);
+          fetchOrders();
+        }}
+        defaultUserId={selectedCustomer?.userId}
       />
 
       {/* 订单列表弹窗 */}
@@ -353,21 +349,7 @@ const SupplyOrderList: React.FC = () => {
                       type="link" 
                       size="small"
                       onClick={async () => {
-                        try {
-                          const response = await updateOrderUrgent({
-                            orderNo: order.orderNo,
-                            isUrgent: true
-                          });
-                          
-                          if (response.success) {
-                            message.success('设置加急成功');
-                            fetchOrders();
-                          } else {
-                            message.error(response.displayMsg || '设置加急失败');
-                          }
-                        } catch (error) {
-                          message.error('设置加急失败：' + (error as Error).message);
-                        }
+                        await handleUpdateUrgent(order.orderNo, true);
                       }}
                     >
                       加急

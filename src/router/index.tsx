@@ -5,8 +5,8 @@ import Inventory from '../pages/Inventory';
 import Pricing from '../pages/Pricing';
 import Customers from '../pages/Customers';
 import SupplyOrders from '../pages/SupplyOrders';
-import SupplyOrderList from '../pages/SupplyOrders/List';
-import CustomerOrders from '../pages/SupplyOrders/CustomerOrders';
+import OrderByCustomers from '../pages/SupplyOrders/OrderByCustomers';
+import OrderList from '../pages/SupplyOrders/OrderList';
 import OrderDetail from '../pages/SupplyOrders/OrderDetail';
 import Permissions from '../pages/Permissions';
 import PriceManagement from '../pages/PriceManagement';
@@ -19,6 +19,17 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   
   if (!accountId) {
     return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// 创建一个需要管理员权限的路由包装组件
+const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const role = localStorage.getItem('role');
+  
+  if (role !== 'admin') {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -74,14 +85,14 @@ export const routes: RouteObject[] = [
         children: [
           {
             path: '',
-            element: <SupplyOrderList />
+            element: <OrderByCustomers />
           },
           {
-            path: 'customer/:id',
-            element: <CustomerOrders />
+            path: 'list',
+            element: <OrderList />
           },
           {
-            path: 'order/:id',
+            path: 'detail/:id',
             element: <OrderDetail />
           }
         ]
