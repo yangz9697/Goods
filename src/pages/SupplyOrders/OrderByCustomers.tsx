@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Space, DatePicker, Input, Button, message, Tag, Modal, Form } from 'antd';
+import { Row, Col, Card, Space, DatePicker, Input, Button, message, Tag, Modal, Form, Popconfirm } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import AddOrderModal from './components/AddOrderModal';
+import { formatPhone } from '@/utils/format';
+import { OrderStatusCode, OrderStatusMap } from '@/types/order';
 
 interface QueryObjectOrderRequest {
   startTime: number;
@@ -21,7 +23,7 @@ const SupplyOrderList: React.FC = () => {
     mobile: string | null;
     orderInfoList: Array<{
       orderNo: string;
-      orderStatus: 'wait' | 'processing' | 'completed';
+      orderStatus: OrderStatusCode;
       remark: string;
       isUrgent: boolean;
       updateTime: number;
@@ -112,13 +114,65 @@ const SupplyOrderList: React.FC = () => {
     navigate(`/supply-orders/detail/${orderNo}`);
   };
 
+  // 表头和数据行的通用样式
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: '100px 70px 1fr 50px',  // 减小订单号和状态列宽，让备注列占据更多空间
+    gap: '8px',
+    padding: '8px 4px',
+    borderBottom: '1px solid #f0f0f0',
+    alignItems: 'center'
+  };
+
+  // 订单号列的样式
+  const orderNoStyle = {
+    display: 'flex', 
+    alignItems: 'center',
+    minWidth: 0,
+    fontSize: '12px'  // 减小字体大小
+  };
+
+  // 加急标签的样式
+  const urgentTagStyle = {
+    marginRight: 2,
+    padding: '0 2px',
+    fontSize: '12px',
+    lineHeight: '16px',
+    transform: 'scale(0.9)'  // 稍微缩小标签
+  };
+
+  // 文本溢出的通用样式
+  const ellipsisStyle = {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    fontSize: '13px',  // 增加字体大小
+    lineHeight: '1.5'  // 增加行高
+  };
+
+  // 表头样式
+  const headerStyle = {
+    ...gridStyle,
+    fontSize: '13px',
+    color: '#666',
+    fontWeight: 500  // 加粗表头
+  };
+
+  // 操作按钮的样式
+  const actionButtonStyle = {
+    padding: '0 2px',
+    fontSize: '12px',
+    height: '22px',
+    minWidth: '40px'
+  };
+
   // 渲染客户卡片
   const renderCustomerCard = (customer: typeof customerOrders[0]) => (
     <Card
       title={
         <Space>
           <span>{customer.userName || '未命名客户'}</span>
-          <span style={{ color: '#666' }}>{customer.mobile}</span>
+          <span style={{ color: '#666' }}>{formatPhone(customer.mobile || '')}</span>
         </Space>
       }
       hoverable
@@ -133,15 +187,7 @@ const SupplyOrderList: React.FC = () => {
       {/* 订单列表 */}
       <div style={{ marginBottom: 16 }}>
         {/* 表头 */}
-        <div style={{ 
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr 2fr auto',
-          gap: '8px',
-          padding: '8px 0',
-          borderBottom: '1px solid #f0f0f0',
-          fontSize: '12px',
-          color: '#666'
-        }}>
+        <div style={headerStyle}>
           <span>订单号</span>
           <span>状态</span>
           <span>备注</span>
@@ -150,33 +196,27 @@ const SupplyOrderList: React.FC = () => {
         
         {/* 订单数据 */}
         {customer.orderInfoList.slice(0, 2).map(order => (
-          <div key={order.orderNo} style={{ 
-            display: 'grid',
-            gridTemplateColumns: '2fr 1fr 2fr auto',
-            gap: '8px',
-            padding: '8px 0',
-            borderBottom: '1px solid #f0f0f0',
-            alignItems: 'center'
-          }}>
-            <span>
+          <div key={order.orderNo} style={gridStyle}>
+            <span style={orderNoStyle}>
               {order.isUrgent && (
-                <Tag color="red" style={{ marginRight: 8 }}>加急</Tag>
+                <Tag color="red" style={urgentTagStyle}>急</Tag>
               )}
-              {order.orderNo}
+              <span style={ellipsisStyle}>
+                {order.orderNo}
+              </span>
             </span>
-            <span>{order.orderStatus}</span>
-            <span style={{ 
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
+            <span style={ellipsisStyle}>{OrderStatusMap[order.orderStatus]}</span>
+            <span style={{
+              ...ellipsisStyle,
+              color: '#666'  // 备注文字颜色调淡
             }}>{order.remark || '无备注'}</span>
-            <div>
+            <div onClick={e => e.stopPropagation()}>
               {!order.isUrgent && (
                 <Button 
                   type="link" 
                   size="small"
-                  onClick={async (e) => {
-                    e.stopPropagation();
+                  style={actionButtonStyle}
+                  onClick={async () => {
                     await handleUpdateUrgent(order.orderNo, true);
                   }}
                 >
@@ -269,7 +309,7 @@ const SupplyOrderList: React.FC = () => {
       {/* 客户列表 */}
       <Row gutter={[16, 16]} style={{ opacity: isLoading ? 0.5 : 1 }}>
         {customerOrders.map(customer => (
-          <Col key={customer.userId} xs={24} sm={12} md={8} lg={6}>
+          <Col key={customer.userId} xs={24} sm={24} md={12} lg={8}>
             {renderCustomerCard(customer)}
           </Col>
         ))}
@@ -302,7 +342,7 @@ const SupplyOrderList: React.FC = () => {
             {/* 表头 */}
             <div style={{ 
               display: 'grid',
-              gridTemplateColumns: '2fr 1fr 2fr auto',
+              gridTemplateColumns: '130px 70px 1fr 50px',  // 保持与卡片中的列宽一致
               gap: '8px',
               padding: '12px 0',
               borderBottom: '1px solid #f0f0f0',
@@ -320,26 +360,25 @@ const SupplyOrderList: React.FC = () => {
                 key={order.orderNo} 
                 style={{ 
                   display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 2fr auto',
+                  gridTemplateColumns: '130px 70px 1fr 50px',
                   gap: '8px',
                   padding: '12px 0',
                   borderBottom: '1px solid #f0f0f0',
                   cursor: 'pointer',
-                  alignItems: 'center',
-                  ':hover': {
-                    backgroundColor: '#f5f5f5'
-                  }
+                  alignItems: 'center'
                 }}
                 onClick={() => {
                   handleOrderClick(order.orderNo);
                   setExpandedCustomer(null);
                 }}
               >
-                <span>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
                   {order.isUrgent && (
                     <Tag color="red" style={{ marginRight: 8 }}>加急</Tag>
                   )}
-                  {order.orderNo}
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {order.orderNo}
+                  </span>
                 </span>
                 <span>{order.orderStatus}</span>
                 <span style={{ 

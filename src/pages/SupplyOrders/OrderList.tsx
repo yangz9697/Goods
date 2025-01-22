@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Space, Button, Tag, DatePicker, Input, message, Form } from 'antd';
+import { Table, Space, Button, Tag, DatePicker, Input, message, Form, Popconfirm } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { orderApi, OrderItem } from '@/api/orders';
+import { orderApi } from '@/api/orders';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AddOrderModal from './components/AddOrderModal';
+import type { OrderItem } from '@/types/order';
 
 const OrderList: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<OrderItem[]>([]);
+  console.log(orders);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -50,6 +52,20 @@ const OrderList: React.FC = () => {
     }
   };
 
+  const handleDelete = async (orderNo: string) => {
+    try {
+      const response = await orderApi.deleteOrder(orderNo);
+      if (response.success) {
+        message.success('删除供货单成功');
+        fetchOrders(currentPage, pageSize);  // 重新获取列表
+      } else {
+        message.error(response.displayMsg || '删除供货单失败');
+      }
+    } catch (error) {
+      message.error('删除供货单失败：' + (error as Error).message);
+    }
+  };
+
   useEffect(() => {
     fetchOrders(currentPage, pageSize);
   }, [currentPage, pageSize, selectedDate]);
@@ -71,11 +87,6 @@ const OrderList: React.FC = () => {
       setSelectedDate(date);
       form.setFieldsValue({ dateRange: date });
     }
-  };
-
-  const handleRowClick = (record: OrderItem) => {
-    console.log('Navigating to detail:', `/supply-orders/detail/${record.orderNo}`);
-    navigate(`/supply-orders/detail/${record.orderNo}`);
   };
 
   const columns = [
@@ -131,17 +142,27 @@ const OrderList: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: OrderItem) => (
+      render: (_: unknown, record: OrderItem) => (
         <Space size="middle">
           <Button 
-            type="link" 
-            onClick={() => handleRowClick(record)}
+            type="link"
+            onClick={() => navigate(`/supply-orders/detail/${record.orderNo}`)}
           >
-            查看详情
+            查看
           </Button>
+          <Popconfirm
+            title="确定要删除这个供货单吗？"
+            onConfirm={() => handleDelete(record.orderNo)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="link" danger>
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
-    }
+    },
   ];
 
   return (

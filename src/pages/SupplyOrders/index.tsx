@@ -1,15 +1,10 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Tabs } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const SupplyOrders: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // 移除或修改日志，只在需要时打印
-  useEffect(() => {
-    console.log('SupplyOrders mounted, location:', location.pathname);
-  }, []); // 只在组件挂载时打印一次
 
   // 使用 useMemo 缓存 activeKey 的计算结果
   const activeKey = useMemo(() => {
@@ -41,7 +36,7 @@ const SupplyOrders: React.FC = () => {
   const tabItems = useMemo(() => [
     {
       key: 'customers',
-      label: '客户供货单'
+      label: '供货单首页'
     },
     {
       key: 'list',

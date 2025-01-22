@@ -1,20 +1,24 @@
 import request from './request';
+import { OrderStatusCode } from '@/types/order';
 
 interface QueryObjectOrderRequest {
   startTime: number;
   endTime: number;
+  keyWord?: string;
 }
 
 interface OrderInfo {
   orderSupplyDate: string;
   orderNo: string;
-  orderStatus: 'wait' | 'processing' | 'completed';
+  orderStatus: OrderStatusCode;
   orderStatusName: string;
   remark: string;
   userId: number;
   userName: string;
   userMobile: string;
-  createTime: number | null;
+  createTime: string;
+  isUrgent: boolean;
+  updateTime: number;
 }
 
 interface CustomerOrder {
@@ -104,7 +108,7 @@ interface PageOrderResponse {
     items: Array<{
       orderNo: string;
       orderStatusName: string;
-      orderStatusCode: 'wait' | 'processing' | 'completed';
+      orderStatusCode: OrderStatusCode;
       mobile: string;
       userName: string;
       createTime: number;
@@ -147,7 +151,7 @@ export const deleteOrder = async (orderNo: string): Promise<DeleteOrderResponse>
 };
 
 interface OrderStatus {
-  orderStatusCode: 'add' | 'wait' | 'ready' | 'waitCheck' | 'end';
+  orderStatusCode: OrderStatusCode;
   orderStatusName: string;
 }
 
@@ -159,7 +163,7 @@ interface GetOrderStatusResponse {
 
 interface UpdateOrderStatusRequest {
   orderNo: string;
-  orderStatusCode: 'add' | 'wait' | 'ready' | 'waitCheck' | 'end';
+  orderStatusCode: OrderStatusCode;
 }
 
 interface UpdateOrderStatusResponse {
@@ -208,10 +212,11 @@ export const selectUser = async (keyword: string): Promise<SelectUserResponse> =
   }
 };
 
-interface OrderListFilters {
-  startTime?: number;
-  endTime?: number;
+export interface OrderListFilters {
+  startTime: number;
+  endTime: number;
   userId?: number;
+  keyword?: string;
 }
 
 interface OrderListParams {
@@ -223,7 +228,7 @@ interface OrderListParams {
 export interface OrderItem {
   orderNo: string;
   orderStatusName: string;
-  orderStatusCode: 'wait' | 'processing' | 'completed';
+  orderStatusCode: OrderStatusCode;
   mobile: string;
   userName: string;
   createTime: number;

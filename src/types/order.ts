@@ -4,9 +4,79 @@ export interface OrderItem {
   id: string;
   name: string;
   quantity: number;
-  unit: 'box' | 'jin' | 'piece';
-  deliveryPerson?: string;
-  remark?: string;
+  unit: string;
+  price: number;
+  unitPrice: number;
+  remark: string;
+  deliveryName: string | undefined;
+  objectDetailId: number;
+  totalPrice?: number;
+  orderNo: string;
+  userName: string;
+  mobile: string;
+  orderStatusCode: OrderStatusCode;
+  orderStatusName: string;
+  createTime: number;
+  updateTime: number;
+}
+
+export interface NewOrderItem extends OrderItem {
+  selectedObjectId?: number;
+  inventory?: number;
+}
+
+export interface ObjectOption {
+  objectDetailId: number;
+  objectDetailName: string;
+}
+
+export enum OrderStatusCode {
+  ADD = 'add',
+  WAIT = 'wait',
+  READY = 'ready',
+  WAIT_CHECK = 'waitCheck',
+  END = 'end'
+}
+
+export const OrderStatusMap: Record<OrderStatusCode, string> = {
+  [OrderStatusCode.ADD]: '加单中',
+  [OrderStatusCode.WAIT]: '待配货',
+  [OrderStatusCode.READY]: '配货中',
+  [OrderStatusCode.WAIT_CHECK]: '待检查',
+  [OrderStatusCode.END]: '已完成'
+};
+
+export interface OrderStatus {
+  orderStatusCode: OrderStatusCode;
+  orderStatusName: string;
+}
+
+export interface Order {
+  id: string;
+  orderNo: string;
+  date: string;
+  createTime: string | null;
+  customerName: string;
+  customerPhone: string;
+  status: OrderStatusCode;
+  statusName: string;
+  remark: string;
+  items: OrderItem[];
+  totalPrice: number;
+}
+
+export interface OrderInfo {
+  orderSupplyDate: string;
+  orderNo: string;
+  orderStatus: OrderStatusCode;
+  orderStatusName: string;
+  remark: string;
+  userId: number;
+  userName: string;
+  userMobile: string;
+  createTime: string;
+  isUrgent: boolean;
+  updateTime: number;
 }
 
 export interface OrderType {
