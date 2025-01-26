@@ -1,27 +1,32 @@
 import React from 'react';
-import ReactECharts from 'echarts-for-react';
+import { Row, Col } from 'antd';
+import SalesOverview from './components/SalesOverview';
+import ProductConsumption from './Overview/components/ProductConsumption';
+import PaymentOverview from './components/PaymentOverview';
 
 const Dashboard: React.FC = () => {
-  const option = {
-    title: {
-      text: '销售统计'
-    },
-    tooltip: {},
-    xAxis: {
-      data: ['1月', '2月', '3月', '4月', '5月', '6月']
-    },
-    yAxis: {},
-    series: [{
-      name: '销量',
-      type: 'bar',
-      data: [5, 20, 36, 10, 10, 20]
-    }]
-  };
+  const isAdmin = localStorage.getItem('role') === 'admin';
 
   return (
-    <div>
-      <h2>数据概览</h2>
-      <ReactECharts option={option} />
+    <div style={{ padding: '0 12px' }}>
+      {/* 销售概览 */}
+      <SalesOverview />
+
+      {/* 商品消耗统计 */}
+      <Row style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <ProductConsumption />
+        </Col>
+      </Row>
+
+      {/* 付款情况看板（仅管理员可见） */}
+      {isAdmin && (
+        <Row style={{ marginTop: 16 }}>
+          <Col span={24}>
+            <PaymentOverview />
+          </Col>
+        </Row>
+      )}
     </div>
   );
 };

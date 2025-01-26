@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate, RouteObject } from 'react-router-dom';
 import Layout from '../components/Layout';
-import Dashboard from '../pages/Dashboard';
 import Inventory from '../pages/Inventory';
 import Pricing from '../pages/Pricing';
 import Customers from '../pages/Customers';
@@ -12,6 +11,8 @@ import Permissions from '../pages/Permissions';
 import PriceManagement from '../pages/PriceManagement';
 import Login from '../pages/Login';
 import Tenants from '../pages/Tenants';
+import DashboardOverview from '@/pages/Dashboard/Overview';
+import DashboardPayment from '@/pages/Dashboard/Payment';
 
 // 创建一个需要认证的路由包装组件
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -61,11 +62,28 @@ export const routes: RouteObject[] = [
     children: [
       {
         path: '/',
-        element: <Navigate to="/dashboard" replace />
+        element: <Navigate to="/dashboard/overview" replace />
       },
       {
         path: '/dashboard',
-        element: <Dashboard />
+        children: [
+          {
+            path: '',
+            element: <Navigate to="overview" replace />
+          },
+          {
+            path: 'overview',
+            element: <DashboardOverview />
+          },
+          {
+            path: 'payment',
+            element: (
+              <RequireAdmin>
+                <DashboardPayment />
+              </RequireAdmin>
+            )
+          }
+        ]
       },
       {
         path: '/inventory',

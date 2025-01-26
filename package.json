@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.2",
+    "@ant-design/plots": "^2.3.3",
     "@types/moment": "^2.13.0",
     "antd": "^5.22.3",
     "axios": "^1.6.7",

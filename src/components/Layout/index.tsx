@@ -35,7 +35,17 @@ const AppLayout: React.FC = () => {
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
-      label: '首页'
+      label: '数据看板',
+      children: [
+        {
+          key: '/dashboard/overview',
+          label: '销售概览'
+        },
+        {
+          key: '/dashboard/payment',
+          label: '付款情况'
+        }
+      ]
     },
     {
       key: '/inventory',
