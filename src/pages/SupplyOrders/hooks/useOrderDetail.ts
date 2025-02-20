@@ -11,13 +11,13 @@ const STATUS_LIST = Object.entries(OrderStatusMap).map(([code, name]) => ({
 }));
 
 export const useOrderDetail = (orderNo: string | undefined) => {
-  const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<Order | null>(null);
   const [deliveryUsers, setDeliveryUsers] = useState<{ label: string; value: string }[]>([]);
 
   const fetchOrderDetail = useCallback(async () => {
     if (!orderNo) return;
-    setLoading(true);
+    // setLoading(true);
     
     try {
       const orderRes = await orderApi.getOrderInfo(orderNo);  // 移除类型断言
@@ -75,7 +75,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
     } catch (error) {
       message.error('获取订单详情失败：' + (error as Error).message);
     } finally {
-      setLoading(false);
+      // setLoading(false);
     }
   }, [orderNo]);
 
@@ -180,7 +180,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
   };
 
   return {
-    loading,
+    // loading,
     order,
     statusList: STATUS_LIST,  // 直接返回常量
     deliveryUsers,

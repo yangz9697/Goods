@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, InputNumber, Input, Select, Space, Tag, Button, Popconfirm, message } from 'antd';
+import { Table, InputNumber, Input, Select, Space, Tag, Button, message, Modal } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { ObjectOption } from '@/types/order';
@@ -37,6 +37,7 @@ interface OrderItemTableProps {
     price: number;
     remark: string;
     deliveryName?: string;
+    unitName: string;
   }) => void;
   onDelete: (objectDetailId: number) => void;
   onAdd: (values: {
@@ -49,6 +50,13 @@ interface OrderItemTableProps {
   }) => void;
 }
 
+// 修改单位选项的定义
+const UNIT_OPTIONS = [
+  { label: '个', value: '个' },
+  { label: '斤', value: '斤' },
+  { label: '箱', value: '箱' }
+];
+
 export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   items,
   type,
@@ -58,19 +66,8 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   onDelete,
   onAdd
 }) => {
-  const [isAdding, setIsAdding] = useState(false);
   const [searchOptions, setSearchOptions] = useState<ObjectOption[]>([]);
-  const [newItem, setNewItem] = useState<TableOrderItem>(() => ({
-    id: 'new-item',
-    name: '',
-    quantity: 0,
-    unit: type === 'bulk' ? '箱' : '斤',
-    price: 0,
-    unitPrice: 0,
-    remark: '',
-    deliveryName: undefined,
-    objectDetailId: 0
-  }));
+  const [newItems, setNewItems] = useState<TableOrderItem[]>([]);
 
   const searchObjects = async (keyword: string) => {
     if (!keyword) {
@@ -89,17 +86,67 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     }
   };
 
-  const fetchInventory = async (objectDetailId: number) => {
+  const fetchInventory = async (objectDetailId: number, itemId: string) => {
     try {
       const response = await orderObjectApi.getObjectInventory(objectDetailId, '斤');
       if (response.success) {
-        setNewItem(prev => ({
-          ...prev,
-          inventory: response.data === null ? 0 : response.data
-        }));
+        setNewItems(prev => prev.map(item => 
+          item.id === itemId 
+            ? { ...item, inventory: response.data === null ? 0 : response.data }
+            : item
+        ));
       }
     } catch (error) {
       message.error('获取库存失败：' + (error as Error).message);
+    }
+  };
+
+  const handleAddNewRow = () => {
+    const newItemId = `new-${Date.now()}`;
+    setNewItems(prev => [...prev, {
+      id: newItemId,
+      name: '',
+      quantity: 0,
+      unit: '个',
+      price: 0,
+      unitPrice: 0,
+      remark: '',
+      objectDetailId: 0
+    }]);
+  };
+
+  const handleDeleteRow = (record: TableOrderItem) => {
+    const isNewItem = record.id.toString().startsWith('new-');
+    const hasContent = record.objectDetailId && record.quantity > 0;
+
+    if (isNewItem || !hasContent) {
+      if (isNewItem) {
+        setNewItems(prev => prev.filter(item => item.id !== record.id));
+      } else {
+        onDelete(record.objectDetailId);
+      }
+    } else {
+      Modal.confirm({
+        title: '确认删除',
+        content: `确定要删除${record.name}吗？`,
+        okText: '确定',
+        cancelText: '取消',
+        onOk: () => onDelete(record.objectDetailId)
+      });
+    }
+  };
+
+  const handleQuantityBlur = (record: TableOrderItem) => {
+    if (record.id.toString().startsWith('new-') && record.objectDetailId && record.quantity > 0) {
+      onAdd({
+        objectDetailId: record.objectDetailId,
+        objectDetailName: record.name,
+        count: record.quantity,
+        unitName: record.unit,
+        price: record.price,
+        remark: record.remark
+      });
+      setNewItems(prev => prev.filter(item => item.id !== record.id));
     }
   };
 
@@ -110,7 +157,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         dataIndex: 'name',
         key: 'name',
         render: (_, record) => {
-          if (record.id === 'new-item') {
+          if (record.id.toString().startsWith('new-')) {
             return (
               <Select
                 showSearch
@@ -120,12 +167,16 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                 onSearch={searchObjects}
                 onChange={(_, option: any) => {
                   const selectedItem = option.data;
-                  setNewItem({
-                    ...newItem,
-                    name: selectedItem.objectDetailName,
-                    objectDetailId: selectedItem.objectDetailId,
-                  });
-                  fetchInventory(selectedItem.objectDetailId);
+                  setNewItems(prev => prev.map(item => 
+                    item.id === record.id 
+                      ? {
+                          ...item,
+                          name: selectedItem.objectDetailName,
+                          objectDetailId: selectedItem.objectDetailId,
+                        }
+                      : item
+                  ));
+                  fetchInventory(selectedItem.objectDetailId, record.id);
                 }}
                 options={searchOptions.map(item => ({
                   label: item.objectDetailName,
@@ -143,41 +194,20 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         dataIndex: 'quantity',
         key: 'quantity',
         render: (_, record) => {
-          if (record.id === 'new-item') {
+          const isNewItem = record.id.toString().startsWith('new-');
+          if (isNewItem) {
             return (
               <Space>
                 <InputNumber
                   value={record.quantity}
                   onChange={(value) => {
-                    setNewItem(prev => ({
-                      ...prev,
-                      quantity: value || 0
-                    }));
+                    setNewItems(prev => prev.map(item => 
+                      item.id === record.id 
+                        ? { ...item, quantity: value || 0 }
+                        : item
+                    ));
                   }}
-                  onBlur={() => {
-                    if (record.objectDetailId && record.quantity > 0) {
-                      onAdd({
-                        objectDetailId: record.objectDetailId,
-                        objectDetailName: record.name,
-                        count: record.quantity,
-                        unitName: record.unit,
-                        price: 0,
-                        remark: record.remark
-                      });
-                      setIsAdding(false);
-                      setNewItem({
-                        id: 'new-item',
-                        name: '',
-                        quantity: 0,
-                        unit: type === 'bulk' ? '箱' : '斤',
-                        price: 0,
-                        unitPrice: 0,
-                        remark: '',
-                        deliveryName: undefined,
-                        objectDetailId: 0
-                      });
-                    }
-                  }}
+                  onBlur={() => handleQuantityBlur(record)}
                 />
                 {record.inventory !== undefined && (
                   <Tag color="blue">
@@ -197,7 +227,8 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                     objectDetailId: record.objectDetailId,
                     count: newValue,
                     price: record.price,
-                    remark: record.remark
+                    remark: record.remark,
+                    unitName: record.unit
                   });
                 }
               }}
@@ -209,6 +240,32 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         title: '单位',
         dataIndex: 'unit',
         key: 'unit',
+        render: (_, record) => {
+          return (
+            <Select
+              value={record.unit}
+              style={{ width: '100%' }}
+              onChange={(value) => {
+                if (record.id === 'new') {
+                  setNewItems(prev => prev.map(item => ({
+                    ...item,
+                    unit: value
+                  })));
+                } else {
+                  onEdit({
+                    objectDetailId: record.objectDetailId,
+                    count: record.quantity,
+                    price: record.price,
+                    remark: record.remark,
+                    deliveryName: record.deliveryName,
+                    unitName: value
+                  });
+                }
+              }}
+              options={UNIT_OPTIONS}
+            />
+          );
+        }
       },
       {
         title: '备注',
@@ -224,7 +281,8 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                   objectDetailId: record.objectDetailId,
                   count: record.quantity,
                   price: record.price,
-                  remark: newValue
+                  remark: newValue,
+                  unitName: record.unit
                 });
               }
             }}
@@ -233,38 +291,35 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
       },
     ];
 
-    // 只在全部视图中显示配货员列
-    if (type === 'all') {
-      baseColumns.push({
-        title: '配货员',
-        dataIndex: 'deliveryName',
-        key: 'deliveryName',
-        render: (_, record) => (
-          <Select
-            allowClear
-            showSearch
-            style={{ width: '100%' }}
-            placeholder="选择配货员"
-            defaultValue={record.deliveryName}
-            options={deliveryUsers}
-            onChange={(value) => {
-              onEdit({
-                objectDetailId: record.objectDetailId,
-                count: record.quantity,
-                price: record.price,
-                remark: record.remark,
-                deliveryName: value
-              });
-            }}
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-          />
-        ),
-      });
-    }
+    baseColumns.push({
+      title: '配货员',
+      dataIndex: 'deliveryName',
+      key: 'deliveryName',
+      render: (_, record) => (
+        <Select
+          allowClear
+          showSearch
+          style={{ width: '100%' }}
+          placeholder="选择配货员"
+          defaultValue={record.deliveryName}
+          options={deliveryUsers}
+          onChange={(value) => {
+            onEdit({
+              objectDetailId: record.objectDetailId,
+              count: record.quantity,
+              price: record.price,
+              remark: record.remark,
+              deliveryName: value,
+              unitName: record.unit
+            });
+          }}
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+        />
+      ),
+    });
 
-    // 管理员可见的额外列
     if (isAdmin) {
       baseColumns.push(
         {
@@ -286,7 +341,8 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                       count: record.quantity,
                       price: newValue,
                       remark: record.remark,
-                      deliveryName: record.deliveryName
+                      deliveryName: record.deliveryName,
+                      unitName: record.unit
                     });
                   }
                 }}
@@ -310,18 +366,17 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
       title: '操作',
       dataIndex: 'action',
       key: 'action',
-      render: (_, record) => (
-        <Popconfirm
-          title="确定要删除这个货品吗？"
-          onConfirm={() => onDelete(record.objectDetailId)}
-          okText="确定"
-          cancelText="取消"
-        >
-          <Button type="link" danger>
+      render: (_, record) => {
+        return (
+          <Button 
+            type="link" 
+            danger
+            onClick={() => handleDeleteRow(record)}
+          >
             删除
           </Button>
-        </Popconfirm>
-      ),
+        );
+      },
     });
 
     return baseColumns;
@@ -330,7 +385,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   return (
     <>
       <Table
-        dataSource={[...items, ...(isAdding ? [newItem] : [])]}
+        dataSource={[...items, ...newItems]}
         rowKey="id"
         pagination={false}
         columns={getColumns()}
@@ -339,9 +394,8 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         type="dashed"
         block
         icon={<PlusOutlined />}
-        onClick={() => setIsAdding(true)}
+        onClick={handleAddNewRow}
         style={{ marginTop: 16 }}
-        disabled={isAdding}
       >
         添加{type === 'bulk' ? '大货' : '货品'}
       </Button>

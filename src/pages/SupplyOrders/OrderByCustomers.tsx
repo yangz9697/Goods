@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Space, DatePicker, Input, Button, message, Tag, Modal, Form } from 'antd';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Row, Col, Space, DatePicker, Input, Button, message, Tag, Modal, Form } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
@@ -7,6 +7,7 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import AddOrderModal from './components/AddOrderModal';
 import { formatPhone } from '@/utils/format';
 import { OrderStatusCode, OrderStatusMap } from '@/types/order';
+
 
 const SupplyOrderList: React.FC = () => {
   const navigate = useNavigate();
@@ -25,11 +26,12 @@ const SupplyOrderList: React.FC = () => {
   }>>([]);
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
   const [searchText, setSearchText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{
     userId: number;
     userName: string | null;
     mobile: string | null;
+    label: string;
   } | null>(null);
   const [expandedCustomer, setExpandedCustomer] = useState<typeof customerOrders[0] | null>(null);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -40,14 +42,17 @@ const SupplyOrderList: React.FC = () => {
     keyword: searchText
   };
 
+  // 添加一个标记首次加载的 ref
+  const isFirstLoad = useRef(true);
+
   // 获取供货单列表
-  const fetchOrders = async () => {
-    setIsLoading(true);
+  const fetchData = useCallback(async (keyword: string = '') => {
+    setLoading(true);
     try {
       const response = await orderApi.queryObjectOrder({
         startTime: selectedDate.startOf('day').valueOf(),
         endTime: selectedDate.endOf('day').valueOf(),
-        keyWord: searchText || undefined
+        keyWord: keyword || undefined
       });
 
       if (response.success) {
@@ -58,25 +63,29 @@ const SupplyOrderList: React.FC = () => {
     } catch (error) {
       message.error('获取供货单列表失败: ' + (error as Error).message);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchOrders();
   }, [selectedDate]);
 
+  useEffect(() => {
+    if (isFirstLoad.current) {
+      fetchData(searchText);
+      isFirstLoad.current = false;
+    }
+  }, [fetchData]);
+
   const handleSearch = () => {
-    const values = form.getFieldsValue();
-    setSearchText(values.keyword || '');
-    fetchOrders();
+    fetchData(searchText);
   };
 
   const handleReset = () => {
-    form.resetFields();
-    setSelectedDate(dayjs());
+    form.setFieldsValue({
+      keyword: '',
+      dateRange: dayjs()
+    });
     setSearchText('');
-    fetchOrders();
+    setSelectedDate(dayjs());
+    fetchData('');
   };
 
   const handleDateChange = (date: dayjs.Dayjs | null) => {
@@ -95,7 +104,7 @@ const SupplyOrderList: React.FC = () => {
       
       if (response.success) {
         message.success('设置加急成功');
-        fetchOrders();
+        fetchData(searchText);
       } else {
         message.error(response.displayMsg || '设置加急失败');
       }
@@ -160,98 +169,127 @@ const SupplyOrderList: React.FC = () => {
     minWidth: '40px'
   };
 
-  // 渲染客户卡片
-  const renderCustomerCard = (customer: typeof customerOrders[0]) => (
-    <Card
-      title={
-        <Space>
-          <span>{customer.userName || '未命名客户'}</span>
-          <span style={{ color: '#666' }}>{formatPhone(customer.mobile || '')}</span>
-        </Space>
-      }
-      hoverable
-      onClick={() => {
-        if (customer.orderInfoList.length === 1) {
-          handleOrderClick(customer.orderInfoList[0].orderNo);
-        } else if (customer.orderInfoList.length > 1) {
-          setExpandedCustomer(customer);
-        }
-      }}
-    >
-      {/* 订单列表 */}
-      <div style={{ marginBottom: 16 }}>
-        {/* 表头 */}
-        <div style={headerStyle}>
-          <span>订单号</span>
-          <span>状态</span>
-          <span>备注</span>
-          <span>操作</span>
-        </div>
-        
-        {/* 订单数据 */}
-        {customer.orderInfoList.slice(0, 2).map(order => (
-          <div key={order.orderNo} style={gridStyle}>
-            <span style={orderNoStyle}>
-              {order.isUrgent && (
-                <Tag color="red" style={urgentTagStyle}>急</Tag>
-              )}
-              <span style={ellipsisStyle}>
-                {order.orderNo}
-              </span>
-            </span>
-            <span style={ellipsisStyle}>{OrderStatusMap[order.orderStatus]}</span>
-            <span style={{
-              ...ellipsisStyle,
-              color: '#666'  // 备注文字颜色调淡
-            }}>{order.remark || '无备注'}</span>
-            <div onClick={e => e.stopPropagation()}>
-              {!order.isUrgent && (
-                <Button 
-                  type="link" 
-                  size="small"
-                  style={actionButtonStyle}
-                  onClick={async () => {
-                    await handleUpdateUrgent(order.orderNo, true);
-                  }}
-                >
-                  加急
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
+  // 添加卡片头部颜色判断函数
+  const getCardHeaderStyle = (customer: typeof customerOrders[0]) => {
+    if (!customer.orderInfoList || customer.orderInfoList.length === 0) {
+      return { backgroundColor: '#f5f5f5' };  // 没有订单时显示灰色
+    }
+    
+    const hasUrgentOrder = customer.orderInfoList.some(order => order.isUrgent);
+    if (hasUrgentOrder) {
+      return { backgroundColor: '#fff1f0' };  // 有加急订单时显示红色背景
+    }
+    
+    return { backgroundColor: '#ffffff' };  // 有普通订单时显示白色
+  };
 
-        {/* 如果有更多订单，显示省略号 */}
-        {customer.orderInfoList.length > 2 && (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '8px 0',
-            color: '#999',
-            fontSize: '12px',
-            borderBottom: '1px solid #f0f0f0'
-          }}>
-            ···
-          </div>
-        )}
+  // 修改渲染客户卡片的函数
+  const renderCustomerCard = (customer: typeof customerOrders[0]) => (
+    <div 
+      style={{ 
+        border: '1px solid #f0f0f0',
+        borderRadius: '8px',
+        backgroundColor: '#fff',
+        cursor: 'pointer',
+        transition: 'box-shadow 0.3s',
+        height: '100%'
+      }}
+      onClick={() => setExpandedCustomer(customer)}
+    >
+      {/* 卡片头部 */}
+      <div style={{ 
+        ...getCardHeaderStyle(customer),
+        padding: '16px 24px',
+        borderTopLeftRadius: '8px',
+        borderTopRightRadius: '8px',
+        borderBottom: '1px solid #f0f0f0'
+      }}>
+        <Space>
+          <span style={{ fontWeight: 'bold' }}>
+            {customer.userName || '未命名客户'}
+          </span>
+          <span style={{ color: '#666' }}>
+            {formatPhone(customer.mobile || '')}
+          </span>
+        </Space>
       </div>
 
-      {/* 底部按钮 */}
-      <Button 
-        type="dashed" 
-        block
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsAddModalVisible(true);
-          setSelectedCustomer({
-            userId: customer.userId,
-            userName: customer.userName,
-            mobile: customer.mobile
-          });
-        }}
-      >
-        新建供货单
-      </Button>
-    </Card>
+      {/* 卡片内容 */}
+      <div style={{ padding: '16px 24px' }}>
+        {/* 订单列表 */}
+        <div style={{ marginBottom: 16 }}>
+          {/* 表头 */}
+          <div style={headerStyle}>
+            <span>订单号</span>
+            <span>状态</span>
+            <span>备注</span>
+            <span>操作</span>
+          </div>
+          
+          {customer.orderInfoList.slice(0, 2).map(order => (
+            <div key={order.orderNo} style={gridStyle}>
+              <span style={orderNoStyle}>
+                {order.isUrgent && (
+                  <Tag color="red" style={urgentTagStyle}>急</Tag>
+                )}
+                <span style={ellipsisStyle}>
+                  {order.orderNo}
+                </span>
+              </span>
+              <span style={ellipsisStyle}>{OrderStatusMap[order.orderStatus]}</span>
+              <span style={{
+                ...ellipsisStyle,
+                color: '#666'  // 备注文字颜色调淡
+              }}>{order.remark || '无备注'}</span>
+              <div onClick={e => e.stopPropagation()}>
+                {!order.isUrgent && (
+                  <Button 
+                    type="link" 
+                    size="small"
+                    style={actionButtonStyle}
+                    onClick={async () => {
+                      await handleUpdateUrgent(order.orderNo, true);
+                    }}
+                  >
+                    加急
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {customer.orderInfoList.length > 2 && (
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '8px 0',
+              color: '#999',
+              fontSize: '12px',
+              borderBottom: '1px solid #f0f0f0'
+            }}>
+              ···
+            </div>
+          )}
+        </div>
+
+        {/* 底部按钮 */}
+        <Button 
+          type="dashed" 
+          block
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsAddModalVisible(true);
+            setSelectedCustomer({
+              userId: customer.userId,
+              userName: customer.userName,
+              mobile: customer.mobile,
+              label: `${customer.userName || '未命名客户'} (${formatPhone(customer.mobile || '')})`
+            });
+          }}
+        >
+          新建供货单
+        </Button>
+      </div>
+    </div>
   );
 
   return (
@@ -261,6 +299,16 @@ const SupplyOrderList: React.FC = () => {
         initialValues={initialValues}
         layout="inline"
         style={{ marginBottom: 16 }}
+        preserve={false}
+        onValuesChange={(changedValues, allValues) => {
+          // 当表单值变化时，同步更新状态
+          if ('keyword' in changedValues) {
+            setSearchText(allValues.keyword || '');
+          }
+          if ('dateRange' in changedValues && allValues.dateRange) {
+            setSelectedDate(allValues.dateRange);
+          }
+        }}
       >
         <Form.Item name="dateRange">
           <DatePicker
@@ -274,6 +322,9 @@ const SupplyOrderList: React.FC = () => {
         <Form.Item name="keyword">
           <Input
             placeholder="搜索姓名或手机号"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onPressEnter={handleSearch}
             style={{ width: 200 }}
             allowClear
           />
@@ -301,7 +352,7 @@ const SupplyOrderList: React.FC = () => {
       </Form>
 
       {/* 客户列表 */}
-      <Row gutter={[16, 16]} style={{ opacity: isLoading ? 0.5 : 1 }}>
+      <Row gutter={[16, 16]} style={{ opacity: loading ? 0.5 : 1 }}>
         {customerOrders.map(customer => (
           <Col key={customer.userId} xs={24} sm={24} md={12} lg={8}>
             {renderCustomerCard(customer)}
@@ -318,9 +369,9 @@ const SupplyOrderList: React.FC = () => {
         onSuccess={() => {
           setIsAddModalVisible(false);
           setSelectedCustomer(null);
-          fetchOrders();
+          fetchData(searchText);
         }}
-        defaultUserId={selectedCustomer?.userId}
+        defaultCustomer={selectedCustomer || undefined}  // 使用 undefined 而不是 null
       />
 
       {/* 订单列表弹窗 */}

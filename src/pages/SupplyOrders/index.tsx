@@ -1,63 +1,54 @@
-import React, { useMemo } from 'react';
-import { Tabs } from 'antd';
+import React from 'react';
+import { Tabs, Space, Typography, Tag } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
+
+const { Title } = Typography;
+
+// 设置 dayjs 默认语言为中文
+dayjs.locale('zh-cn');
 
 const SupplyOrders: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 使用 useMemo 缓存 activeKey 的计算结果
-  const activeKey = useMemo(() => {
-    const key = location.pathname.includes('/detail/') ? 'detail' 
-      : location.pathname.includes('/list') ? 'list' 
-      : 'customers';
-    return key;
-  }, [location.pathname]);
+  // 判断当前是否在详情页
+  const isDetailPage = location.pathname.includes('/detail/');
 
   const handleTabChange = (key: string) => {
-    switch (key) {
-      case 'customers':
-        navigate('/supply-orders');
-        break;
-      case 'list':
-        navigate('/supply-orders/list');
-        break;
-      case 'detail':
-        if (!location.pathname.includes('/detail/')) {
-          navigate('/supply-orders/list');
-        }
-        break;
-      default:
-        navigate('/supply-orders');
-    }
+    navigate(key);
   };
-
-  // 使用 useMemo 缓存 tabs 配置
-  const tabItems = useMemo(() => [
-    {
-      key: 'customers',
-      label: '供货单首页'
-    },
-    {
-      key: 'list',
-      label: '供货单列表'
-    },
-    {
-      key: 'detail',
-      label: '供货单详情'
-    }
-  ], []);
 
   return (
     <div>
-      <Tabs 
-        activeKey={activeKey}
+      {/* 只在非详情页显示日期 */}
+      {!isDetailPage && (
+        <Space align="center" style={{ marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              {dayjs().format('YYYY年MM月DD日')}
+              <Tag color="red" style={{ marginLeft: 8 }}>今天</Tag>
+            </div>
+          </Title>
+        </Space>
+      )}
+
+      <Tabs
+        activeKey={location.pathname.split('/')[2] || ''}
         onChange={handleTabChange}
-        items={tabItems}
+        items={[
+          {
+            label: '按客户查看',
+            key: '',
+          },
+          {
+            label: '供货单列表',
+            key: 'list',
+          }
+        ]}
       />
-      <div style={{ padding: '16px 0' }}>
-        <Outlet />
-      </div>
+      <Outlet />
     </div>
   );
 };

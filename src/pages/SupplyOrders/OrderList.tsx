@@ -6,6 +6,7 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AddOrderModal from './components/AddOrderModal';
 import { OrderStatusCode } from '@/types/order';
+import type { TableRowSelection } from 'antd/es/table/interface';
 
 interface PageOrderItem {
   orderNo: string;
@@ -29,6 +30,7 @@ const OrderList: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
 
   // 初始化表单默认值
   const initialValues = {
@@ -100,6 +102,31 @@ const OrderList: React.FC = () => {
     }
   };
 
+  const handlePageChange = (page: number, size: number) => {
+    setCurrentPage(page);
+    setPageSize(size || 10);
+    fetchOrders(page, size || 10);
+  };
+
+  const handleSelectionChange = (
+    selectedRowKeys: React.Key[]
+  ) => {
+    setSelectedRowKeys(selectedRowKeys as string[]);
+  };
+
+  const handleBatchPrint = () => {
+    message.info(`待开发：打印 ${selectedRowKeys.length} 个供货单`);
+  };
+
+  const handleBatchExport = () => {
+    message.info(`待开发：导出 ${selectedRowKeys.length} 个供货单`);
+  };
+
+  const rowSelection: TableRowSelection<PageOrderItem> = {
+    selectedRowKeys,
+    onChange: handleSelectionChange,
+  };
+
   const columns = [
     {
       title: '供货单号',
@@ -139,7 +166,7 @@ const OrderList: React.FC = () => {
       key: 'remark',
     },
     {
-      title: '创建时间',
+      title: '下单时间',
       dataIndex: 'createTime',
       key: 'createTime',
       render: (time: number) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
@@ -218,24 +245,47 @@ const OrderList: React.FC = () => {
             >
               添加供货单
             </Button>
+            <Button
+              onClick={handleBatchPrint}
+              disabled={selectedRowKeys.length === 0}
+            >
+              批量打印
+            </Button>
+            <Button
+              onClick={handleBatchExport}
+              disabled={selectedRowKeys.length === 0}
+            >
+              批量导出
+            </Button>
           </Space>
         </Form.Item>
       </Form>
 
       <Table 
+        rowSelection={rowSelection}
         columns={columns} 
         dataSource={orders}
         rowKey="orderNo"
         loading={loading}
         pagination={{
           current: currentPage,
-          pageSize: pageSize,
-          total: total,
-          showSizeChanger: true,
-          showQuickJumper: true,
+          pageSize,
+          total,
           onChange: (page, size) => {
-            setCurrentPage(page);
-            setPageSize(size || 10);
+            setSelectedRowKeys([]);
+            handlePageChange(page, size);
+          },
+          showSizeChanger: true,
+          showTotal: (total) => `共 ${total} 条`,
+          locale: {
+            items_per_page: '条/页',
+            jump_to: '跳至',
+            jump_to_confirm: '确定',
+            page: '页',
+            prev_page: '上一页',
+            next_page: '下一页',
+            prev_5: '向前 5 页',
+            next_5: '向后 5 页'
           }
         }}
       />

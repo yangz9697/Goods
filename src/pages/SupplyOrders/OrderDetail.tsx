@@ -13,7 +13,7 @@ const OrderDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const {
-    loading,
+    // loading,
     order,
     statusList,
     deliveryUsers,
@@ -36,7 +36,7 @@ const OrderDetail: React.FC = () => {
     navigate('/supply-orders/list');  // 删除成功后返回列表页
   };
 
-  if (loading || !order) {
+  if (!order) {
     return <Spin size="large" />;
   }
 
