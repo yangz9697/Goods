@@ -76,15 +76,15 @@ export interface PageObjectPriceRequest {
 }
 
 export interface ObjectPrice {
-  amount: number;
-  createTime: number;
-  creator: string;
-  jin: number;
   objectDetailId: number;
   objectDetailName: string;
   priceForAmount: number;
-  priceForBox: number;
   priceForJin: number;
+  priceForBox: number;
+  yesterdayPriceForAmount?: number;
+  yesterdayPriceForJin?: number;
+  yesterdayPriceForBox?: number;
+  createTime: number;
   updateTime: number;
   updater: string;
 }

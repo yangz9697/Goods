@@ -202,6 +202,8 @@ const Tenants: React.FC = () => {
         }}
         onOk={() => form.submit()}
         destroyOnClose
+        okText="确定"
+        cancelText="取消"
       >
         <Form
           form={form}

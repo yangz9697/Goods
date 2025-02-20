@@ -4,6 +4,11 @@ import type { Dayjs } from 'dayjs';
 import type { ObjectPrice } from '../../types/objectDetail';
 import { pageObjectPrice, updateObjectPrice } from '../../api/objectDetail';
 import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';  // 导入中文语言包
+import locale from 'antd/es/date-picker/locale/zh_CN';  // 导入 antd 日期选择器的中文配置
+
+// 设置 dayjs 默认语言为中文
+dayjs.locale('zh-cn');
 
 const { Search } = Input;
 const { Title } = Typography;
@@ -42,7 +47,8 @@ const Pricing: React.FC = () => {
       if (response.data) {
         const items = response.data.items.map(item => ({
           ...item,
-          updateTime: new Date(item.updateTime).getTime()
+          updateTime: new Date(item.updateTime).getTime(),
+          createTime: new Date(item.createTime).getTime()
         }));
 
         setPriceData(items);
@@ -105,19 +111,52 @@ const Pricing: React.FC = () => {
       title: '价格(个)',
       dataIndex: 'priceForAmount',
       key: 'priceForAmount',
-      render: (price: number) => price ? `¥${price.toFixed(2)}` : '-'
+      render: (price: number, record: ObjectPrice) => (
+        <div>
+          <div>{price ? `¥${price.toFixed(2)}` : '-'}</div>
+          {record.yesterdayPriceForAmount && (
+            <div style={{ fontSize: '12px', color: '#999' }}>
+              昨日：¥{record.yesterdayPriceForAmount.toFixed(2)}
+            </div>
+          )}
+        </div>
+      )
     },
     {
       title: '价格(斤)',
       dataIndex: 'priceForJin',
       key: 'priceForJin',
-      render: (price: number) => price ? `¥${price.toFixed(2)}` : '-'
+      render: (price: number, record: ObjectPrice) => (
+        <div>
+          <div>{price ? `¥${price.toFixed(2)}` : '-'}</div>
+          {record.yesterdayPriceForJin && (
+            <div style={{ fontSize: '12px', color: '#999' }}>
+              昨日：¥{record.yesterdayPriceForJin.toFixed(2)}
+            </div>
+          )}
+        </div>
+      )
     },
     {
       title: '价格(箱)',
       dataIndex: 'priceForBox',
       key: 'priceForBox',
-      render: (price: number) => price ? `¥${price.toFixed(2)}` : '-'
+      render: (price: number, record: ObjectPrice) => (
+        <div>
+          <div>{price ? `¥${price.toFixed(2)}` : '-'}</div>
+          {record.yesterdayPriceForBox && (
+            <div style={{ fontSize: '12px', color: '#999' }}>
+              昨日：¥{record.yesterdayPriceForBox.toFixed(2)}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      key: 'createTime',
+      render: (time: number) => dayjs(time).format('YYYY-MM-DD HH:mm:ss')
     },
     {
       title: '更新时间',
@@ -168,6 +207,7 @@ const Pricing: React.FC = () => {
             onChange={(date) => date && setSelectedDate(date)}
             allowClear={false}
             style={{ marginLeft: 16 }}
+            locale={locale}  // 添加中文配置
           />
         </Space>
 
@@ -193,7 +233,14 @@ const Pricing: React.FC = () => {
               setPageSize(size || 10);
             },
             showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条记录`
+            showTotal: (total) => `共 ${total} 条记录`,
+            showQuickJumper: true,
+            locale: {
+              items_per_page: '条/页',
+              jump_to: '跳至',
+              jump_to_confirm: '确定',
+              page: '页'
+            }
           }}
         />
       </Space>

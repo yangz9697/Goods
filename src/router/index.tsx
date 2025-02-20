@@ -8,7 +8,6 @@ import OrderByCustomers from '../pages/SupplyOrders/OrderByCustomers';
 import OrderList from '../pages/SupplyOrders/OrderList';
 import OrderDetail from '../pages/SupplyOrders/OrderDetail';
 import Permissions from '../pages/Permissions';
-import PriceManagement from '../pages/PriceManagement';
 import Login from '../pages/Login';
 import Tenants from '../pages/Tenants';
 import DashboardOverview from '@/pages/Dashboard/Overview';
@@ -122,10 +121,6 @@ export const routes: RouteObject[] = [
             <Permissions />
           </RequireManagerOrAdmin>
         )
-      },
-      {
-        path: '/price-management',
-        element: <PriceManagement />,
       },
       {
         path: '/tenants',

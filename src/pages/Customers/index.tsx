@@ -3,7 +3,6 @@ import { Table, Button, Space, Modal, Form, Input, message } from 'antd';
 import { addUser, pageUser, updateUser, deleteUser } from '../../api/customer';
 import dayjs from 'dayjs';
 
-const { Search } = Input;
 const { TextArea } = Input;
 
 export interface CustomerType {
@@ -25,11 +24,12 @@ const Customers: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  const [searchText, setSearchText] = useState('');
+  const [searchName, setSearchName] = useState('');
+  const [searchPhone, setSearchPhone] = useState('');
   const [form] = Form.useForm();
 
   // 获取客户列表
-  const fetchCustomerList = async (page: number, size: number, name: string = '') => {
+  const fetchCustomerList = async (page: number, size: number, name: string = '', mobile: string = '') => {
     setLoading(true);
     try {
       const response = await pageUser({
@@ -37,7 +37,7 @@ const Customers: React.FC = () => {
         pageSize: size,
         filters: {
           name,
-          mobile: ''
+          mobile
         }
       });
 
@@ -65,15 +65,14 @@ const Customers: React.FC = () => {
   };
 
   // 搜索功能
-  const handleSearch = (value: string) => {
-    setSearchText(value);
+  const handleSearch = () => {
     setCurrentPage(1);
-    fetchCustomerList(1, pageSize, value);
+    fetchCustomerList(1, pageSize, searchName, searchPhone);
   };
 
   // 在组件加载时获取数据
   useEffect(() => {
-    fetchCustomerList(currentPage, pageSize, searchText);
+    fetchCustomerList(currentPage, pageSize, searchName, searchPhone);
   }, [currentPage, pageSize]);
 
   // 处理添加/编辑
@@ -90,7 +89,7 @@ const Customers: React.FC = () => {
 
         if (response.success) {
           message.success('添加成功');
-          fetchCustomerList(currentPage, pageSize, searchText);
+          fetchCustomerList(currentPage, pageSize, searchName, searchPhone);
           setModalVisible(false);
           form.resetFields();
         } else {
@@ -110,7 +109,7 @@ const Customers: React.FC = () => {
 
         if (response.success) {
           message.success('编辑成功');
-          fetchCustomerList(currentPage, pageSize, searchText);
+          fetchCustomerList(currentPage, pageSize, searchName, searchPhone);
           setModalVisible(false);
           form.resetFields();
         } else {
@@ -135,7 +134,7 @@ const Customers: React.FC = () => {
           
           if (response.success) {
             message.success('删除成功');
-            fetchCustomerList(currentPage, pageSize, searchText);
+            fetchCustomerList(currentPage, pageSize, searchName, searchPhone);
           } else {
             message.error(response.displayMsg || '删除失败');
           }
@@ -215,11 +214,23 @@ const Customers: React.FC = () => {
     <div>
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <Space>
-          <Search
+          <Input
             placeholder="请输入客户姓名"
-            onSearch={handleSearch}
+            value={searchName}
+            onChange={(e) => setSearchName(e.target.value)}
+            onPressEnter={handleSearch}
             style={{ width: 200 }}
           />
+          <Input
+            placeholder="请输入手机号"
+            value={searchPhone}
+            onChange={(e) => setSearchPhone(e.target.value)}
+            onPressEnter={handleSearch}
+            style={{ width: 200 }}
+          />
+          <Button type="primary" onClick={handleSearch}>
+            搜索
+          </Button>
           <Button 
             type="primary" 
             onClick={() => {
@@ -246,7 +257,14 @@ const Customers: React.FC = () => {
               setPageSize(size || 10);
             },
             showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条记录`
+            showTotal: (total) => `共 ${total} 条记录`,
+            showQuickJumper: true,
+            locale: {
+              items_per_page: '条/页',
+              jump_to: '跳至',
+              jump_to_confirm: '确定',
+              page: '页'
+            }
           }}
         />
       </Space>
@@ -260,6 +278,8 @@ const Customers: React.FC = () => {
           form.resetFields();
         }}
         footer={null}
+        okText="确定"
+        cancelText="取消"
       >
         <Form 
           form={form}

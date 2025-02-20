@@ -28,6 +28,10 @@ const Inventory: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [opLogs, setOpLogs] = useState<ObjectOpLog[]>([]);
+  const [editValues, setEditValues] = useState({
+    jinPerBox: 0,
+    piecePerBox: 0
+  });
 
   // 搜索功能
   const handleSearch = (value: string) => {
@@ -174,8 +178,8 @@ const Inventory: React.FC = () => {
         message.success('库存调整成功');
         setAdjustModalVisible(false);
         form.resetFields();
-        // 刷新列表
-        fetchObjectList(currentPage, pageSize);
+        // 刷新列表时传入搜索关键字
+        fetchObjectList(currentPage, pageSize, searchText);
       } else {
         message.error(response.displayMsg || '库存调整失败');
       }
@@ -185,23 +189,22 @@ const Inventory: React.FC = () => {
   };
 
   // 编辑商品
-  const handleEdit = async (values: any) => {
+  const handleEdit = async () => {
     try {
       if (!currentItem) return;
 
       const requestData: UpdateObjectUnitAndPriceRequest = {
         objectDetailId: Number(currentItem.id),
-        amount: values.piecePerBox,  // 每箱个数
-        jin: values.jinPerBox        // 每箱斤数
+        amount: editValues.piecePerBox,
+        jin: editValues.jinPerBox
       };
 
       const response = await updateObjectUnitAndPrice(requestData);
 
-      if (response.success) {
+      if (response.data) {
         message.success('编辑成功');
         setEditModalVisible(false);
-        form.resetFields();
-        fetchObjectList(currentPage, pageSize);
+        fetchObjectList(currentPage, pageSize, searchText);
       } else {
         message.error(response.displayMsg || '编辑失败');
       }
@@ -221,14 +224,16 @@ const Inventory: React.FC = () => {
           
           if (response.success) {
             message.success('删除成功');
-            fetchObjectList(currentPage, pageSize);
+            fetchObjectList(currentPage, pageSize, searchText);
           } else {
             message.error(response.displayMsg || '删除失败');
           }
         } catch (error) {
           message.error('删除失败：' + (error as Error).message);
         }
-      }
+      },
+      okText: '确定',
+      cancelText: '取消'
     });
   };
 
@@ -360,7 +365,7 @@ const Inventory: React.FC = () => {
           <Button type="link" onClick={() => handleShowDetail(record)}>详情</Button>
           <Button type="link" onClick={() => {
             setCurrentItem(record);
-            form.setFieldsValue(record);
+            setEditValues({ jinPerBox: record.jinPerBox, piecePerBox: record.piecePerBox });
             setEditModalVisible(true);
           }}>编辑</Button>
           <Button type="link" danger onClick={() => handleDelete(record)}>
@@ -398,14 +403,21 @@ const Inventory: React.FC = () => {
               setPageSize(size || 10);
             },
             showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条记录`
+            showTotal: (total) => `共 ${total} 条记录`,
+            showQuickJumper: true,
+            locale: {
+              items_per_page: '条/页',
+              jump_to: '跳至',
+              jump_to_confirm: '确定',
+              page: '页'
+            }
           }}
         />
 
         {/* 添加商品弹窗 */}
         <Modal
           title="添加商品"
-          visible={addModalVisible}
+          open={addModalVisible}
           onCancel={() => setAddModalVisible(false)}
           footer={null}
         >
@@ -447,29 +459,32 @@ const Inventory: React.FC = () => {
               />
             </Form.Item>
 
-            <Form.Item
-              name="quantity"
-              label="初始库存数量"
-              rules={[{ required: true, message: '请输入初始库存数量' }]}
-            >
-              <InputNumber 
-                min={0} 
-                style={{ width: '100%' }} 
-                placeholder="请输入初始库存数量"
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="unit"
-              label="库存单位"
-              initialValue="piece"
-              rules={[{ required: true, message: '请选择库存单位' }]}
-            >
-              <Select>
-                <Option value="piece">个</Option>
-                <Option value="jin">斤</Option>
-                <Option value="box">箱</Option>
-              </Select>
+            <Form.Item label="初始库存">
+              <Space.Compact style={{ width: '100%' }}>
+                <Form.Item
+                  name="quantity"
+                  noStyle
+                  rules={[{ required: true, message: '请输入初始库存数量' }]}
+                >
+                  <InputNumber 
+                    min={0} 
+                    style={{ width: '100%' }} 
+                    placeholder="请输入初始库存数量"
+                  />
+                </Form.Item>
+                <Form.Item
+                  name="unit"
+                  noStyle
+                  initialValue="piece"
+                  rules={[{ required: true, message: '请选择库存单位' }]}
+                >
+                  <Select style={{ width: 120 }}>
+                    <Option value="piece">个</Option>
+                    <Option value="jin">斤</Option>
+                    <Option value="box">箱</Option>
+                  </Select>
+                </Form.Item>
+              </Space.Compact>
             </Form.Item>
 
             <Form.Item>
@@ -488,10 +503,10 @@ const Inventory: React.FC = () => {
         {/* 调整库存弹窗 */}
         <Modal
           title={`${adjustType === 'add' ? '添加' : '减少'}库存`}
-          visible={adjustModalVisible}
+          open={adjustModalVisible}
           onCancel={() => {
             setAdjustModalVisible(false);
-            form.resetFields();  // 关闭时重置表单
+            form.resetFields();
           }}
           footer={null}
         >
@@ -510,9 +525,8 @@ const Inventory: React.FC = () => {
             <Form.Item
               name="remark"
               label="备注原因"
-              rules={[{ required: true, message: '请输入备注原因' }]}
             >
-              <Input.TextArea />
+              <Input.TextArea placeholder="请输入备注原因（选填）" />
             </Form.Item>
             <Form.Item>
               <Space>
@@ -533,7 +547,7 @@ const Inventory: React.FC = () => {
         {/* 详情弹窗 */}
         <Modal
           title="库存详情"
-          visible={detailModalVisible}
+          open={detailModalVisible}
           onCancel={() => {
             setDetailModalVisible(false);
             setOpLogs([]);
@@ -581,54 +595,39 @@ const Inventory: React.FC = () => {
         {/* 编辑弹窗 */}
         <Modal
           title="编辑菜品"
-          visible={editModalVisible}
+          open={editModalVisible}
           onCancel={() => {
             setEditModalVisible(false);
-            form.resetFields();
+            setEditValues({ jinPerBox: 0, piecePerBox: 0 });
           }}
-          footer={null}
+          okText="确定"
+          cancelText="取消"
+          onOk={handleEdit}
         >
-          <Form 
-            form={form} 
-            onFinish={handleEdit}
-            preserve={false}
-            initialValues={currentItem || undefined}
-          >
-            <Form.Item
-              name="name"
-              label="名称"
-              rules={[{ required: true, message: '请输入名称' }]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              name="jinPerBox"
-              label="单位(斤/箱)"
-              rules={[{ required: true, message: '请输入单位' }]}
-            >
-              <InputNumber min={0} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item
-              name="piecePerBox"
-              label="单位(个/箱)"
-              rules={[{ required: true, message: '请输入单位' }]}
-            >
-              <InputNumber min={0} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  确认
-                </Button>
-                <Button onClick={() => {
-                  setEditModalVisible(false);
-                  form.resetFields();
-                }}>
-                  取消
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 8 }}>名称</div>
+            <Input disabled value={currentItem?.name} />
+          </div>
+          
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 8 }}>单位(斤/箱)</div>
+            <InputNumber
+              min={0}
+              style={{ width: '100%' }}
+              value={editValues.jinPerBox}
+              onChange={(value) => setEditValues(prev => ({ ...prev, jinPerBox: value || 0 }))}
+            />
+          </div>
+          
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 8 }}>单位(个/箱)</div>
+            <InputNumber
+              min={0}
+              style={{ width: '100%' }}
+              value={editValues.piecePerBox}
+              onChange={(value) => setEditValues(prev => ({ ...prev, piecePerBox: value || 0 }))}
+            />
+          </div>
         </Modal>
       </Space>
     </div>
