@@ -180,6 +180,7 @@ const Customers: React.FC = () => {
     {
       title: '操作',
       key: 'action',
+      onCell: () => ({ style: { padding: 0 } }),
       render: (_: any, record: CustomerType) => (
         <Space size="middle">
           <Button 

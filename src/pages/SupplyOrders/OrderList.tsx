@@ -200,6 +200,7 @@ const OrderList: React.FC = () => {
           </Popconfirm>
         </Space>
       ),
+      onCell: () => ({ style: { padding: 0 } })
     },
   ];
 

@@ -105,6 +105,7 @@ export interface ObjectOpLog {
   opType: string;
   operator: string;
   userRemark: string;
+  operatorTime: number;
 }
 
 export interface QueryObjectOpLogResponse {

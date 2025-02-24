@@ -169,6 +169,7 @@ const Permissions: React.FC = () => {
           <Button>重置密码</Button>
         </Space>
       ),
+      onCell: () => ({ style: { padding: 0 } })
     },
   ];
 

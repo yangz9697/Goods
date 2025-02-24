@@ -366,6 +366,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
       title: '操作',
       dataIndex: 'action',
       key: 'action',
+      onCell: () => ({ style: { padding: 0 } }),
       render: (_, record) => {
         return (
           <Button 

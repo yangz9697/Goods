@@ -44,6 +44,7 @@ const PaymentDetail: React.FC<PaymentDetailProps> = ({ userId, onMonthClick }) =
           查看订单
         </Button>
       ),
+      onCell: () => ({ style: { padding: 0 } })
     },
   ];
 

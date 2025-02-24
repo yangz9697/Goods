@@ -125,6 +125,7 @@ const PaymentOverview: React.FC = () => {
             查看订单
           </Button>
         ),
+        onCell: () => ({ style: { padding: 0 } })
       },
     ];
 

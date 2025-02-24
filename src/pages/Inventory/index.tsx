@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message } from 'antd';
+import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message, Tooltip } from 'antd';
 import type { InventoryItem, UnitType } from '../../types/inventory';
 import type { ObjectOpLog } from '../../types/objectDetail';
 import dayjs from 'dayjs';
@@ -156,7 +156,7 @@ const Inventory: React.FC = () => {
       // 准备请求数据
       const requestData: any = {
         detailObjectId: Number(currentItem.id),
-        remark: values.remark
+        remark: values.remark || ''  // 确保即使没有备注也传空字符串
       };
 
       // 根据调整单位设置对应的数量
@@ -172,19 +172,21 @@ const Inventory: React.FC = () => {
           break;
       }
       
+      setLoading(true);  // 添加loading状态
       const response = await updateObjectInventory(requestData);
 
       if (response.success) {
         message.success('库存调整成功');
         setAdjustModalVisible(false);
         form.resetFields();
-        // 刷新列表时传入搜索关键字
-        fetchObjectList(currentPage, pageSize, searchText);
+        fetchObjectList(currentPage, pageSize, searchText);  // 刷新列表
       } else {
         message.error(response.displayMsg || '库存调整失败');
       }
     } catch (error) {
       message.error('库存调整失败：' + (error as Error).message);
+    } finally {
+      setLoading(false);  // 清除loading状态
     }
   };
 
@@ -263,6 +265,17 @@ const Inventory: React.FC = () => {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
+      // width: 120,  // 设置固定宽度
+      // ellipsis: {  // 配置省略
+      //   showTitle: false,  // 禁用默认的 title 提示
+      // },
+      render: (name: string) => (
+        <div style={{ minWidth: '60px' }}>
+          <Tooltip placement="topLeft" title={name}>
+            <span>{name}</span>
+          </Tooltip>
+        </div>
+      ),
     },
     {
       title: '数量(箱)',
@@ -361,18 +374,21 @@ const Inventory: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: any, record: InventoryItem) => (
-        <Space>
-          <Button type="link" onClick={() => handleShowDetail(record)}>详情</Button>
-          <Button type="link" onClick={() => {
-            setCurrentItem(record);
-            setEditValues({ jinPerBox: record.jinPerBox, piecePerBox: record.piecePerBox });
-            setEditModalVisible(true);
-          }}>编辑</Button>
-          <Button type="link" danger onClick={() => handleDelete(record)}>
-            删除
-          </Button>
-        </Space>
+        <div style={{ padding: 0 }}>
+          <Space>
+            <Button type="link" onClick={() => handleShowDetail(record)}>详情</Button>
+            <Button type="link" onClick={() => {
+              setCurrentItem(record);
+              setEditValues({ jinPerBox: record.jinPerBox, piecePerBox: record.piecePerBox });
+              setEditModalVisible(true);
+            }}>编辑</Button>
+            <Button type="link" danger onClick={() => handleDelete(record)}>
+              删除
+            </Button>
+          </Space>
+        </div>
       ),
+      onCell: () => ({ style: { padding: 0 } })
     },
   ];
 
@@ -530,7 +546,7 @@ const Inventory: React.FC = () => {
             </Form.Item>
             <Form.Item>
               <Space>
-                <Button type="primary" htmlType="submit">
+                <Button type="primary" htmlType="submit" loading={loading}>
                   确认
                 </Button>
                 <Button onClick={() => {
@@ -558,7 +574,7 @@ const Inventory: React.FC = () => {
           {currentItem && (
             <Table
               dataSource={opLogs}
-              rowKey={(record) => `${record.objectDetailId}-${record.opType}-${record.operator}`}
+              rowKey={(record) => `${record.objectDetailId}-${record.opType}-${record.operatorTime}`}
               pagination={false}
               columns={[
                 {
