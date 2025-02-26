@@ -242,11 +242,30 @@ const SupplyOrderList: React.FC = () => {
                 color: '#666'  // 备注文字颜色调淡
               }}>{order.remark || '无备注'}</span>
               <div onClick={e => e.stopPropagation()}>
-                {!order.isUrgent && (
+                {order.isUrgent ? (
                   <Button 
                     type="link" 
                     size="small"
-                    style={actionButtonStyle}
+                    onClick={async () => {
+                      try {
+                        const response = await orderApi.cancelUrgentOrder(order.orderNo);
+                        if (response.success) {
+                          message.success('取消加急成功');
+                          fetchData(searchText);
+                        } else {
+                          message.error(response.displayMsg || '取消加急失败');
+                        }
+                      } catch (error) {
+                        message.error('取消加急失败：' + (error as Error).message);
+                      }
+                    }}
+                  >
+                    取消加急
+                  </Button>
+                ) : (
+                  <Button 
+                    type="link" 
+                    size="small"
                     onClick={async () => {
                       await handleUpdateUrgent(order.orderNo, true);
                     }}
@@ -432,7 +451,27 @@ const SupplyOrderList: React.FC = () => {
                   whiteSpace: 'nowrap'
                 }}>{order.remark || '无备注'}</span>
                 <div onClick={e => e.stopPropagation()}>
-                  {!order.isUrgent && (
+                  {order.isUrgent ? (
+                    <Button 
+                      type="link" 
+                      size="small"
+                      onClick={async () => {
+                        try {
+                          const response = await orderApi.cancelUrgentOrder(order.orderNo);
+                          if (response.success) {
+                            message.success('取消加急成功');
+                            fetchData(searchText);
+                          } else {
+                            message.error(response.displayMsg || '取消加急失败');
+                          }
+                        } catch (error) {
+                          message.error('取消加急失败：' + (error as Error).message);
+                        }
+                      }}
+                    >
+                      取消加急
+                    </Button>
+                  ) : (
                     <Button 
                       type="link" 
                       size="small"

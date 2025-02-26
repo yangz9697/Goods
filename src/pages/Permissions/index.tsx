@@ -34,6 +34,9 @@ const Permissions: React.FC = () => {
   const [form] = Form.useForm();
   const currentRole = localStorage.getItem('role');
   const currentTenant = localStorage.getItem('tenant');
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editForm] = Form.useForm();
+  const [editingUser, setEditingUser] = useState<AccountItem | null>(null);
 
   const fetchAccounts = async (page: number, size: number) => {
     setLoading(true);
@@ -107,6 +110,40 @@ const Permissions: React.FC = () => {
     }
   };
 
+  const handleResetPassword = async (username: string) => {
+    try {
+      const response = await accountApi.resetPassword({ username });
+      if (response.success) {
+        message.success('重置密码成功');
+      } else {
+        message.error(response.displayMsg || '重置密码失败');
+      }
+    } catch (error) {
+      message.error('重置密码失败：' + (error as Error).message);
+    }
+  };
+
+  const handleEditRole = async (values: { role: string }) => {
+    if (!editingUser) return;
+    
+    try {
+      const response = await accountApi.updateRole({
+        username: editingUser.username,
+        role: values.role
+      });
+      
+      if (response.success) {
+        message.success('更新角色成功');
+        setIsEditModalVisible(false);
+        fetchAccounts(currentPage, pageSize);
+      } else {
+        message.error(response.displayMsg || '更新角色失败');
+      }
+    } catch (error) {
+      message.error('更新角色失败：' + (error as Error).message);
+    }
+  };
+
   const columns = [
     {
       title: '用户名',
@@ -163,10 +200,21 @@ const Permissions: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, _record: AccountItem) => (
+      render: (_: any, record: AccountItem) => (
         <Space size="middle">
-          <Button type="primary">编辑权限</Button>
-          <Button>重置密码</Button>
+          <Button 
+            type="primary" 
+            onClick={() => {
+              setEditingUser(record);
+              editForm.setFieldsValue({ role: record.role });
+              setIsEditModalVisible(true);
+            }}
+          >
+            编辑权限
+          </Button>
+          <Button onClick={() => handleResetPassword(record.username)}>
+            重置密码
+          </Button>
         </Space>
       ),
       onCell: () => ({ style: { padding: 0 } })
@@ -256,6 +304,37 @@ const Permissions: React.FC = () => {
               </Select>
             </Form.Item>
           )}
+        </Form>
+      </Modal>
+
+      <Modal
+        title="编辑权限"
+        open={isEditModalVisible}
+        onCancel={() => {
+          setIsEditModalVisible(false);
+          setEditingUser(null);
+          editForm.resetFields();
+        }}
+        onOk={() => editForm.submit()}
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleEditRole}
+        >
+          <Form.Item
+            name="role"
+            label="角色"
+            rules={[{ required: true, message: '请选择角色' }]}
+          >
+            <Select placeholder="请选择角色">
+              {roleList.map(item => (
+                <Option key={item.role} value={item.role}>
+                  {item.roleName}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
         </Form>
       </Modal>
     </div>

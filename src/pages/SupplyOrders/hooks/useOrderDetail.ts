@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { message } from 'antd';
 import { orderApi } from '@/api/orders';
 import { orderObjectApi, AddOrderObjectRequest } from '@/api/orderObject';
@@ -11,35 +11,35 @@ const STATUS_LIST = Object.entries(OrderStatusMap).map(([code, name]) => ({
 }));
 
 export const useOrderDetail = (orderNo: string | undefined) => {
-  // const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<Order | null>(null);
   const [deliveryUsers, setDeliveryUsers] = useState<{ label: string; value: string }[]>([]);
 
+  // 分离配货员获取函数
+  const fetchDeliveryUsers = useCallback(async () => {
+    try {
+      const deliveryRes = await orderApi.selectDelivery();
+      if (deliveryRes?.success) {
+        setDeliveryUsers(deliveryRes.data.map(user => ({
+          label: user.name,
+          value: user.username
+        })));
+      }
+    } catch (error) {
+      console.error('获取配送人员失败:', error);
+    }
+  }, []);
+
+  // 订单详情获取函数
   const fetchOrderDetail = useCallback(async () => {
     if (!orderNo) return;
-    // setLoading(true);
     
     try {
-      const orderRes = await orderApi.getOrderInfo(orderNo);  // 移除类型断言
+      const orderRes = await orderApi.getOrderInfo(orderNo);
       if (!orderRes.success) {
         message.error(orderRes.displayMsg || '获取供货单详情失败');
         return;
       }
 
-      // 获取配送人员数据
-      try {
-        const deliveryRes = await orderApi.selectDelivery();
-        if (deliveryRes?.success) {
-          setDeliveryUsers(deliveryRes.data.map(user => ({
-            label: user.name,
-            value: user.username
-          })));
-        }
-      } catch (error) {
-        console.error('获取配送人员失败:', error);
-      }
-
-      // 整合数据
       setOrder({
         id: orderNo,
         orderNo: orderNo,
@@ -67,17 +67,21 @@ export const useOrderDetail = (orderNo: string | undefined) => {
           orderStatusCode: orderRes.data.orderStatus,
           orderStatusName: orderRes.data.orderStatusName,
           createTime: item.createTime,
-          updateTime: item.updateTime
+          updateTime: item.updateTime,
         })),
+        payStatusName: orderRes.data.payStatusName,
         totalPrice: orderRes.data.orderTotalPrice || 0
       });
 
     } catch (error) {
       message.error('获取订单详情失败：' + (error as Error).message);
-    } finally {
-      // setLoading(false);
     }
   }, [orderNo]);
+
+  // 初始化时获取配货员列表
+  useEffect(() => {
+    fetchDeliveryUsers();
+  }, [fetchDeliveryUsers]);
 
   const handleAdd = async (values: Omit<AddOrderObjectRequest, 'orderNo'>) => {
     try {
@@ -180,9 +184,8 @@ export const useOrderDetail = (orderNo: string | undefined) => {
   };
 
   return {
-    // loading,
     order,
-    statusList: STATUS_LIST,  // 直接返回常量
+    statusList: STATUS_LIST,
     deliveryUsers,
     fetchOrderDetail,
     handleAdd,

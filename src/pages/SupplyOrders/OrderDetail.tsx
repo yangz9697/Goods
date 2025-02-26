@@ -28,6 +28,13 @@ const OrderDetail: React.FC = () => {
   useEffect(() => {
     if (orderNo) {
       fetchOrderDetail();
+      // 设置定时器，每秒刷新一次
+      const timer = setInterval(() => {
+        fetchOrderDetail();
+      }, 1000);
+
+      // 清理定时器
+      return () => clearInterval(timer);
     }
   }, [orderNo, fetchOrderDetail]);
 

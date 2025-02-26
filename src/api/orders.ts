@@ -254,6 +254,7 @@ export interface GetOrderInfoResponse {
     orderNo: string;
     orderStatus: OrderStatusCode;
     orderStatusName: string;
+    payStatusName: string;
     userName: string;
     userMobile: string;
     createTime: string | null;
@@ -458,6 +459,14 @@ export const orderApi = {
       return response.data;
     } catch (error) {
       throw new Error('获取配货员列表失败：' + (error as Error).message);
+    }
+  },
+  cancelUrgentOrder: async (orderNo: string) => {
+    try {
+      const response = await request.post('/erp/order/cancelUrgentOrder', { orderNo });
+      return response.data;
+    } catch (error) {
+      throw new Error('取消加急失败：' + (error as Error).message);
     }
   }
 };

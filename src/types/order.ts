@@ -60,6 +60,7 @@ export interface Order {
   customerPhone: string;
   status: OrderStatusCode;
   statusName: string;
+  payStatusName: string;
   remark: string;
   items: OrderDetailItem[];
   totalPrice: number;

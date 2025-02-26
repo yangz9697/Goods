@@ -62,6 +62,11 @@ interface AccountListResponse {
   displayMsg?: string;
 }
 
+interface UpdateRoleParams {
+  username: string;
+  role: string;
+}
+
 export const accountApi = {
   pageAccount: async (params: AccountListParams): Promise<AccountListResponse> => {
     try {
@@ -90,6 +95,24 @@ export const accountApi = {
       return response.data;
     } catch (error) {
       throw new Error('添加账户失败：' + (error as Error).message);
+    }
+  },
+
+  resetPassword: async (params: { username: string }) => {
+    try {
+      const response = await request.post('/erp/account/reset', params);
+      return response.data;
+    } catch (error) {
+      throw new Error('重置密码失败：' + (error as Error).message);
+    }
+  },
+
+  updateRole: async (params: UpdateRoleParams) => {
+    try {
+      const response = await request.post('/erp/account/updateRole', params);
+      return response.data;
+    } catch (error) {
+      throw new Error('更新角色失败：' + (error as Error).message);
     }
   }
 }; 

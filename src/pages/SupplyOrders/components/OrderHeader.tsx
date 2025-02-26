@@ -157,6 +157,12 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                   }}>
                     总计：￥{order.totalPrice.toFixed(2)}
                   </span>
+                  <span style={{
+                    fontSize: 16,
+                    color: order.payStatusName === '已付款' ? '#52c41a' : '#f5222d'
+                  }}>
+                    {order.payStatusName}
+                  </span>
                   <Button 
                     type="primary"
                     onClick={() => onPayStatusChange('waitPay')}
