@@ -5,8 +5,22 @@ import dayjs from 'dayjs';
 import { Order, OrderStatus, OrderStatusCode } from '@/types/order';
 import { orderApi } from '@/api/orders';
 
+// 扩展 Order 类型，确保包含所有需要的属性
+interface ExtendedOrder extends Order {
+  orderNo: string;
+  date: string;
+  createTime: string;
+  customerName: string;
+  customerPhone: string;
+  status: OrderStatusCode;
+  statusName: string;
+  payStatusName: string;
+  totalPrice: number;
+  id: string;  // 改为只接受 string 类型
+}
+
 interface OrderHeaderProps {
-  order: Order;
+  order: ExtendedOrder;
   statusList: OrderStatus[];
   isAdmin: boolean;
   onStatusChange: (status: OrderStatusCode) => void;
@@ -35,8 +49,89 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
     }
   };
 
-  console.log('order.date:', order.date);  // 看看传入的日期
-  console.log('parsed date:', dayjs(order.date));  // 看看解析后的 dayjs 对象
+  const handlePrint = async () => {
+    // 创建一个简单的 PDF 文件内容
+    const pdfContent = `
+%PDF-1.7
+1 0 obj
+<</Type /Catalog /Pages 2 0 R>>
+endobj
+2 0 obj
+<</Type /Pages /Kids [3 0 R] /Count 1>>
+endobj
+3 0 obj
+<</Type /Page /Parent 2 0 R /Resources <</Font <</F1 4 0 R>>>> /MediaBox [0 0 612 792] /Contents 5 0 R>>
+endobj
+4 0 obj
+<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>
+endobj
+5 0 obj
+<</Length 89>>
+stream
+BT
+/F1 24 Tf
+50 700 Td
+(供货单) Tj
+/F1 12 Tf
+0 -50 Td
+(订单号: ${order.orderNo}) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f
+0000000010 00000 n
+0000000056 00000 n
+0000000111 00000 n
+0000000212 00000 n
+0000000274 00000 n
+trailer
+<</Size 6 /Root 1 0 R>>
+startxref
+415
+%%EOF`;
+
+    // 将字符串转换为 Blob
+    const pdfBlob = new Blob([pdfContent], { type: 'application/pdf' });
+    const url = URL.createObjectURL(pdfBlob);
+    
+    // 创建一个隐藏的 iframe
+    const printFrame = document.createElement('iframe');
+    printFrame.style.display = 'none';
+    document.body.appendChild(printFrame);
+    
+    // 当 iframe 加载完成后触发打印
+    printFrame.onload = () => {
+      const contentWindow = printFrame.contentWindow;
+      if (!contentWindow) return;
+
+      // 监听打印对话框关闭事件
+      const cleanup = () => {
+        document.body.removeChild(printFrame);
+        URL.revokeObjectURL(url);
+      };
+
+      try {
+        if (contentWindow.matchMedia) {
+          const mediaQueryList = contentWindow.matchMedia('print');
+          mediaQueryList.addEventListener('change', (mql) => {
+            if (!mql.matches) {  // 打印对话框关闭
+              cleanup();
+            }
+          });
+        }
+        
+        contentWindow.print();
+      } catch (error) {
+        console.error('打印失败:', error);
+        cleanup();
+      }
+    };
+    
+    // 设置 iframe 的 src
+    printFrame.src = url;
+  };
 
   return (
     <Row gutter={16} style={{ height: '100%' }}>
@@ -181,7 +276,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
 
             {/* 右侧按钮组 */}
             <Space size="small">
-              <Button onClick={() => console.log('打印:', order.id)}>打印</Button>
+              <Button onClick={handlePrint}>打印</Button>
               <Button onClick={() => console.log('导出:', order.id)}>导出PDF</Button>
               <Popconfirm
                 title="确定要删除这个供货单吗？"

@@ -29,7 +29,6 @@ export const useOrderDetail = (orderNo: string | undefined) => {
     }
   }, []);
 
-  // 订单详情获取函数
   const fetchOrderDetail = useCallback(async () => {
     if (!orderNo) return;
     
@@ -72,16 +71,23 @@ export const useOrderDetail = (orderNo: string | undefined) => {
         payStatusName: orderRes.data.payStatusName,
         totalPrice: orderRes.data.orderTotalPrice || 0
       });
-
     } catch (error) {
       message.error('获取订单详情失败：' + (error as Error).message);
     }
   }, [orderNo]);
 
-  // 初始化时获取配货员列表
   useEffect(() => {
     fetchDeliveryUsers();
   }, [fetchDeliveryUsers]);
+
+  useEffect(() => {
+    fetchOrderDetail();
+    const timer = setInterval(() => {
+      fetchOrderDetail();
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [fetchOrderDetail]);
 
   const handleAdd = async (values: Omit<AddOrderObjectRequest, 'orderNo'>) => {
     try {
@@ -187,13 +193,10 @@ export const useOrderDetail = (orderNo: string | undefined) => {
     order,
     statusList: STATUS_LIST,
     deliveryUsers,
-    fetchOrderDetail,
     handleAdd,
-    handleDeleteItem,
     handleEdit,
+    handleDeleteItem,
     handleStatusChange,
-    handleUpdatePayStatus,
-    setOrder,
-    setDeliveryUsers
+    handleUpdatePayStatus
   };
 }; 

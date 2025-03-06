@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Space, Card, Tabs, Spin, message } from 'antd';
+import { Space, Card, Tabs, message } from 'antd';
 import { useOrderDetail } from './hooks/useOrderDetail';
 import { OrderItemTable } from './components/OrderItemTable';
 import { OrderHeader } from '@/pages/SupplyOrders/components/OrderHeader';
@@ -13,11 +13,9 @@ const OrderDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const {
-    // loading,
     order,
     statusList,
     deliveryUsers,
-    fetchOrderDetail,
     handleAdd,
     handleEdit,
     handleDeleteItem,
@@ -25,39 +23,27 @@ const OrderDetail: React.FC = () => {
     handleUpdatePayStatus
   } = useOrderDetail(orderNo);
 
-  useEffect(() => {
-    if (orderNo) {
-      fetchOrderDetail();
-      // 设置定时器，每秒刷新一次
-      const timer = setInterval(() => {
-        fetchOrderDetail();
-      }, 1000);
-
-      // 清理定时器
-      return () => clearInterval(timer);
-    }
-  }, [orderNo, fetchOrderDetail]);
-
   const handleDeleteSuccess = () => {
     message.success('删除供货单成功');
-    navigate('/supply-orders/list');  // 删除成功后返回列表页
+    navigate('/supply-orders/list');
   };
 
   if (!order) {
-    return <Spin size="large" />;
+    return null;
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <OrderHeader 
-        order={order}
-        statusList={statusList}
-        isAdmin={isAdmin}
-        onStatusChange={handleStatusChange}
-        onPayStatusChange={handleUpdatePayStatus}
-        onDeleteSuccess={handleDeleteSuccess}
-      />
-      
+    <Space direction="vertical" style={{ width: '100%' }}>
+      <Card>
+        <OrderHeader
+          order={order}
+          statusList={statusList}
+          isAdmin={isAdmin}
+          onStatusChange={handleStatusChange}
+          onPayStatusChange={handleUpdatePayStatus}
+          onDeleteSuccess={handleDeleteSuccess}
+        />
+      </Card>
       <Card>
         <Tabs
           activeKey={activeTab}
@@ -79,7 +65,7 @@ const OrderDetail: React.FC = () => {
               )
             },
             {
-              key: 'bulk',
+              key: 'box',
               label: '大货',
               children: (
                 <OrderItemTable

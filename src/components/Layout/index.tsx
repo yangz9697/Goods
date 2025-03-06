@@ -30,6 +30,7 @@ const AppLayout: React.FC = () => {
   const role = localStorage.getItem('role');
   const currentTenant = localStorage.getItem('tenant');
   const [loading, setLoading] = useState(false);
+  const isAdmin = role === 'admin';
 
   const menuItems: MenuProps['items'] = [
     {
@@ -41,10 +42,10 @@ const AppLayout: React.FC = () => {
           key: '/dashboard/overview',
           label: '销售概览'
         },
-        {
+        ...(isAdmin ? [{
           key: '/dashboard/payment',
           label: '付款情况'
-        }
+        }] : [])
       ]
     },
     {
