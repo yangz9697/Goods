@@ -1,53 +1,126 @@
-import React, { useState } from 'react';
-import { Card, DatePicker, Table, Row, Col, Button } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, DatePicker, Table, Row, Col, Button, message, Popover } from 'antd';
 import { Line } from '@ant-design/plots';
 import dayjs from 'dayjs';
-import { mockProductConsumption } from '@/mock/dashboard';
+import { dashboardApi } from '@/api/dashboard';
+import locale from 'antd/es/date-picker/locale/zh_CN';
 
 const { RangePicker } = DatePicker;
 
 interface ProductDetail {
-  id: number;
-  name: string;
-  dailyData: Array<{
-    date: string;
-    consumption: number;
-    sales: number;
+  objectDetailId: number;
+  objectDetailName: string;
+  unitName: string;
+  totalCount: number;
+  totalPrice: number;
+  countRank: Array<{
+    count: number;
+    orderDate: string;
+  }>;
+  priceRank: Array<{
+    price: number;
+    orderDate: string;
   }>;
 }
 
 const ProductConsumption: React.FC = () => {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(6, 'days'),
+    dayjs().subtract(7, 'days'),
     dayjs()
   ]);
-  const [expandedProduct, setExpandedProduct] = useState<ProductDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [productData, setProductData] = useState<ProductDetail[]>([]);
+
+  const fetchProductData = async () => {
+    setLoading(true);
+    try {
+      const response = await dashboardApi.getProductDetail({
+        startTime: dateRange[0].startOf('day').valueOf(),
+        endTime: dateRange[1].endOf('day').valueOf(),
+        unitName: '斤',
+        tenant: localStorage.getItem('tenant') || undefined
+      });
+
+      if (response.success) {
+        setProductData(response.data);
+      } else {
+        message.error(response.displayMsg || '获取商品消耗数据失败');
+      }
+    } catch (error) {
+      message.error('获取商品消耗数据失败：' + (error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProductData();
+  }, [dateRange]);
+
+  // 图表配置
+  const getChartConfig = (data: any[], yField: string) => ({
+    data,
+    xField: 'orderDate',
+    yField,
+    point: {
+      size: 3,
+      shape: 'circle',
+    },
+    smooth: true,
+    height: 200,
+    width: 400,  // 添加固定宽度
+  });
+
+  // 渲染图表内容
+  const renderCharts = (product: ProductDetail) => (
+    <div style={{ width: 850 }}>  {/* 设置固定宽度 */}
+      <Row gutter={[16, 16]}>
+        <Col span={12}>
+          <Card 
+            size="small" 
+            title="消耗量趋势"
+            bodyStyle={{ padding: '12px 0' }}
+            headStyle={{ padding: '0 12px' }}
+          >
+            <Line {...getChartConfig(product.countRank, 'count')} />
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card 
+            size="small" 
+            title="销售额趋势"
+            bodyStyle={{ padding: '12px 0' }}
+            headStyle={{ padding: '0 12px' }}
+          >
+            <Line {...getChartConfig(product.priceRank, 'price')} />
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
 
   const columns = [
     {
       title: '商品名',
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'objectDetailName',
+      key: 'objectDetailName',
     },
     {
       title: '单位',
-      dataIndex: 'unit',
-      key: 'unit',
+      dataIndex: 'unitName',
+      key: 'unitName',
       width: 100,
-      render: (unit: string) => (
-        <span>{unit}</span>
-      ),
     },
     {
-      title: '消耗',
-      dataIndex: 'consumption',
-      key: 'consumption',
+      title: '消耗量',
+      dataIndex: 'totalCount',
+      key: 'totalCount',
       width: 120,
     },
     {
-      title: '对标金额',
-      dataIndex: 'totalAmount',
-      key: 'totalAmount',
+      title: '销售金额',
+      dataIndex: 'totalPrice',
+      key: 'totalPrice',
       width: 120,
       render: (amount: number) => `¥${amount.toFixed(2)}`,
     },
@@ -56,30 +129,21 @@ const ProductConsumption: React.FC = () => {
       key: 'action',
       width: 100,
       render: (_: any, record: ProductDetail) => (
-        <Button 
-          type="link"
-          onClick={() => setExpandedProduct(
-            expandedProduct?.id === record.id ? null : record
-          )}
+        <Popover
+          content={renderCharts(record)}
+          title={`${record.objectDetailName}的详细数据`}
+          trigger="click"
+          placement="right"
+          overlayStyle={{ maxWidth: 'none' }}  // 允许 Popover 内容超出默认宽度
         >
-          {expandedProduct?.id === record.id ? '收起' : '展开'}
-        </Button>
+          <Button type="link">
+            查看趋势
+          </Button>
+        </Popover>
       ),
+      onCell: () => ({ style: { padding: 0 } })
     },
   ];
-
-  // 图表配置
-  const getChartConfig = (data: any[], yField: string) => ({
-    data,
-    xField: 'date',
-    yField,
-    point: {
-      size: 3,
-      shape: 'circle',
-    },
-    smooth: true,
-    height: 200,
-  });
 
   return (
     <Card title="商品消耗统计">
@@ -91,42 +155,24 @@ const ProductConsumption: React.FC = () => {
               setDateRange([dates[0]!, dates[1]!]);
             }
           }}
+          locale={locale}
+          allowClear={false}
+          ranges={{
+            '最近7天': [dayjs().subtract(7, 'days'), dayjs()],
+            '最近30天': [dayjs().subtract(30, 'days'), dayjs()],
+            '本月': [dayjs().startOf('month'), dayjs()],
+            '上月': [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')]
+          }}
         />
       </div>
 
       <Table 
-        dataSource={mockProductConsumption.list}
+        loading={loading}
+        dataSource={productData}
         columns={columns}
-        rowKey="id"
+        rowKey="objectDetailId"
         pagination={false}
       />
-
-      {expandedProduct && (
-        <div style={{ marginTop: 16 }}>
-          <Row gutter={[16, 16]}>
-            <Col span={12}>
-              <Card 
-                size="small" 
-                title="消耗量趋势"
-                bodyStyle={{ padding: '12px 0' }}
-                headStyle={{ padding: '0 12px' }}
-              >
-                <Line {...getChartConfig(expandedProduct.dailyData, 'consumption')} />
-              </Card>
-            </Col>
-            <Col span={12}>
-              <Card 
-                size="small" 
-                title="销售额趋势"
-                bodyStyle={{ padding: '12px 0' }}
-                headStyle={{ padding: '0 12px' }}
-              >
-                <Line {...getChartConfig(expandedProduct.dailyData, 'sales')} />
-              </Card>
-            </Col>
-          </Row>
-        </div>
-      )}
     </Card>
   );
 };

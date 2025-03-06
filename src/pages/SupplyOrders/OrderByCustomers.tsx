@@ -161,14 +161,6 @@ const SupplyOrderList: React.FC = () => {
     fontWeight: 500  // 加粗表头
   };
 
-  // 操作按钮的样式
-  const actionButtonStyle = {
-    padding: '0 2px',
-    fontSize: '12px',
-    height: '22px',
-    minWidth: '40px'
-  };
-
   // 添加卡片头部颜色判断函数
   const getCardHeaderStyle = (customer: typeof customerOrders[0]) => {
     if (!customer.orderInfoList || customer.orderInfoList.length === 0) {
