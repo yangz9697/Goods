@@ -25,7 +25,7 @@ const OrderDetail: React.FC = () => {
 
   const handleDeleteSuccess = () => {
     message.success('删除供货单成功');
-    navigate('/supply-orders/list');
+        navigate('/supply-orders/list');
   };
 
   if (!order) {
@@ -34,7 +34,7 @@ const OrderDetail: React.FC = () => {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
-      <Card>
+          <Card>
         <OrderHeader
           order={order}
           statusList={statusList}
@@ -43,7 +43,7 @@ const OrderDetail: React.FC = () => {
           onPayStatusChange={handleUpdatePayStatus}
           onDeleteSuccess={handleDeleteSuccess}
         />
-      </Card>
+          </Card>
       <Card>
         <Tabs
           activeKey={activeTab}

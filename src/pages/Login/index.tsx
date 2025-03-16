@@ -25,6 +25,7 @@ const Login: React.FC = () => {
         localStorage.setItem('name', res.data.name);
         localStorage.setItem('role', res.data.role);
         localStorage.setItem('tenant', res.data.tenant);
+        localStorage.setItem('tenant_name', res.data.tenantName);
         localStorage.setItem('username', res.data.username);
         
         message.success('登录成功');

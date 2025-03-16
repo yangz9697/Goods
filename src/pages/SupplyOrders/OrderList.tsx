@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import AddOrderModal from './components/AddOrderModal';
 import { OrderStatusCode } from '@/types/order';
 import type { TableRowSelection } from 'antd/es/table/interface';
+import { formatPhone } from '@/utils/format';
 
 interface PageOrderItem {
   orderNo: string;
@@ -142,6 +143,7 @@ const OrderList: React.FC = () => {
       title: '联系电话',
       dataIndex: 'mobile',
       key: 'mobile',
+      render: (mobile: string) => formatPhone(mobile),
     },
     {
       title: '状态',

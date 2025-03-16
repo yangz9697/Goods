@@ -468,5 +468,17 @@ export const orderApi = {
     } catch (error) {
       throw new Error('取消加急失败：' + (error as Error).message);
     }
-  }
+  },
+  getOrderInfoByUserId: async (params: {
+    userId: number;
+    startTime: number;
+    endTime: number;
+  }) => {
+    try {
+      const response = await request.post('/erp/order/getOrderInfoByUserId', params);
+      return response.data;
+    } catch (error) {
+      throw new Error('获取用户订单信息失败：' + (error as Error).message);
+    }
+  },
 };

@@ -1,64 +1,91 @@
-import React, { useState } from 'react';
-import { Card, Table, Tag, Button, message } from 'antd';
-import { mockPaymentData } from '@/mock/dashboard';
+import React, { useState, useEffect } from 'react';
+import { Card, Table, Tag, message } from 'antd';
+import { orderApi } from '@/api/orders';
+import dayjs from 'dayjs';
 
 interface MonthlyOrdersProps {
   userId: string | null;
   month: string | null;
 }
 
+interface OrderInfo {
+  orderNoList: string[];
+  orderDate: string;
+  orderPrice: number;
+  orderPayStatusCode: 'waitPay' | 'paySuccess';
+  orderPayStatusName: string;
+}
+
 const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, month }) => {
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [orderList, setOrderList] = useState<OrderInfo[]>([]);
   
-  const user = userId ? mockPaymentData.list.find(u => u.id === parseInt(userId)) : null;
-  const monthNumber = month ? parseInt(month) : null;
+  useEffect(() => {
+    if (!userId || !month) return;
 
-  if (!user || !monthNumber) {
-    return <Card>请选择用户和月份查看订单</Card>;
-  }
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const startTime = dayjs(month).startOf('month').valueOf();
+        const endTime = dayjs(month).add(1, 'month').startOf('month').subtract(1, 'millisecond').valueOf();
+        
+        const response = await orderApi.getOrderInfoByUserId({
+          userId: Number(userId),
+          startTime,
+          endTime
+        });
 
-  const monthlyData = user.monthlyDetails.find(d => d.month === monthNumber);
-  if (!monthlyData) {
-    return <Card>未找到相关月份的订单数据</Card>;
-  }
+        if (response.success) {
+          setOrderList(response.data);
+        } else {
+          message.error(response.displayMsg || '获取订单列表失败');
+        }
+      } catch (error) {
+        message.error('获取订单列表失败：' + (error as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [userId, month]);
 
   const columns = [
     {
       title: '订单日期',
-      dataIndex: 'date',
-      key: 'date',
+      dataIndex: 'orderDate',
+      key: 'orderDate',
+    },
+    {
+      title: '订单号',
+      dataIndex: 'orderNoList',
+      key: 'orderNoList',
+      render: (orderNoList: string[]) => orderNoList.join(', '),
     },
     {
       title: '金额',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount: number) => `¥${amount.toFixed(2)}`,
+      dataIndex: 'orderPrice',
+      key: 'orderPrice',
+      render: (price: number) => `¥${price.toFixed(2)}`,
     },
     {
       title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Tag color={status === 'paid' ? 'green' : 'red'}>
-          {status === 'paid' ? '已付款' : '待付款'}
+      dataIndex: 'orderPayStatusName',
+      key: 'orderPayStatusName',
+      render: (status: string, record: OrderInfo) => (
+        <Tag color={record.orderPayStatusCode === 'paySuccess' ? 'green' : 'red'}>
+          {status}
         </Tag>
       ),
     },
   ];
 
-  const unpaidOrders = monthlyData.orders.filter(order => order.status === 'unpaid');
-  const totalUnpaid = unpaidOrders.reduce((sum, order) => sum + order.amount, 0);
-
-  const handleBatchSettle = () => {
-    if (selectedOrders.length === 0) return;
-    
-    message.success('批量结算成功');
-    setSelectedOrders([]);
-  };
+  const unpaidOrders = orderList.filter(order => order.orderPayStatusCode === 'waitPay');
+  const totalUnpaid = unpaidOrders.reduce((sum, order) => sum + order.orderPrice, 0);
 
   return (
     <Card 
-      title={`${user.name} - ${monthNumber}月订单列表`}
+      title={`${month}月订单列表`}
       extra={
         <div>
           <span style={{ marginRight: 16 }}>
@@ -72,33 +99,13 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, month }) => {
           </span>
         </div>
       }
+      loading={loading}
     >
       <Table
-        rowSelection={{
-          type: 'checkbox',
-          onChange: (selectedRowKeys) => {
-            setSelectedOrders(selectedRowKeys as string[]);
-          },
-          getCheckboxProps: (record: any) => ({
-            disabled: record.status === 'paid',
-          }),
-        }}
         columns={columns}
-        dataSource={monthlyData.orders}
-        rowKey="id"
+        dataSource={orderList}
+        rowKey="orderDate"
         pagination={false}
-        footer={() => (
-          <div style={{ textAlign: 'right' }}>
-            <Button
-              type="primary"
-              disabled={selectedOrders.length === 0}
-              onClick={handleBatchSettle}
-            >
-              批量结算
-              {selectedOrders.length > 0 && ` (${selectedOrders.length}笔)`}
-            </Button>
-          </div>
-        )}
       />
     </Card>
   );

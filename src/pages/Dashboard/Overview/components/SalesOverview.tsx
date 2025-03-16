@@ -58,9 +58,12 @@ const SalesOverview: React.FC = () => {
 
   // 销售趋势图配置
   const lineConfig = {
-    data: salesData?.salesRankList || [],
-    xField: 'saleDate',
-    yField: 'salePrice',
+    data: salesData?.salesRankList?.map(item => ({
+      销售日期: item.saleDate,
+      销售概况: item.salePrice
+    })),
+    xField: '销售日期',
+    yField: '销售概况',
     point: {
       size: 3,
       shape: 'circle',
@@ -71,9 +74,12 @@ const SalesOverview: React.FC = () => {
 
   // 货品销售柱状图配置
   const columnConfig = {
-    data: salesData?.objectPriceList || [],
-    xField: 'objectDetailName',
-    yField: 'price',
+    data: salesData?.objectPriceList?.map(item => ({
+      货品: item.objectDetailName,
+      销售额: item.price
+    })),
+    xField: '货品',
+    yField: '销售额',
     height: 260,
     columnStyle: {
       radius: [4, 4, 0, 0],

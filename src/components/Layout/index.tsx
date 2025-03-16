@@ -26,11 +26,12 @@ const AppLayout: React.FC = () => {
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
   const [form] = Form.useForm();
   const [username] = useState(localStorage.getItem('name') || '');
-  const [tenantList, setTenantList] = useState<{ tenant: string; tenantName: string }[]>([]);
+  const [tenantName, setTenantName] = useState(localStorage.getItem('tenant_name') || '');
   const role = localStorage.getItem('role');
   const currentTenant = localStorage.getItem('tenant');
   const [loading, setLoading] = useState(false);
   const isAdmin = role === 'admin';
+  const [tenantList, setTenantList] = useState<{ tenant: string; tenantName: string }[]>([]);
 
   const menuItems: MenuProps['items'] = [
     {
@@ -103,7 +104,12 @@ const AppLayout: React.FC = () => {
       });
 
       if (res.success) {
-        localStorage.setItem('tenant', tenant);
+        const selectedTenant = tenantList.find(item => item.tenant === tenant);
+        if (selectedTenant) {
+          localStorage.setItem('tenant', tenant);
+          localStorage.setItem('tenant_name', selectedTenant.tenantName);
+          setTenantName(selectedTenant.tenantName);
+        }
         message.success('切换门店成功');
         window.location.reload();
       } else {
@@ -186,7 +192,7 @@ const AppLayout: React.FC = () => {
         icon: <LogoutOutlined />,
         onClick: handleLogout
       }
-    ].filter((item): item is NonNullable<typeof item> => item !== null)
+    ].filter(Boolean)
   };
 
   return (
@@ -215,8 +221,8 @@ const AppLayout: React.FC = () => {
                 <UserOutlined />
                 <span className="username">
                   {username}
-                  {role === 'admin' && currentTenant && (
-                    <span className="tenant-info">({currentTenant})</span>
+                  {role === 'admin' && tenantName && (
+                    <span className="tenant-info">({tenantName})</span>
                   )}
                 </span>
               </span>

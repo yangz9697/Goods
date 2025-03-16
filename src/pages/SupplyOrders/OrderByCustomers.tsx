@@ -95,26 +95,14 @@ const SupplyOrderList: React.FC = () => {
     }
   };
 
-  const handleUpdateUrgent = async (orderNo: string, isUrgent: boolean) => {
-    try {
-      const response = await orderApi.updateOrderUrgent({
-        orderNo,
-        isUrgent
-      });
-      
-      if (response.success) {
-        message.success('设置加急成功');
-        fetchData(searchText);
-      } else {
-        message.error(response.displayMsg || '设置加急失败');
-      }
-    } catch (error) {
-      message.error('设置加急失败：' + (error as Error).message);
+  const handleOrderListClick = (customer: typeof customerOrders[0]) => {
+    // 如果只有一个订单，直接跳转到订单详情
+    if (customer.orderInfoList.length === 1) {
+      navigate(`/supply-orders/detail/${customer.orderInfoList[0].orderNo}`);
+      return;
     }
-  };
-
-  const handleOrderClick = (orderNo: string) => {
-    navigate(`/supply-orders/detail/${orderNo}`);
+    // 否则展开订单列表
+    setExpandedCustomer(expandedCustomer?.userId === customer.userId ? null : customer);
   };
 
   // 表头和数据行的通用样式
@@ -186,7 +174,7 @@ const SupplyOrderList: React.FC = () => {
         transition: 'box-shadow 0.3s',
         height: '100%'
       }}
-      onClick={() => setExpandedCustomer(customer)}
+      onClick={() => handleOrderListClick(customer)}
     >
       {/* 卡片头部 */}
       <div style={{ 
@@ -244,6 +232,17 @@ const SupplyOrderList: React.FC = () => {
                         if (response.success) {
                           message.success('取消加急成功');
                           fetchData(searchText);
+                          // 更新弹窗内的数据
+                          if (expandedCustomer) {
+                            setExpandedCustomer({
+                              ...expandedCustomer,
+                              orderInfoList: expandedCustomer.orderInfoList.map(o => 
+                                o.orderNo === order.orderNo 
+                                  ? { ...o, isUrgent: false } 
+                                  : o
+                              )
+                            });
+                          }
                         } else {
                           message.error(response.displayMsg || '取消加急失败');
                         }
@@ -259,7 +258,31 @@ const SupplyOrderList: React.FC = () => {
                     type="link" 
                     size="small"
                     onClick={async () => {
-                      await handleUpdateUrgent(order.orderNo, true);
+                      try {
+                        const response = await orderApi.updateOrderUrgent({
+                          orderNo: order.orderNo,
+                          isUrgent: true
+                        });
+                        if (response.success) {
+                          message.success('设置加急成功');
+                          fetchData(searchText);
+                          // 更新弹窗内的数据
+                          if (expandedCustomer) {
+                            setExpandedCustomer({
+                              ...expandedCustomer,
+                              orderInfoList: expandedCustomer.orderInfoList.map(o => 
+                                o.orderNo === order.orderNo 
+                                  ? { ...o, isUrgent: true } 
+                                  : o
+                              )
+                            });
+                          }
+                        } else {
+                          message.error(response.displayMsg || '设置加急失败');
+                        }
+                      } catch (error) {
+                        message.error('设置加急失败：' + (error as Error).message);
+                      }
                     }}
                   >
                     加急
@@ -424,8 +447,8 @@ const SupplyOrderList: React.FC = () => {
                   alignItems: 'center'
                 }}
                 onClick={() => {
-                  handleOrderClick(order.orderNo);
-                  setExpandedCustomer(null);
+                  navigate(`/supply-orders/detail/${order.orderNo}`);  // 直接导航到订单详情
+                  setExpandedCustomer(null);  // 关闭弹窗
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center' }}>
@@ -442,7 +465,7 @@ const SupplyOrderList: React.FC = () => {
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
                 }}>{order.remark || '无备注'}</span>
-                <div onClick={e => e.stopPropagation()}>
+                <div onClick={e => e.stopPropagation()}>  {/* 阻止冒泡，避免触发行点击 */}
                   {order.isUrgent ? (
                     <Button 
                       type="link" 
@@ -453,6 +476,17 @@ const SupplyOrderList: React.FC = () => {
                           if (response.success) {
                             message.success('取消加急成功');
                             fetchData(searchText);
+                            // 更新弹窗内的数据
+                            if (expandedCustomer) {
+                              setExpandedCustomer({
+                                ...expandedCustomer,
+                                orderInfoList: expandedCustomer.orderInfoList.map(o => 
+                                  o.orderNo === order.orderNo 
+                                    ? { ...o, isUrgent: false } 
+                                    : o
+                                )
+                              });
+                            }
                           } else {
                             message.error(response.displayMsg || '取消加急失败');
                           }
@@ -468,7 +502,31 @@ const SupplyOrderList: React.FC = () => {
                       type="link" 
                       size="small"
                       onClick={async () => {
-                        await handleUpdateUrgent(order.orderNo, true);
+                        try {
+                          const response = await orderApi.updateOrderUrgent({
+                            orderNo: order.orderNo,
+                            isUrgent: true
+                          });
+                          if (response.success) {
+                            message.success('设置加急成功');
+                            fetchData(searchText);
+                            // 更新弹窗内的数据
+                            if (expandedCustomer) {
+                              setExpandedCustomer({
+                                ...expandedCustomer,
+                                orderInfoList: expandedCustomer.orderInfoList.map(o => 
+                                  o.orderNo === order.orderNo 
+                                    ? { ...o, isUrgent: true } 
+                                    : o
+                                )
+                              });
+                            }
+                          } else {
+                            message.error(response.displayMsg || '设置加急失败');
+                          }
+                        } catch (error) {
+                          message.error('设置加急失败：' + (error as Error).message);
+                        }
                       }}
                     >
                       加急

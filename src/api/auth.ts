@@ -13,6 +13,7 @@ interface LoginResponse {
     username: string;
     role: string;
     tenant: string;
+    tenantName: string;
   };
   displayMsg?: string;
 }
