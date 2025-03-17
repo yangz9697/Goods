@@ -69,7 +69,6 @@ export interface Order {
 export interface OrderDetailItem {
   id: string;
   name: string;
-  quantity: number;
   unit: string;
   price: number;
   unitPrice: number;
@@ -84,6 +83,9 @@ export interface OrderDetailItem {
   orderStatusName: string;
   createTime: number;
   updateTime: number;
+  planCount?: number;
+  remarkCount?: string;
+  count: number;
 }
 
 export interface OrderInfo {

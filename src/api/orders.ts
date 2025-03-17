@@ -273,6 +273,8 @@ export interface GetOrderInfoResponse {
       createTime: number;
       updater: string;
       updateTime: number;
+      planCount?: number;
+      remarkCount?: string;
     }> | null;
     orderTotalPrice: number | null;
   };
@@ -479,6 +481,30 @@ export const orderApi = {
       return response.data;
     } catch (error) {
       throw new Error('获取用户订单信息失败：' + (error as Error).message);
+    }
+  },
+  printOrderToPDF: async (orderNo: string) => {
+    try {
+      const response = await request.post('/erp/order/printObjectToPDF', {
+        orderNo
+      }, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error('打印失败：' + (error as Error).message);
+    }
+  },
+  exportOrderToExcel: async (orderNo: string) => {
+    try {
+      const response = await request.post('/erp/order/exportObjectToExcel', {
+        orderNo
+      }, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error('导出失败：' + (error as Error).message);
     }
   },
 };

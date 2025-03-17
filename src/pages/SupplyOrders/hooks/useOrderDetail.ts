@@ -52,7 +52,9 @@ export const useOrderDetail = (orderNo: string | undefined) => {
         items: (orderRes.data.objectInfoList || []).map((item): OrderDetailItem => ({
           id: `item-${item.objectDetailId}`,
           name: item.objectDetailName,
-          quantity: item.count,
+          planCount: item.planCount,
+          remarkCount: item.remarkCount,
+          count: item.count,
           unit: item.unitName,
           price: item.price,
           unitPrice: item.unitPrice,

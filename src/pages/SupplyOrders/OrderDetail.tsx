@@ -55,7 +55,10 @@ const OrderDetail: React.FC = () => {
               children: (
                 <OrderItemTable
                   type="all"
-                  items={order.items}
+                  items={order.items.map(item => ({
+                    ...item,
+                    count: item.count || 0
+                  }))}
                   isAdmin={isAdmin}
                   deliveryUsers={deliveryUsers}
                   onEdit={handleEdit}
@@ -70,7 +73,12 @@ const OrderDetail: React.FC = () => {
               children: (
                 <OrderItemTable
                   type="bulk"
-                  items={order.items.filter(item => item.unit === '箱')}
+                  items={order.items
+                    .filter(item => item.unit === '箱')
+                    .map(item => ({
+                      ...item,
+                      count: item.count || 0
+                    }))}
                   isAdmin={isAdmin}
                   deliveryUsers={deliveryUsers}
                   onEdit={handleEdit}

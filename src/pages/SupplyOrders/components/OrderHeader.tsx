@@ -4,6 +4,7 @@ import { formatPhone } from '@/utils/format';
 import dayjs from 'dayjs';
 import { Order, OrderStatus, OrderStatusCode } from '@/types/order';
 import { orderApi } from '@/api/orders';
+import { PrinterOutlined } from '@ant-design/icons';
 
 // 扩展 Order 类型，确保包含所有需要的属性
 interface ExtendedOrder extends Order {
@@ -50,87 +51,75 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   };
 
   const handlePrint = async () => {
-    // 创建一个简单的 PDF 文件内容
-    const pdfContent = `
-%PDF-1.7
-1 0 obj
-<</Type /Catalog /Pages 2 0 R>>
-endobj
-2 0 obj
-<</Type /Pages /Kids [3 0 R] /Count 1>>
-endobj
-3 0 obj
-<</Type /Page /Parent 2 0 R /Resources <</Font <</F1 4 0 R>>>> /MediaBox [0 0 612 792] /Contents 5 0 R>>
-endobj
-4 0 obj
-<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>
-endobj
-5 0 obj
-<</Length 89>>
-stream
-BT
-/F1 24 Tf
-50 700 Td
-(供货单) Tj
-/F1 12 Tf
-0 -50 Td
-(订单号: ${order.orderNo}) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f
-0000000010 00000 n
-0000000056 00000 n
-0000000111 00000 n
-0000000212 00000 n
-0000000274 00000 n
-trailer
-<</Size 6 /Root 1 0 R>>
-startxref
-415
-%%EOF`;
+    try {
+      const blob = await orderApi.printOrderToPDF(order.orderNo);
+      const url = window.URL.createObjectURL(blob);
+      
+      // 创建一个隐藏的 iframe
+      const printFrame = document.createElement('iframe');
+      printFrame.style.position = 'fixed';
+      printFrame.style.right = '0';
+      printFrame.style.bottom = '0';
+      printFrame.style.width = '0';
+      printFrame.style.height = '0';
+      printFrame.style.border = 'none';
+      document.body.appendChild(printFrame);
+      
+      // 监听 iframe 加载完成
+      printFrame.onload = () => {
+        try {
+          // 延迟更长时间确保 PDF 完全渲染
+          setTimeout(() => {
+            if (printFrame.contentWindow) {
+              // 监听打印对话框关闭
+              const mediaQueryList = window.matchMedia('print');
+              const handlePrintChange = (e: MediaQueryListEvent) => {
+                if (!e.matches) {  // 打印对话框关闭
+                  mediaQueryList.removeEventListener('change', handlePrintChange);
+                  document.body.removeChild(printFrame);
+                  window.URL.revokeObjectURL(url);
+                }
+              };
+              mediaQueryList.addEventListener('change', handlePrintChange);
 
-    // 将字符串转换为 Blob
-    const pdfBlob = new Blob([pdfContent], { type: 'application/pdf' });
-    const url = URL.createObjectURL(pdfBlob);
-    
-    // 创建一个隐藏的 iframe
-    const printFrame = document.createElement('iframe');
-    printFrame.style.display = 'none';
-    document.body.appendChild(printFrame);
-    
-    // 当 iframe 加载完成后触发打印
-    printFrame.onload = () => {
-      const contentWindow = printFrame.contentWindow;
-      if (!contentWindow) return;
-
-      // 监听打印对话框关闭事件
-      const cleanup = () => {
-        document.body.removeChild(printFrame);
-        URL.revokeObjectURL(url);
+              // 触发打印
+              printFrame.contentWindow.print();
+            }
+          }, 1000);  // 增加延时到 1 秒
+        } catch (error) {
+          message.error('打印失败：' + (error as Error).message);
+          document.body.removeChild(printFrame);
+          window.URL.revokeObjectURL(url);
+        }
       };
 
-      try {
-        if (contentWindow.matchMedia) {
-          const mediaQueryList = contentWindow.matchMedia('print');
-          mediaQueryList.addEventListener('change', (mql) => {
-            if (!mql.matches) {  // 打印对话框关闭
-              cleanup();
-            }
-          });
-        }
-        
-        contentWindow.print();
-      } catch (error) {
-        console.error('打印失败:', error);
-        cleanup();
-      }
-    };
-    
-    // 设置 iframe 的 src
-    printFrame.src = url;
+      // 设置 iframe 的 src
+      printFrame.src = url;
+    } catch (error) {
+      message.error('打印失败：' + (error as Error).message);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const blob = await orderApi.exportOrderToExcel(order.orderNo);
+      const url = window.URL.createObjectURL(blob);
+      
+      // 创建一个隐藏的 a 标签来下载文件
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `供货单_${order.orderNo}.xlsx`;  // 设置下载文件名
+      document.body.appendChild(link);
+      link.click();
+      
+      // 清理
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error) {
+      message.error('导出失败：' + (error as Error).message);
+    }
   };
 
   return (
@@ -276,8 +265,14 @@ startxref
 
             {/* 右侧按钮组 */}
             <Space size="small">
-              <Button onClick={handlePrint}>打印</Button>
-              <Button onClick={() => console.log('导出:', order.id)}>导出PDF</Button>
+              <Button 
+                type="primary" 
+                icon={<PrinterOutlined />}
+                onClick={handlePrint}
+              >
+                打印
+              </Button>
+              <Button onClick={handleExport}>导出Excel</Button>
               <Popconfirm
                 title="确定要删除这个供货单吗？"
                 onConfirm={handleDeleteOrder}
