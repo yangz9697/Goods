@@ -459,7 +459,7 @@ const SupplyOrderList: React.FC = () => {
                     {order.orderNo}
                   </span>
                 </span>
-                <span>{order.orderStatus}</span>
+                <span>{OrderStatusMap[order.orderStatus]}</span>
                 <span style={{ 
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
