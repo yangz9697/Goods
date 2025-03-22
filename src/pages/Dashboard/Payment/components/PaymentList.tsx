@@ -18,7 +18,11 @@ interface PaymentData {
   paySuccessPrice: number;
 }
 
-const PaymentList: React.FC = () => {
+interface PaymentListProps {
+  onUserSelect: (userId: string) => void;
+}
+
+const PaymentList: React.FC<PaymentListProps> = ({ }) => {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().subtract(7, 'days'),
@@ -64,6 +68,7 @@ const PaymentList: React.FC = () => {
 
   // 用户卡片列表
   const renderUserCards = () => {
+
     return (
       <Row gutter={[16, 16]}>
         {paymentData.userPayInfoList.map(user => (

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, message } from 'antd';
+import { Card, Table, Tag, message, Button } from 'antd';
+import type { TableRowSelection } from 'antd/es/table/interface';
 import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
 
 interface MonthlyOrdersProps {
   userId: string | null;
-  month: string | null;
+  startTime: number;
+  endTime: number;
 }
 
 interface OrderInfo {
@@ -16,19 +18,17 @@ interface OrderInfo {
   orderPayStatusName: string;
 }
 
-const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, month }) => {
+const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, startTime, endTime }) => {
   const [loading, setLoading] = useState(false);
   const [orderList, setOrderList] = useState<OrderInfo[]>([]);
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   
   useEffect(() => {
-    if (!userId || !month) return;
+    if (!userId) return;
 
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const startTime = dayjs(month).startOf('month').valueOf();
-        const endTime = dayjs(month).add(1, 'month').startOf('month').subtract(1, 'millisecond').valueOf();
-        
         const response = await orderApi.getOrderInfoByUserId({
           userId: Number(userId),
           startTime,
@@ -48,7 +48,61 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, month }) => {
     };
 
     fetchOrders();
-  }, [userId, month]);
+  }, [userId, startTime, endTime]);
+
+  const rowSelection: TableRowSelection<OrderInfo> = {
+    selectedRowKeys: selectedOrders,
+    onChange: (selectedRowKeys) => {
+      setSelectedOrders(selectedRowKeys as string[]);
+    }
+  };
+
+  const handleBatchSettle = async () => {
+    if (selectedOrders.length === 0) {
+      message.warning('请选择要结算的订单');
+      return;
+    }
+
+    try {
+      // 从选中的行中获取所有订单号数组并合并
+      const orderNoList = selectedOrders.reduce<string[]>((acc, curr) => {
+        // 获取选中行的数据
+        const selectedRecord = orderList.find(item => item.orderNoList.join(',') === curr);
+        // 如果找到了记录，将其订单号数组合并到结果中
+        if (selectedRecord) {
+          return [...acc, ...selectedRecord.orderNoList];
+        }
+        return acc;
+      }, []);
+
+      const response = await orderApi.batchUpdateOrderPayStatus({
+        orderNoList,
+        orderPayStatusCode: 'paySuccess'
+      });
+
+      if (response.success) {
+        message.success('批量结算成功');
+        setSelectedOrders([]);
+        // 重新获取订单列表
+        const response = await orderApi.getOrderInfoByUserId({
+          userId: Number(userId),
+          startTime,
+          endTime
+        });
+
+        if (response.success) {
+          setOrderList(response.data);
+        }
+      } else {
+        message.error(response.displayMsg || '批量结算失败');
+      }
+    } catch (error) {
+      message.error('批量结算失败：' + (error as Error).message);
+    }
+  };
+
+  const unpaidOrders = orderList.filter(order => order.orderPayStatusCode === 'waitPay');
+  const totalUnpaid = unpaidOrders.reduce((sum, order) => sum + order.orderPrice, 0);
 
   const columns = [
     {
@@ -80,12 +134,9 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, month }) => {
     },
   ];
 
-  const unpaidOrders = orderList.filter(order => order.orderPayStatusCode === 'waitPay');
-  const totalUnpaid = unpaidOrders.reduce((sum, order) => sum + order.orderPrice, 0);
-
   return (
     <Card 
-      title={`${month}月订单列表`}
+      title={`${dayjs(startTime).format('YYYY年MM月')}订单列表`}
       extra={
         <div>
           <span style={{ marginRight: 16 }}>
@@ -97,14 +148,22 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, month }) => {
               ¥{totalUnpaid.toFixed(2)}
             </span>
           </span>
+          <Button
+            type="primary"
+            disabled={selectedOrders.length === 0}
+            onClick={handleBatchSettle}
+          >
+            批量结算
+          </Button>
         </div>
       }
       loading={loading}
     >
       <Table
+        rowSelection={rowSelection}
         columns={columns}
         dataSource={orderList}
-        rowKey="orderDate"
+        rowKey={(record) => record.orderNoList.join(',')}
         pagination={false}
       />
     </Card>

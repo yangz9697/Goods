@@ -60,10 +60,12 @@ interface GetPaymentDataResponse extends BaseResponse {
   data: PaymentData;
 }
 
-interface PaymentDetailInfo {
+export interface PaymentDetailInfo {
   dateDesc: string;
   waitPayPrice: number;
   paySuccessPrice: number;
+  startTime: number;
+  endTime: number;
 }
 
 interface UserPaymentDetail {

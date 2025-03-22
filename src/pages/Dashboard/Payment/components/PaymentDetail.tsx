@@ -1,30 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, DatePicker, message, Row, Col, Statistic } from 'antd';
 import { dashboardApi } from '@/api/dashboard';
 import dayjs from 'dayjs';
 import locale from 'antd/es/date-picker/locale/zh_CN';
+import { PaymentDetailInfo } from '@/api/dashboard';
 
 interface PaymentDetailProps {
   userId: string | null;
-  onMonthClick: (month: number) => void;
+  onMonthClick: (record: { startTime: number; endTime: number }) => void;
+}
+
+interface PaymentDetailData {
+  userId: number;
+  name: string;
+  mobile: string;
+  totalPrice: number;
+  totalWaitPayPrice: number;
+  totalPaySuccessPrice: number;
+  payDetailInfoList: PaymentDetailInfo[];
 }
 
 const PaymentDetail: React.FC<PaymentDetailProps> = ({ userId, onMonthClick }) => {
   const [year, setYear] = useState(dayjs().year());
   const [loading, setLoading] = useState(false);
-  const [paymentDetail, setPaymentDetail] = useState<{
-    userId: number;
-    name: string;
-    mobile: string;
-    totalPrice: number;
-    totalWaitPayPrice: number;
-    totalPaySuccessPrice: number;
-    payDetailInfoList: Array<{
-      dateDesc: string;
-      waitPayPrice: number;
-      paySuccessPrice: number;
-    }>;
-  } | null>(null);
+  const [paymentDetail, setPaymentDetail] = useState<PaymentDetailData | null>(null);
 
   const fetchPaymentDetail = async () => {
     if (!userId) return;
@@ -41,7 +40,16 @@ const PaymentDetail: React.FC<PaymentDetailProps> = ({ userId, onMonthClick }) =
       });
 
       if (response.success) {
-        setPaymentDetail(response.data);
+        const data = response.data;
+        setPaymentDetail({
+          userId: data.userId,
+          name: data.name,
+          mobile: data.mobile,
+          totalPrice: data.totalPrice,
+          totalWaitPayPrice: data.totalWaitPayPrice,
+          totalPaySuccessPrice: data.totalPaySuccessPrice,
+          payDetailInfoList: data.payDetailInfoList
+        });
       } else {
         message.error(response.displayMsg || '获取付款详情失败');
       }
@@ -52,9 +60,11 @@ const PaymentDetail: React.FC<PaymentDetailProps> = ({ userId, onMonthClick }) =
     }
   };
 
+  const memoizedFetchPaymentDetail = useCallback(fetchPaymentDetail, [userId, year]);
+
   useEffect(() => {
-    fetchPaymentDetail();
-  }, [userId, year]);
+    memoizedFetchPaymentDetail();
+  }, [memoizedFetchPaymentDetail]);
 
   if (!userId || !paymentDetail) {
     return <Card>请从付款列表选择用户查看详情</Card>;
@@ -82,11 +92,10 @@ const PaymentDetail: React.FC<PaymentDetailProps> = ({ userId, onMonthClick }) =
       title: '操作',
       key: 'action',
       render: (_: any, record: any) => {
-        const month = parseInt(record.dateDesc.match(/(\d+)月/)[1]);
         return (
           <Button 
             type="link"
-            onClick={() => onMonthClick(month)}
+            onClick={() => onMonthClick(record)}
           >
             查看订单
           </Button>

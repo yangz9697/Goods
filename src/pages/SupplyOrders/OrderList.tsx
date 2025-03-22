@@ -109,23 +109,111 @@ const OrderList: React.FC = () => {
     fetchOrders(page, size || 10);
   };
 
-  const handleSelectionChange = (
-    selectedRowKeys: React.Key[]
-  ) => {
-    setSelectedRowKeys(selectedRowKeys as string[]);
+  const handleBatchPrint = async () => {
+    if (selectedRowKeys.length > 10) {
+      message.warning('一次最多只能打印10个供货单');
+      return;
+    }
+    try {
+      const blob = await orderApi.batchPrintOrderToPDF({
+        orderNoList: selectedRowKeys
+      });
+      const url = window.URL.createObjectURL(blob);
+      
+      // 创建一个隐藏的 iframe
+      const printFrame = document.createElement('iframe');
+      printFrame.style.display = 'none';
+      document.body.appendChild(printFrame);
+      
+      printFrame.src = url;
+
+      // 等待 iframe 加载完成后打印
+      printFrame.onload = function() {
+        try {
+          printFrame.contentWindow?.focus();
+          printFrame.contentWindow?.print();
+          // 打印对话框关闭后清理
+          setTimeout(() => {
+            document.body.removeChild(printFrame);
+            window.URL.revokeObjectURL(url);
+          }, 1000);
+        } catch (error) {
+          message.error('打印失败：' + (error as Error).message);
+          document.body.removeChild(printFrame);
+          window.URL.revokeObjectURL(url);
+        }
+      };
+    } catch (error) {
+      message.error('批量打印失败：' + (error as Error).message);
+    }
   };
 
-  const handleBatchPrint = () => {
-    message.info(`待开发：打印 ${selectedRowKeys.length} 个供货单`);
-  };
-
-  const handleBatchExport = () => {
-    message.info(`待开发：导出 ${selectedRowKeys.length} 个供货单`);
+  const handleBatchExport = async () => {
+    if (selectedRowKeys.length > 10) {
+      message.warning('一次最多只能导出10个供货单');
+      return;
+    }
+    try {
+      const blob = await orderApi.batchExportOrderToExcel({
+        orderNoList: selectedRowKeys
+      });
+      const url = window.URL.createObjectURL(blob);
+      
+      // 创建一个隐藏的 a 标签来下载文件
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `供货单批量导出_${dayjs().format('YYYYMMDD')}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // 清理
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error) {
+      message.error('批量导出失败：' + (error as Error).message);
+    }
   };
 
   const rowSelection: TableRowSelection<PageOrderItem> = {
     selectedRowKeys,
-    onChange: handleSelectionChange,
+    onChange: (selectedRowKeys: React.Key[]) => {
+      // 限制选择数量
+      if (selectedRowKeys.length > 10) {
+        message.warning('一次最多只能选择10个供货单');
+        // 只保留前10个选中项
+        setSelectedRowKeys(selectedRowKeys.slice(0, 10) as string[]);
+        return;
+      }
+      setSelectedRowKeys(selectedRowKeys as string[]);
+    },
+    getCheckboxProps: (record: PageOrderItem) => ({
+      disabled: selectedRowKeys.length >= 10 && !selectedRowKeys.includes(record.orderNo)
+    }),
+    // 自定义全选框的属性
+    checkStrictly: true,  // 不关联父子选择状态
+    selections: [
+      {
+        key: 'SELECT_ALL',
+        text: '全选当页',
+        onSelect: (changeableRowKeys: React.Key[]) => {
+          // 如果可选的行数超过10个，只选择前10个
+          const rowKeys = changeableRowKeys.slice(0, 10);
+          setSelectedRowKeys(rowKeys as string[]);
+          if (changeableRowKeys.length > 10) {
+            message.warning('已自动选择前10个供货单');
+          }
+        }
+      },
+      {
+        key: 'SELECT_NONE',
+        text: '取消选择',
+        onSelect: () => {
+          setSelectedRowKeys([]);
+        }
+      }
+    ]
   };
 
   const columns = [

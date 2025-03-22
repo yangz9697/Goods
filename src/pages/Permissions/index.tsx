@@ -179,8 +179,8 @@ const Permissions: React.FC = () => {
     },
     {
       title: '所属门店',
-      dataIndex: 'tenant',
-      key: 'tenant',
+      dataIndex: 'tenantName',
+      key: 'tenantName',
     },
     {
       title: '创建人',

@@ -61,9 +61,6 @@ const UNIT_OPTIONS = [
   { label: '箱', value: '箱' }
 ];
 
-// 添加生成唯一ID的函数
-const generateId = () => `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
 export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   items,
   type,
@@ -99,20 +96,20 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   };
 
   const handleAddNewRow = () => {
-    const newItem: TableOrderItem = {
-      id: generateId(),  // 使用 generateId 函数
+    const newId = `new-${newItems.length + 1}`;
+    setNewItems(prev => [...prev, {
+      id: newId,
       name: '',
-      unit: type === 'bulk' ? '箱' : '',
+      unit: '斤',  // 设置默认单位为斤
       price: 0,
       unitPrice: 0,
       remark: '',
-      deliveryName: undefined,
       objectDetailId: 0,
-      totalPrice: 0,
-      inventory: 0,
-      count: 0
-    };
-    setNewItems(prev => [...prev, newItem]);
+      count: 0,
+      remarkCount: '',
+      planCount: undefined,
+      deliveryName: undefined
+    }]);
   };
 
   const handleDeleteRow = (record: TableOrderItem) => {
@@ -247,13 +244,18 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                   }
                 }}
                 onChange={(e) => {
-                  // 只允许输入数字和加号
-                  const value = e.target.value.replace(/[^0-9+]/g, '');
+                  // 允许输入数字、小数点和加号
+                  const value = e.target.value.replace(/[^0-9.+]/g, '');
+                  // 确保只有一个小数点
+                  const parts = value.split('.');
+                  const cleanValue = parts.length > 2 
+                    ? `${parts[0]}.${parts.slice(1).join('')}`
+                    : value;
                   // 不允许连续的加号
-                  const cleanValue = value.replace(/\++/g, '+');
+                  const finalValue = cleanValue.replace(/\++/g, '+');
                   setRemarkInputValues(prev => ({
                     ...prev,
-                    [key]: cleanValue
+                    [key]: finalValue
                   }));
                 }}
                 onBlur={() => {
@@ -271,7 +273,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                 }}
               />
               {record.planCount !== undefined && (
-                <span>报单总数: {record.planCount}</span>
+                <span style={{ color: '#999', fontSize: '12px' }}>总数: {record.planCount}</span>
               )}
             </Space>
           );
@@ -287,6 +289,10 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
 
           return (
             <InputNumber
+              style={{ width: 120 }}
+              min={0}
+              step={0.1}
+              precision={1}
               value={inputValue}
               onChange={(value) => {
                 setCountValues(prev => ({
@@ -315,6 +321,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                   });
                 }
               }}
+              placeholder="请输入数量"
             />
           );
         },

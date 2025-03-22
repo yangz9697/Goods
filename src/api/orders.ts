@@ -507,4 +507,35 @@ export const orderApi = {
       throw new Error('导出失败：' + (error as Error).message);
     }
   },
+  batchPrintOrderToPDF: async (params: { orderNoList: string[] }) => {
+    try {
+      const response = await request.post('/erp/order/batchPrintObjectPDF', params, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error('批量打印失败：' + (error as Error).message);
+    }
+  },
+  batchExportOrderToExcel: async (params: { orderNoList: string[] }) => {
+    try {
+      const response = await request.post('/erp/order/batchExportObjectExcel', params, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error('批量导出失败：' + (error as Error).message);
+    }
+  },
+  batchUpdateOrderPayStatus: async (params: {
+    orderNoList: string[];
+    orderPayStatusCode: 'paySuccess';
+  }) => {
+    try {
+      const response = await request.post('/erp/order/batchUpdateOrderPayStatus', params);
+      return response.data;
+    } catch (error) {
+      throw new Error('批量更新订单支付状态失败：' + (error as Error).message);
+    }
+  },
 };

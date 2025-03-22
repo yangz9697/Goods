@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs } from 'antd';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import PaymentList from './components/PaymentList';
@@ -10,27 +10,48 @@ const DashboardPayment: React.FC = () => {
   const navigate = useNavigate();
   const activeTab = searchParams.get('tab') || 'list';
   const userId = searchParams.get('userId');
-  const month = searchParams.get('month');
+
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(userId);
+  const [selectedMonth, setSelectedMonth] = useState<{ startTime: number; endTime: number } | null>(null);
+
+  useEffect(() => {
+    setSelectedUserId(userId);
+  }, [userId]);
 
   const items = [
     {
       key: 'list',
       label: '付款列表',
-      children: <PaymentList />,
+      children: <PaymentList onUserSelect={(id) => {
+        setSelectedUserId(id);
+        navigate(`/dashboard/payment?tab=detail&userId=${id}`);
+      }} />,
     },
     {
       key: 'detail',
       label: '付款详情',
-      children: <PaymentDetail userId={userId} onMonthClick={(month) => {
-        navigate(`/dashboard/payment?tab=monthly&userId=${userId}&month=${month}`);
-      }} />,
-      disabled: true  // 禁用手动切换
+      children: (
+        <PaymentDetail 
+          userId={selectedUserId} 
+          onMonthClick={(record) => {
+            setSelectedMonth(record);
+            navigate(`/dashboard/payment?tab=monthly&userId=${selectedUserId}`);
+          }} 
+        />
+      ),
+      disabled: true
     },
     {
       key: 'monthly',
       label: '月度订单列表',
-      children: <MonthlyOrders userId={userId} month={month} />,
-      disabled: true  // 禁用手动切换
+      children: selectedMonth && (
+        <MonthlyOrders 
+          userId={selectedUserId}
+          startTime={selectedMonth.startTime}
+          endTime={selectedMonth.endTime}
+        />
+      ),
+      disabled: true
     },
   ];
 
