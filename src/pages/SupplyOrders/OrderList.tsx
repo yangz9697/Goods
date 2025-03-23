@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Space, Button, Tag, DatePicker, Input, message, Form, Popconfirm } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
@@ -8,6 +8,7 @@ import AddOrderModal from './components/AddOrderModal';
 import { OrderStatusCode } from '@/types/order';
 import type { TableRowSelection } from 'antd/es/table/interface';
 import { formatPhone } from '@/utils/format';
+import { debounce } from 'lodash';
 
 interface PageOrderItem {
   orderNo: string;
@@ -32,6 +33,8 @@ const OrderList: React.FC = () => {
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [printLoading, setPrintLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // 初始化表单默认值
   const initialValues = {
@@ -109,72 +112,79 @@ const OrderList: React.FC = () => {
     fetchOrders(page, size || 10);
   };
 
-  const handleBatchPrint = async () => {
-    if (selectedRowKeys.length > 10) {
-      message.warning('一次最多只能打印10个供货单');
-      return;
-    }
-    try {
-      const blob = await orderApi.batchPrintOrderToPDF({
-        orderNoList: selectedRowKeys
-      });
-      const url = window.URL.createObjectURL(blob);
-      
-      // 创建一个隐藏的 iframe
-      const printFrame = document.createElement('iframe');
-      printFrame.style.display = 'none';
-      document.body.appendChild(printFrame);
-      
-      printFrame.src = url;
+  // 使用防抖包装打印函数
+  const debouncedPrint = useCallback(
+    debounce(async () => {
+      if (selectedRowKeys.length > 10) {
+        message.warning('一次最多只能打印10个供货单');
+        return;
+      }
+      setPrintLoading(true);
+      try {
+        const blob = await orderApi.batchPrintOrderToPDF({
+          orderNoList: selectedRowKeys
+        });
+        
+        const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = 'none';
+        document.body.appendChild(printFrame);
+        
+        printFrame.onload = () => {
+          try {
+            printFrame.contentWindow?.print();
+          } catch (error) {
+            message.error('打印失败：' + (error as Error).message);
+          }
+        };
 
-      // 等待 iframe 加载完成后打印
-      printFrame.onload = function() {
-        try {
-          printFrame.contentWindow?.focus();
-          printFrame.contentWindow?.print();
-          // 打印对话框关闭后清理
-          setTimeout(() => {
-            document.body.removeChild(printFrame);
-            window.URL.revokeObjectURL(url);
-          }, 1000);
-        } catch (error) {
-          message.error('打印失败：' + (error as Error).message);
-          document.body.removeChild(printFrame);
+        printFrame.src = url;
+      } catch (error) {
+        message.error('批量打印失败：' + (error as Error).message);
+      } finally {
+        setPrintLoading(false);
+      }
+    }, 300),
+    [selectedRowKeys]
+  );
+
+  // 使用防抖包装导出函数
+  const debouncedExport = useCallback(
+    debounce(async () => {
+      if (selectedRowKeys.length > 10) {
+        message.warning('一次最多只能导出10个供货单');
+        return;
+      }
+      setExportLoading(true);
+      try {
+        const blob = await orderApi.batchExportOrderToExcel({
+          orderNoList: selectedRowKeys
+        });
+        const url = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `供货单批量导出_${dayjs().format('YYYYMMDD')}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(link);
           window.URL.revokeObjectURL(url);
-        }
-      };
-    } catch (error) {
-      message.error('批量打印失败：' + (error as Error).message);
-    }
-  };
-
-  const handleBatchExport = async () => {
-    if (selectedRowKeys.length > 10) {
-      message.warning('一次最多只能导出10个供货单');
-      return;
-    }
-    try {
-      const blob = await orderApi.batchExportOrderToExcel({
-        orderNoList: selectedRowKeys
-      });
-      const url = window.URL.createObjectURL(blob);
-      
-      // 创建一个隐藏的 a 标签来下载文件
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `供货单批量导出_${dayjs().format('YYYYMMDD')}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      
-      // 清理
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-    } catch (error) {
-      message.error('批量导出失败：' + (error as Error).message);
-    }
-  };
+        }, 100);
+      } catch (error) {
+        message.error('批量导出失败：' + (error as Error).message);
+      } finally {
+        setExportLoading(false);
+      }
+    }, 300),
+    [selectedRowKeys]
+  );
 
   const rowSelection: TableRowSelection<PageOrderItem> = {
     selectedRowKeys,
@@ -337,14 +347,16 @@ const OrderList: React.FC = () => {
               添加供货单
             </Button>
             <Button
-              onClick={handleBatchPrint}
+              onClick={debouncedPrint}
               disabled={selectedRowKeys.length === 0}
+              loading={printLoading}
             >
               批量打印
             </Button>
             <Button
-              onClick={handleBatchExport}
+              onClick={debouncedExport}
               disabled={selectedRowKeys.length === 0}
+              loading={exportLoading}
             >
               批量导出
             </Button>

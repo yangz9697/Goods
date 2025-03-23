@@ -58,9 +58,12 @@ const ProductConsumption: React.FC = () => {
   }, [dateRange]);
 
   // 图表配置
-  const getChartConfig = (data: any[], yField: string) => ({
-    data,
-    xField: 'orderDate',
+  const getChartConfig = (data: any[], xField: string, yField: string) => ({
+    data: data.map(item => ({
+      日期: item.orderDate,
+      [yField]: item[xField]
+    })),
+    xField: '日期',
     yField,
     point: {
       size: 3,
@@ -82,7 +85,7 @@ const ProductConsumption: React.FC = () => {
             bodyStyle={{ padding: '12px 0' }}
             headStyle={{ padding: '0 12px' }}
           >
-            <Line {...getChartConfig(product.countRank, 'count')} />
+            <Line {...getChartConfig(product.countRank, 'count', '数量')} />
           </Card>
         </Col>
         <Col span={12}>
@@ -92,7 +95,7 @@ const ProductConsumption: React.FC = () => {
             bodyStyle={{ padding: '12px 0' }}
             headStyle={{ padding: '0 12px' }}
           >
-            <Line {...getChartConfig(product.priceRank, 'price')} />
+            <Line {...getChartConfig(product.priceRank, 'price','价格')} />
           </Card>
         </Col>
       </Row>

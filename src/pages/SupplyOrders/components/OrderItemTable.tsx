@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Table, InputNumber, Input, Select, Space, Tag, Button, message, Modal } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
@@ -71,6 +70,19 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   onAdd
 }) => {
   const [searchOptions, setSearchOptions] = useState<ObjectOption[]>([]);
+  const [emptyRow, setEmptyRow] = useState<TableOrderItem>({
+    id: 'empty',
+    name: '',
+    unit: '斤',
+    price: 0,
+    unitPrice: 0,
+    remark: '',
+    objectDetailId: 0,
+    count: 0,
+    remarkCount: '',
+    planCount: undefined,
+    deliveryName: undefined
+  });
   const [newItems, setNewItems] = useState<TableOrderItem[]>([]);
   const [remarkValues, setRemarkValues] = useState<Record<string | number, string>>({});
   const [deliveryValues, setDeliveryValues] = useState<Record<string | number, string>>({});
@@ -95,23 +107,6 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     }
   };
 
-  const handleAddNewRow = () => {
-    const newId = `new-${newItems.length + 1}`;
-    setNewItems(prev => [...prev, {
-      id: newId,
-      name: '',
-      unit: '斤',  // 设置默认单位为斤
-      price: 0,
-      unitPrice: 0,
-      remark: '',
-      objectDetailId: 0,
-      count: 0,
-      remarkCount: '',
-      planCount: undefined,
-      deliveryName: undefined
-    }]);
-  };
-
   const handleDeleteRow = (record: TableOrderItem) => {
     const isNewItem = record.id.toString().startsWith('new-');
     const hasContent = record.objectDetailId && record.count > 0;
@@ -133,19 +128,21 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     }
   };
 
-  const handleObjectSelect = async (value: number, option: any, record: TableOrderItem) => {
-    // 当选择商品时添加货品
+  const handleObjectSelect = async (value: number, option: any) => {
     try {
       await onAdd({
         objectDetailId: value,
         objectDetailName: option.label,
-        count: record.count,
-        unitName: type === 'bulk' ? '箱' : record.unit,
-        price: record.price,
-        remark: record.remark
+        count: 0,
+        unitName: type === 'bulk' ? '箱' : '斤',
+        price: 0,
+        remark: ''
       });
-      // 添加成功后清除这条新建记录
-      setNewItems(prev => prev.filter(item => item.id !== record.id));
+      // 添加成功后重置空行
+      setEmptyRow({
+        ...emptyRow,
+        id: `empty-${Date.now()}` // 更新 id 触发重新渲染
+      });
     } catch (error) {
       message.error('添加商品失败：' + (error as Error).message);
     }
@@ -153,10 +150,15 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
 
   // 处理报单数量的输入
   const handleRemarkCountChange = (record: TableOrderItem, value: string) => {
+    // 如果值没有变化，直接返回
+    if (value === record.remarkCount) {
+      return;
+    }
+
     let newValue = value;
     
     // 如果输入的是数字
-    if (/^\d+$/.test(value)) {
+    if (/^\d*\.?\d*$/.test(value)) {
       if (record.remarkCount) {
         // 如果当前值已经包含加号，更新最后一个数字
         if (record.remarkCount.includes('+')) {
@@ -194,31 +196,30 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   const getColumns = (): ColumnsType<TableOrderItem> => {
     const baseColumns: ColumnsType<TableOrderItem> = [
       {
-        title: '商品名称',
+        title: '货品',
         dataIndex: 'name',
         key: 'name',
-        render: (_, record) => {
-          const isNewItem = record.id.toString().startsWith('new-');
-          if (isNewItem) {
-            return (
-              <Select
-                showSearch
-                placeholder="搜索商品"
-                defaultActiveFirstOption={false}
-                showArrow={false}
-                filterOption={false}
-                onSearch={searchObjects}
-                onChange={(value, option) => handleObjectSelect(value, option, record)}
-                notFoundContent={null}
-                options={searchOptions.map(opt => ({
-                  value: opt.objectDetailId,
-                  label: opt.objectDetailName
-                }))}
-                style={{ width: '100%' }}
-              />
-            );
+        render: (_, record: TableOrderItem) => {
+          // 如果是已有记录，显示名称
+          if (record.objectDetailId !== 0) {
+            return record.name;
           }
-          return record.name;
+          
+          // 如果是空行，显示搜索选择框
+          return (
+            <Select
+              showSearch
+              style={{ width: '100%' }}
+              placeholder="搜索选择货品"
+              filterOption={false}
+              onSearch={searchObjects}
+              onChange={(value, option) => handleObjectSelect(value, option)}
+              options={searchOptions.map(opt => ({
+                label: opt.objectDetailName,
+                value: opt.objectDetailId
+              }))}
+            />
+          );
         }
       },
       {
@@ -285,7 +286,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         key: 'count',
         render: (_, record) => {
           const key = record.objectDetailId || record.id;
-          const inputValue = countValues[key] ?? record.count;
+          const currentValue = countValues[key] ?? record.count;
 
           return (
             <InputNumber
@@ -293,30 +294,30 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
               min={0}
               step={0.1}
               precision={1}
-              value={inputValue}
+              value={currentValue}
               onChange={(value) => {
+                // 更新本地状态
                 setCountValues(prev => ({
                   ...prev,
                   [key]: value || 0
                 }));
               }}
-              onBlur={() => {
-                const value = countValues[key];
+              onBlur={(e) => {
+                const newValue = parseFloat(e.target.value);
                 // 清除本地状态
                 setCountValues(prev => {
                   const updated = { ...prev };
                   delete updated[key];
                   return updated;
                 });
-                // 更新到后端
-                if (value !== record.count) {
+                // 只在值发生变化时才调用 onEdit
+                if (newValue !== record.count) {
                   onEdit({
                     objectDetailId: record.objectDetailId,
-                    remarkCount: record.remarkCount,
-                    planCount: record.planCount,
-                    count: value || 0,
+                    count: newValue,
                     price: record.price,
                     remark: record.remark,
+                    deliveryName: record.deliveryName,
                     unitName: record.unit
                   });
                 }
@@ -537,11 +538,12 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   return (
     <>
       <Table
-        rowKey="objectDetailId"
+        rowKey={(record) => record.id || record.objectDetailId.toString()}
         columns={getColumns()}
-        dataSource={[...items, ...newItems]}
+        dataSource={[...items, emptyRow, ...newItems]}
+        pagination={false}
       />
-      <Button
+      {/* <Button
         type="dashed"
         block
         icon={<PlusOutlined />}
@@ -549,7 +551,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         style={{ marginTop: 16 }}
       >
         添加{type === 'bulk' ? '大货' : '货品'}
-      </Button>
+      </Button> */}
     </>
   );
 }; 

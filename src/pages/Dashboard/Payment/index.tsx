@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs } from 'antd';
+import { Tabs, Card } from 'antd';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import PaymentList from './components/PaymentList';
 import PaymentDetail from './components/PaymentDetail';
@@ -18,49 +18,59 @@ const DashboardPayment: React.FC = () => {
     setSelectedUserId(userId);
   }, [userId]);
 
+  const handleTabChange = (key: string) => {
+    if (key === 'list') {
+      setSelectedUserId(null);
+      setSelectedMonth(null);
+      navigate('/dashboard/payment?tab=list');
+    } else if (key === 'detail' && selectedUserId) {
+      setSelectedMonth(null);
+      navigate(`/dashboard/payment?tab=detail&userId=${selectedUserId}`);
+    }
+  };
+
   const items = [
     {
       key: 'list',
       label: '付款列表',
-      children: <PaymentList onUserSelect={(id) => {
-        setSelectedUserId(id);
-        navigate(`/dashboard/payment?tab=detail&userId=${id}`);
-      }} />,
+      children: (
+        <PaymentList 
+          onUserSelect={(id) => {
+            setSelectedUserId(id);
+            navigate(`/dashboard/payment?tab=detail&userId=${id}`);
+          }}
+        />
+      ),
     },
     {
       key: 'detail',
       label: '付款详情',
-      children: (
+      children: selectedUserId ? (
         <PaymentDetail 
-          userId={selectedUserId} 
+          userId={selectedUserId}
           onMonthClick={(record) => {
             setSelectedMonth(record);
             navigate(`/dashboard/payment?tab=monthly&userId=${selectedUserId}`);
-          }} 
+          }}
         />
+      ) : (
+        <Card>请从付款列表选择用户查看详情</Card>
       ),
-      disabled: true
+      disabled: !selectedUserId
     },
     {
       key: 'monthly',
       label: '月度订单列表',
-      children: selectedMonth && (
+      children: selectedMonth && selectedUserId ? (
         <MonthlyOrders 
           userId={selectedUserId}
           startTime={selectedMonth.startTime}
           endTime={selectedMonth.endTime}
         />
-      ),
-      disabled: true
-    },
-  ];
-
-  const handleTabChange = (key: string) => {
-    // 只允许切换到付款列表
-    if (key === 'list') {
-      navigate('/dashboard/payment?tab=list');
+      ) : null,
+      disabled: !selectedMonth || !selectedUserId
     }
-  };
+  ];
 
   return (
     <div style={{ padding: '0 12px' }}>
