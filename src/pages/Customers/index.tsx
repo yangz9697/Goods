@@ -83,8 +83,7 @@ const Customers: React.FC = () => {
         const response = await addUser({
           name: values.name,
           mobile: values.phone,
-          remark: values.remark || '',
-          favorite: values.preference || ''
+          remark: values.remark || ''
         });
 
         if (response.success) {
@@ -103,8 +102,7 @@ const Customers: React.FC = () => {
           id: currentCustomer.userId,
           name: values.name,
           mobile: values.phone,
-          remark: values.remark || '',
-          favorite: values.preference || ''
+          remark: values.remark || ''
         });
 
         if (response.success) {
@@ -162,11 +160,6 @@ const Customers: React.FC = () => {
       key: 'remark',
     },
     {
-      title: '偏好',
-      dataIndex: 'favorite',
-      key: 'favorite',
-    },
-    {
       title: '更新时间',
       dataIndex: 'updateTime',
       key: 'updateTime',
@@ -191,8 +184,7 @@ const Customers: React.FC = () => {
               form.setFieldsValue({
                 name: record.name,
                 phone: record.mobile,
-                remark: record.remark,
-                preference: record.favorite
+                remark: record.remark
               });
               setModalVisible(true);
             }}
@@ -306,12 +298,6 @@ const Customers: React.FC = () => {
           <Form.Item
             name="remark"
             label="备注"
-          >
-            <TextArea rows={4} />
-          </Form.Item>
-          <Form.Item
-            name="preference"
-            label="偏好"
           >
             <TextArea rows={4} />
           </Form.Item>

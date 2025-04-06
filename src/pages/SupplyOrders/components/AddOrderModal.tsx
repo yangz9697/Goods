@@ -7,6 +7,9 @@ import locale from 'antd/es/date-picker/locale/zh_CN';  // 导入 DatePicker 的
 import { useNavigate } from 'react-router-dom';  // 添加导入
 import { formatPhone } from '@/utils/format';  // 导入手机号脱敏工具函数
 
+// 本地存储的 key (与父组件保持一致)
+const SUPPLY_ORDER_DATE_KEY = 'supply_order_date';
+
 interface AddOrderModalProps {
   visible: boolean;
   onCancel: () => void;
@@ -51,9 +54,11 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [userOptions, setUserOptions] = useState<{ label: string; value: number }[]>([]);
 
-  // 修改初始值设置
+  // 处理默认客户和日期
   useEffect(() => {
     if (visible) {
+      const savedDate = localStorage.getItem(SUPPLY_ORDER_DATE_KEY);
+      
       if (defaultCustomer) {
         // 如果有默认客户信息，设置选项和表单值
         setUserOptions([{
@@ -62,12 +67,12 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
         }]);
         form.setFieldsValue({
           userId: defaultCustomer.userId,
-          deliveryDate: dayjs()
+          deliveryDate: savedDate ? dayjs(savedDate) : dayjs()
         });
       } else {
         form.setFieldsValue({
           userId: defaultUserId,
-          deliveryDate: dayjs()
+          deliveryDate: savedDate ? dayjs(savedDate) : dayjs()
         });
       }
     }
@@ -158,13 +163,13 @@ const AddOrderModal: React.FC<AddOrderModalProps> = ({
           name="deliveryDate"
           label="供货日期"
           rules={[{ required: true, message: '请选择供货日期' }]}
-          initialValue={dayjs()}  // 设置默认值为当天
         >
           <DatePicker 
             style={{ width: '100%' }}
-            locale={locale}        // 添加中文配置
-            format="YYYY-MM-DD"
-            allowClear={false}     // 禁止清除日期
+            locale={locale}
+            format="YYYY年MM月DD日"
+            allowClear={false}
+            disabled={true}  // 禁用编辑
           />
         </Form.Item>
 

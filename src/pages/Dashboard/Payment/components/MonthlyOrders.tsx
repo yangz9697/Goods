@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, message, Button } from 'antd';
+import { Card, Table, Tag, message, Button, Space } from 'antd';
 import type { TableRowSelection } from 'antd/es/table/interface';
 import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
@@ -114,7 +114,22 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, startTime, endTim
       title: '订单号',
       dataIndex: 'orderNoList',
       key: 'orderNoList',
-      render: (orderNoList: string[]) => orderNoList.join(', '),
+      render: (orderNoList: string[]) => (
+        <Space>
+          {orderNoList.map((orderNo) => (
+            <a
+              key={orderNo}
+              onClick={(e) => {
+                e.stopPropagation();  // 防止触发行选择
+                window.open(`/supply-orders/detail/${orderNo}`, '_blank');
+              }}
+              style={{ color: '#1890ff', cursor: 'pointer' }}
+            >
+              {orderNo}
+            </a>
+          ))}
+        </Space>
+      ),
     },
     {
       title: '金额',

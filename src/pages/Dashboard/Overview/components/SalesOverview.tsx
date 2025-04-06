@@ -99,6 +99,7 @@ const SalesOverview: React.FC = () => {
           locale={locale}
           allowClear={false}
           ranges={{
+            '昨天': [dayjs().subtract(1, 'days'), dayjs().subtract(1, 'days')],
             '最近7天': [dayjs().subtract(7, 'days'), dayjs()],
             '最近30天': [dayjs().subtract(30, 'days'), dayjs()],
             '本月': [dayjs().startOf('month'), dayjs()],

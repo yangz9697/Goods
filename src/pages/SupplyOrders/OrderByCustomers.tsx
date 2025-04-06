@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Row, Col, Space, DatePicker, Input, Button, message, Tag, Modal, Form } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Row, Col, Space, Input, Button, message, Tag, Modal, Form } from 'antd';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
@@ -8,9 +8,14 @@ import AddOrderModal from './components/AddOrderModal';
 import { formatPhone } from '@/utils/format';
 import { OrderStatusCode, OrderStatusMap } from '@/types/order';
 
+interface ContextType {
+  selectedDate: dayjs.Dayjs;
+  dateChanged: string | null;
+}
 
 const SupplyOrderList: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedDate, dateChanged } = useOutletContext<ContextType>();
   const [form] = Form.useForm();
   const [customerOrders, setCustomerOrders] = useState<Array<{
     userId: number;
@@ -24,7 +29,6 @@ const SupplyOrderList: React.FC = () => {
       updateTime: number;
     }>;
   }>>([]);
-  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{
@@ -35,12 +39,6 @@ const SupplyOrderList: React.FC = () => {
   } | null>(null);
   const [expandedCustomer, setExpandedCustomer] = useState<typeof customerOrders[0] | null>(null);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
-
-  // 定义表单初始值
-  const initialValues = {
-    dateRange: selectedDate,
-    keyword: searchText
-  };
 
   // 添加一个标记首次加载的 ref
   const isFirstLoad = useRef(true);
@@ -74,6 +72,11 @@ const SupplyOrderList: React.FC = () => {
     }
   }, [fetchData]);
 
+  // 监听日期变化
+  useEffect(() => {
+    fetchData(searchText);
+  }, [selectedDate, dateChanged]);
+
   const handleSearch = () => {
     fetchData(searchText);
   };
@@ -84,15 +87,7 @@ const SupplyOrderList: React.FC = () => {
       dateRange: dayjs()
     });
     setSearchText('');
-    setSelectedDate(dayjs());
     fetchData('');
-  };
-
-  const handleDateChange = (date: dayjs.Dayjs | null) => {
-    if (date) {
-      setSelectedDate(date);
-      form.setFieldsValue({ dateRange: date });
-    }
   };
 
   const handleOrderListClick = (customer: typeof customerOrders[0]) => {
@@ -330,29 +325,10 @@ const SupplyOrderList: React.FC = () => {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Form
         form={form}
-        initialValues={initialValues}
         layout="inline"
         style={{ marginBottom: 16 }}
         preserve={false}
-        onValuesChange={(changedValues, allValues) => {
-          // 当表单值变化时，同步更新状态
-          if ('keyword' in changedValues) {
-            setSearchText(allValues.keyword || '');
-          }
-          if ('dateRange' in changedValues && allValues.dateRange) {
-            setSelectedDate(allValues.dateRange);
-          }
-        }}
       >
-        <Form.Item name="dateRange">
-          <DatePicker
-            value={selectedDate}
-            onChange={handleDateChange}
-            style={{ width: 200 }}
-            allowClear={false}
-          />
-        </Form.Item>
-        
         <Form.Item name="keyword">
           <Input
             placeholder="搜索姓名或手机号"

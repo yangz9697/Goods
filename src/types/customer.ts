@@ -8,7 +8,6 @@ export interface CustomerType {
 }
 
 export interface AddUserRequest {
-  favorite: string;
   mobile: string;
   name: string;
   remark: string;
@@ -58,7 +57,6 @@ export interface PageUserResponse {
 }
 
 export interface UpdateUserRequest {
-  favorite: string;
   id: number;
   mobile: string;
   name: string;

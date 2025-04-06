@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Form, Row, Col, DatePicker, Input, Select, Space, Button, Popconfirm, message } from 'antd';
 import { formatPhone } from '@/utils/format';
 import dayjs from 'dayjs';
@@ -37,6 +37,82 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   onPayStatusChange,
   onDeleteSuccess
 }) => {
+  const [weight, setWeight] = useState<string>('0');
+  const [port, setPort] = useState<SerialPort | null>(null);
+  const [, setDebugInfo] = useState<string>('等待连接...');
+
+  // 初始化串口连接
+  useEffect(() => {
+    const initSerialPort = async () => {
+      try {
+        setDebugInfo('正在获取串口列表...');
+        const ports = await navigator.serial.getPorts();
+        let serialPort;
+        
+        if (ports.length === 0) {
+          setDebugInfo('请选择串口...');
+          serialPort = await navigator.serial.requestPort();
+        } else {
+          setDebugInfo('使用已授权的串口...');
+          serialPort = ports[0];
+        }
+
+        setDebugInfo('正在打开串口...');
+        await serialPort.open({ 
+          baudRate: 9600,
+          dataBits: 8,
+          stopBits: 1,
+          parity: 'none',
+          flowControl: 'none'
+        });
+
+        setPort(serialPort);
+        setDebugInfo('串口已打开，等待数据...');
+
+        while (serialPort.readable) {
+          const reader = serialPort.readable.getReader();
+          try {
+            setDebugInfo('开始读取数据...');
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) {
+                setDebugInfo('读取结束');
+                break;
+              }
+              
+              const weightData = new TextDecoder().decode(value);
+              setDebugInfo(`收到数据: ${weightData}`);
+              
+              const match = weightData.match(/ST,NT,(\d+(\.\d+)?)/);
+              if (match) {
+                setWeight(match[1]);
+                setDebugInfo(`解析重量: ${match[1]} 斤`);
+              }
+            }
+          } catch (error) {
+            setDebugInfo(`读取错误: ${(error as Error).message}`);
+            console.error('读取串口数据失败:', error);
+          } finally {
+            reader.releaseLock();
+          }
+        }
+      } catch (error) {
+        setDebugInfo(`连接错误: ${(error as Error).message}`);
+        console.error('初始化串口失败:', error);
+        message.error('连接电子秤失败，请检查设备连接');
+      }
+    };
+
+    initSerialPort();
+
+    return () => {
+      if (port) {
+        port.close().catch(console.error);
+        setDebugInfo('串口已关闭');
+      }
+    };
+  }, []);
+
   const handleDeleteOrder = async () => {
     try {
       const response = await orderApi.deleteOrder(order.orderNo);
@@ -146,10 +222,18 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
               color: '#1890ff',
               padding: '16px',
               background: '#f0f5ff',
-              borderRadius: '4px'
+              borderRadius: '4px',
+              marginBottom: '8px'
             }}>
-              0 斤
+              {weight} 斤
             </div>
+            {/* <div style={{ 
+              fontSize: '12px',
+              color: '#666',
+              wordBreak: 'break-all'
+            }}>
+              {debugInfo}
+            </div> */}
           </div>
         </Card>
       </Col>
@@ -251,7 +335,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                     type="primary"
                     onClick={() => onPayStatusChange('waitPay')}
                   >
-                    计算金额
+                    未结算
                   </Button>
                   <Button 
                     type="primary"

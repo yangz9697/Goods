@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Dropdown, Modal, Form, Input, message } from 'antd';
+import { Layout as AntLayout, Menu, Dropdown, Modal, Form, Input, message, Button, Space, Avatar } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
-  ShoppingOutlined,
-  DollarOutlined,
   TeamOutlined,
-  FileTextOutlined,
-  LockOutlined,
   UserOutlined,
   LogoutOutlined,
   KeyOutlined,
-  ShopOutlined
+  ShopOutlined,
+  DatabaseOutlined,
+  PayCircleOutlined,
+  ShoppingCartOutlined,
+  SafetyCertificateOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined
 } from '@ant-design/icons';
 import { authApi } from '../../api/auth';
 import './index.less';
 import type { MenuProps } from 'antd';
 
-const { Header, Sider, Content } = Layout;
+const { Header, Sider, Content } = AntLayout;
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -30,12 +32,11 @@ const AppLayout: React.FC = () => {
   const role = localStorage.getItem('role');
   const currentTenant = localStorage.getItem('tenant');
   const [loading, setLoading] = useState(false);
-  const isAdmin = role === 'admin';
   const [tenantList, setTenantList] = useState<{ tenant: string; tenantName: string }[]>([]);
 
-  const menuItems: MenuProps['items'] = [
+  const menuItems = [
     {
-      key: '/dashboard',
+      key: 'dashboard',
       icon: <DashboardOutlined />,
       label: '数据看板',
       children: [
@@ -43,43 +44,43 @@ const AppLayout: React.FC = () => {
           key: '/dashboard/overview',
           label: '销售概览'
         },
-        ...(isAdmin ? [{
+        role === 'admin' && {
           key: '/dashboard/payment',
           label: '付款情况'
-        }] : [])
-      ]
+        }
+      ].filter(Boolean) as Required<MenuProps>['items']
     },
-    {
+    (role === 'admin' || role === 'manager') && {
       key: '/inventory',
-      icon: <ShoppingOutlined />,
+      icon: <DatabaseOutlined />,
       label: '库存管理'
     },
-    {
+    (role === 'admin' || role === 'manager') && {
       key: '/pricing',
-      icon: <DollarOutlined />,
+      icon: <PayCircleOutlined />,
       label: '价格管理'
     },
     {
       key: '/customers',
       icon: <TeamOutlined />,
-      label: '客户信息'
+      label: '客户管理'
     },
     {
       key: '/supply-orders',
-      icon: <FileTextOutlined />,
-      label: '供货单列表'
+      icon: <ShoppingCartOutlined />,
+      label: '供货单'
     },
-    role === 'admin' || role === 'manager' ? {
+    (role === 'admin' || role === 'manager') && {
       key: '/permissions',
-      icon: <LockOutlined />,
+      icon: <SafetyCertificateOutlined />,
       label: '权限管理'
-    } : null,
-    role === 'admin' ? {
+    },
+    role === 'admin' && {
       key: '/tenants',
       icon: <ShopOutlined />,
       label: '门店管理'
-    } : null
-  ].filter((item): item is NonNullable<typeof item> => item !== null);
+    }
+  ].filter(Boolean) as Required<MenuProps>['items'];
 
   useEffect(() => {
     if (role === 'admin') {
@@ -167,7 +168,7 @@ const AppLayout: React.FC = () => {
     }
   };
 
-  const userMenuItems: MenuProps = {
+  const userMenuItems = {
     items: [
       role === 'admin' ? {
         key: 'tenant',
@@ -192,12 +193,12 @@ const AppLayout: React.FC = () => {
         icon: <LogoutOutlined />,
         onClick: handleLogout
       }
-    ].filter(Boolean)
+    ].filter(Boolean) as Required<MenuProps>['items']
   };
 
   return (
-    <Layout className="app-layout">
-      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
+    <AntLayout style={{ height: '100vh' }}>
+      <Sider trigger={null} collapsible collapsed={collapsed}>
         <div className="logo">
           仓库管理系统
         </div>
@@ -209,32 +210,55 @@ const AppLayout: React.FC = () => {
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <Layout>
-        <Header className="app-header">
-          <div className="header-left" />
-          <div className="header-right">
-            <Dropdown 
-              menu={userMenuItems} 
-              placement="bottomRight"
-            >
-              <span className="user-info">
-                <UserOutlined />
-                <span className="username">
-                  {username}
-                  {role === 'admin' && tenantName && (
-                    <span className="tenant-info">({tenantName})</span>
-                  )}
-                </span>
-              </span>
+      <AntLayout style={{ display: 'flex', flexDirection: 'column' }}>
+        <Header 
+          style={{ 
+            padding: '0 16px', 
+            background: '#fff',
+            position: 'sticky',
+            top: 0,
+            zIndex: 1,
+            boxShadow: '0 1px 4px rgba(0,21,41,.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%'
+          }}
+        >
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed(!collapsed)}
+          />
+          <Space>
+            <Dropdown menu={userMenuItems} placement="bottomRight">
+              <Space style={{ cursor: 'pointer' }}>
+                <Avatar icon={<UserOutlined />} />
+                <span>{username}</span>
+                {role === 'admin' && tenantName && (
+                  <span className="tenant-info">({tenantName})</span>
+                )}
+              </Space>
             </Dropdown>
-          </div>
+          </Space>
         </Header>
-        <Content className="app-content">
-          <div className="content-wrapper">
+        <Content
+          style={{
+            margin: '24px 16px',
+            padding: 24,
+            background: '#fff',
+            borderRadius: '4px',
+            flex: 1,
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          <div style={{ flex: 1, overflow: 'auto' }}>
             <Outlet />
           </div>
         </Content>
-      </Layout>
+      </AntLayout>
 
       <Modal
         title="修改密码"
@@ -267,7 +291,7 @@ const AppLayout: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </Layout>
+    </AntLayout>
   );
 };
 

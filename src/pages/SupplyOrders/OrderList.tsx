@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Space, Button, Tag, DatePicker, Input, message, Form, Popconfirm } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Table, Space, Button, Tag, Input, message, Form, Popconfirm } from 'antd';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -21,24 +21,27 @@ interface PageOrderItem {
   updateTime: number;
 }
 
+interface ContextType {
+  selectedDate: dayjs.Dayjs;
+  dateChanged: string | null;
+}
+
 const OrderList: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedDate, dateChanged } = useOutletContext<ContextType>();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<PageOrderItem[]>([]);
-  console.log(orders);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [printLoading, setPrintLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
 
   // 初始化表单默认值
   const initialValues = {
-    dateRange: selectedDate,
     keyword: ''
   };
 
@@ -84,8 +87,9 @@ const OrderList: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchOrders(currentPage, pageSize);
-  }, [currentPage, pageSize, selectedDate]);
+    setCurrentPage(1);  // 重置页码
+    fetchOrders(1, pageSize);
+  }, [selectedDate, dateChanged]);
 
   const handleSearch = () => {
     setCurrentPage(1);
@@ -94,16 +98,8 @@ const OrderList: React.FC = () => {
 
   const handleReset = () => {
     form.resetFields();
-    setSelectedDate(dayjs());
     setCurrentPage(1);
     fetchOrders(1, pageSize);
-  };
-
-  const handleDateChange = (date: dayjs.Dayjs | null) => {
-    if (date) {
-      setSelectedDate(date);
-      form.setFieldsValue({ dateRange: date });
-    }
   };
 
   const handlePageChange = (page: number, size: number) => {
@@ -169,7 +165,7 @@ const OrderList: React.FC = () => {
         
         const link = document.createElement('a');
         link.href = url;
-        link.download = `供货单批量导出_${dayjs().format('YYYYMMDD')}.xlsx`;
+        link.download = `供货单批量导出_${dayjs().format('YYYYMMDD')}.zip`;
         document.body.appendChild(link);
         link.click();
         
@@ -312,18 +308,9 @@ const OrderList: React.FC = () => {
         layout="inline"
         style={{ marginBottom: 16 }}
       >
-        <Form.Item name="dateRange">
-          <DatePicker
-            value={selectedDate}
-            onChange={handleDateChange}
-            style={{ width: 200 }}
-            allowClear={false}
-          />
-        </Form.Item>
-        
         <Form.Item name="keyword">
           <Input
-            placeholder="请输入客户姓名/手机号"
+            placeholder="搜索姓名或手机号"
             style={{ width: 200 }}
             allowClear
           />

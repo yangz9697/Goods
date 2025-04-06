@@ -282,14 +282,14 @@ const Inventory: React.FC = () => {
       dataIndex: 'boxQuantity',
       key: 'boxQuantity',
       render: (text: number, record: InventoryItem) => (
-        <Space>
-          {text}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{text}</span>
           <Button.Group size="small">
             <Button onClick={() => {
               setCurrentItem(record);
               setAdjustType('add');
               setAdjustUnit('box');
-              form.resetFields();  // 重置表单
+              form.resetFields();
               setAdjustModalVisible(true);
             }}>+</Button>
             <Button onClick={() => {
@@ -299,7 +299,7 @@ const Inventory: React.FC = () => {
               setAdjustModalVisible(true);
             }}>-</Button>
           </Button.Group>
-        </Space>
+        </div>
       ),
     },
     {
@@ -307,8 +307,13 @@ const Inventory: React.FC = () => {
       dataIndex: 'jinQuantity',
       key: 'jinQuantity',
       render: (text: number, record: InventoryItem) => (
-        <Space>
-          {text}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space>
+            <span>{text}</span>
+            <span style={{ color: '#666', fontSize: '12px' }}>
+              ({record.jinPerBox} 斤/箱)
+            </span>
+          </Space>
           <Button.Group size="small">
             <Button onClick={() => {
               setCurrentItem(record);
@@ -323,7 +328,7 @@ const Inventory: React.FC = () => {
               setAdjustModalVisible(true);
             }}>-</Button>
           </Button.Group>
-        </Space>
+        </div>
       ),
     },
     {
@@ -331,8 +336,13 @@ const Inventory: React.FC = () => {
       dataIndex: 'pieceQuantity',
       key: 'pieceQuantity',
       render: (text: number, record: InventoryItem) => (
-        <Space>
-          {text}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space>
+            <span>{text}</span>
+            <span style={{ color: '#666', fontSize: '12px' }}>
+              ({record.piecePerBox} 个/箱)
+            </span>
+          </Space>
           <Button.Group size="small">
             <Button onClick={() => {
               setCurrentItem(record);
@@ -347,18 +357,8 @@ const Inventory: React.FC = () => {
               setAdjustModalVisible(true);
             }}>-</Button>
           </Button.Group>
-        </Space>
+        </div>
       ),
-    },
-    {
-      title: '单位(斤/箱)',
-      dataIndex: 'jinPerBox',
-      key: 'jinPerBox',
-    },
-    {
-      title: '单位(个/箱)',
-      dataIndex: 'piecePerBox',
-      key: 'piecePerBox',
     },
     {
       title: '更新时间',
@@ -458,6 +458,8 @@ const Inventory: React.FC = () => {
             >
               <InputNumber 
                 min={0} 
+                precision={1}
+                step={0.1}
                 style={{ width: '100%' }} 
                 placeholder="请输入每箱斤数"
               />
@@ -470,6 +472,8 @@ const Inventory: React.FC = () => {
             >
               <InputNumber 
                 min={0} 
+                precision={1}
+                step={0.1}
                 style={{ width: '100%' }} 
                 placeholder="请输入每箱个数"
               />
@@ -484,6 +488,8 @@ const Inventory: React.FC = () => {
                 >
                   <InputNumber 
                     min={0} 
+                    precision={1}
+                    step={0.1}
                     style={{ width: '100%' }} 
                     placeholder="请输入初始库存数量"
                   />
@@ -536,7 +542,11 @@ const Inventory: React.FC = () => {
               label="数量"
               rules={[{ required: true, message: '请输入数量' }]}
             >
-              <InputNumber min={0} />
+              <InputNumber 
+                min={0} 
+                precision={1}
+                step={0.1}
+              />
             </Form.Item>
             <Form.Item
               name="remark"

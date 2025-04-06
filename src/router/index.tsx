@@ -86,11 +86,19 @@ export const routes: RouteObject[] = [
       },
       {
         path: '/inventory',
-        element: <Inventory />
+        element: (
+          <RequireManagerOrAdmin>
+            <Inventory />
+          </RequireManagerOrAdmin>
+        )
       },
       {
         path: '/pricing',
-        element: <Pricing />
+        element: (
+          <RequireManagerOrAdmin>
+            <Pricing />
+          </RequireManagerOrAdmin>
+        )
       },
       {
         path: '/customers',
