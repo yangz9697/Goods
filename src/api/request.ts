@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-export const BASE_URL = 'http://139.224.63.0:8000';
+export const BASE_URL = import.meta.env.DEV 
+  ? 'http://139.224.63.0:8000'  // 开发环境使用完整 URL
+  : '/';  // 生产环境使用相对路径
 
 // 创建axios实例
 const request = axios.create({

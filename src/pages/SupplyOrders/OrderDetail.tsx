@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, message } from 'antd';
+import { message } from 'antd';
 import { useOrderDetail } from './hooks/useOrderDetail';
 import { OrderItemTable } from './components/OrderItemTable';
 import { OrderHeader } from '@/pages/SupplyOrders/components/OrderHeader';
@@ -11,6 +11,7 @@ const OrderDetail: React.FC = () => {
   const role = localStorage.getItem('role');
   const isAdmin = role === 'admin';
   const navigate = useNavigate();
+  const [weight, setWeight] = useState<string>('0');
 
   const {
     order,
@@ -33,8 +34,13 @@ const OrderDetail: React.FC = () => {
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Card style={{ marginBottom: 16 }}>
+    <div style={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      background: '#fff'
+    }}>
+      <div style={{ marginBottom: '16px' }}>
         <OrderHeader
           order={order}
           statusList={statusList}
@@ -42,34 +48,31 @@ const OrderDetail: React.FC = () => {
           onStatusChange={handleStatusChange}
           onPayStatusChange={handleUpdatePayStatus}
           onDeleteSuccess={handleDeleteSuccess}
+          onWeightChange={setWeight}
         />
-      </Card>
-      <Card 
-        style={{ 
-          flex: 1, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          overflow: 'hidden',
-          height: '100%'
-        }}
-        bodyStyle={{
-          height: '100%',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
+      </div>
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        overflow: 'hidden',
+        height: '100%',
+        background: '#fff',
+        borderRadius: '4px',
+        border: '1px solid #f0f0f0'
+      }}>
         <div style={{ 
           display: 'flex', 
           borderBottom: '1px solid #f0f0f0',
-          marginBottom: '16px'
+          padding: '0 16px'
         }}>
           <div
             style={{
-              padding: '8px 16px',
+              padding: '12px 16px',
               cursor: 'pointer',
               borderBottom: activeTab === 'all' ? '2px solid #1890ff' : 'none',
-              color: activeTab === 'all' ? '#1890ff' : 'inherit'
+              color: activeTab === 'all' ? '#1890ff' : 'inherit',
+              marginBottom: '-1px'
             }}
             onClick={() => setActiveTab('all')}
           >
@@ -77,17 +80,22 @@ const OrderDetail: React.FC = () => {
           </div>
           <div
             style={{
-              padding: '8px 16px',
+              padding: '12px 16px',
               cursor: 'pointer',
               borderBottom: activeTab === 'box' ? '2px solid #1890ff' : 'none',
-              color: activeTab === 'box' ? '#1890ff' : 'inherit'
+              color: activeTab === 'box' ? '#1890ff' : 'inherit',
+              marginBottom: '-1px'
             }}
             onClick={() => setActiveTab('box')}
           >
             大货
           </div>
         </div>
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div style={{ 
+          flex: 1, 
+          overflow: 'auto',
+          margin: '16px'
+        }}>
           {activeTab === 'all' && (
             <OrderItemTable
               type="all"
@@ -97,6 +105,7 @@ const OrderDetail: React.FC = () => {
               }))}
               isAdmin={isAdmin}
               deliveryUsers={deliveryUsers}
+              weight={weight}
               onEdit={handleEdit}
               onDelete={handleDeleteItem}
               onAdd={handleAdd}
@@ -113,13 +122,14 @@ const OrderDetail: React.FC = () => {
                 }))}
               isAdmin={isAdmin}
               deliveryUsers={deliveryUsers}
+              weight={weight}
               onEdit={handleEdit}
               onDelete={handleDeleteItem}
               onAdd={handleAdd}
             />
           )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

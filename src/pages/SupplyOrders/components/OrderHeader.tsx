@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Row, Col, DatePicker, Input, Select, Space, Button, Popconfirm, message } from 'antd';
+import { Form, Row, Col, DatePicker, Input, Select, Space, Button, Popconfirm, message } from 'antd';
 import { formatPhone } from '@/utils/format';
 import dayjs from 'dayjs';
 import { Order, OrderStatus, OrderStatusCode } from '@/types/order';
 import { orderApi } from '@/api/orders';
-import { PrinterOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { PrinterOutlined } from '@ant-design/icons';
 
 // 扩展 Order 类型，确保包含所有需要的属性
 interface ExtendedOrder extends Order {
@@ -28,6 +27,7 @@ interface OrderHeaderProps {
   onStatusChange: (status: OrderStatusCode) => void;
   onPayStatusChange: (status: 'waitPay' | 'paySuccess') => void;
   onDeleteSuccess: () => void;
+  onWeightChange: (weight: string) => void;
 }
 
 export const OrderHeader: React.FC<OrderHeaderProps> = ({
@@ -36,30 +36,29 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   isAdmin,
   onStatusChange,
   onPayStatusChange,
-  onDeleteSuccess
+  onDeleteSuccess,
+  onWeightChange
 }) => {
   const [weight, setWeight] = useState<string>('0');
   const [port, setPort] = useState<SerialPort | null>(null);
-  const [, setDebugInfo] = useState<string>('等待连接...');
-  const navigate = useNavigate();
 
   // 初始化串口连接
   useEffect(() => {
     const initSerialPort = async () => {
       try {
-        setDebugInfo('正在获取串口列表...');
+        console.log('正在获取串口列表...');
         const ports = await navigator.serial.getPorts();
         let serialPort;
         
         if (ports.length === 0) {
-          setDebugInfo('请选择串口...');
+          console.log('请选择串口...');
           serialPort = await navigator.serial.requestPort();
         } else {
-          setDebugInfo('使用已授权的串口...');
+          console.log('使用已授权的串口...');
           serialPort = ports[0];
         }
 
-        setDebugInfo('正在打开串口...');
+        console.log('正在打开串口...');
         await serialPort.open({ 
           baudRate: 9600,
           dataBits: 8,
@@ -69,37 +68,39 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
         });
 
         setPort(serialPort);
-        setDebugInfo('串口已打开，等待数据...');
+        console.log('串口已打开，等待数据...');
 
         while (serialPort.readable) {
           const reader = serialPort.readable.getReader();
           try {
-            setDebugInfo('开始读取数据...');
+            console.log('开始读取数据...');
             while (true) {
               const { value, done } = await reader.read();
               if (done) {
-                setDebugInfo('读取结束');
+                console.log('读取结束');
                 break;
               }
               
               const weightData = new TextDecoder().decode(value);
-              setDebugInfo(`收到数据: ${weightData}`);
+              console.log(`收到数据: ${weightData}`);
               
-              const match = weightData.match(/ST,NT,(\d+(\.\d+)?)/);
+              const match = weightData.match(/(\d+(\.\d+)?)\s*kg$/);
               if (match) {
-                setWeight(match[1]);
-                setDebugInfo(`解析重量: ${match[1]} 斤`);
+                const newWeight = match[1];
+                setWeight(newWeight);
+                onWeightChange(newWeight);
+                console.log(`解析重量: ${newWeight} kg`);
               }
             }
           } catch (error) {
-            setDebugInfo(`读取错误: ${(error as Error).message}`);
+            console.log(`读取错误: ${(error as Error).message}`);
             console.error('读取串口数据失败:', error);
           } finally {
             reader.releaseLock();
           }
         }
       } catch (error) {
-        setDebugInfo(`连接错误: ${(error as Error).message}`);
+        console.log(`连接错误: ${(error as Error).message}`);
         console.error('初始化串口失败:', error);
         message.error('连接电子秤失败，请检查设备连接');
       }
@@ -110,10 +111,10 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
     return () => {
       if (port) {
         port.close().catch(console.error);
-        setDebugInfo('串口已关闭');
+        console.log('串口已关闭');
       }
     };
-  }, []);
+  }, [onWeightChange]);
 
   const handleDeleteOrder = async () => {
     try {
@@ -201,165 +202,130 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   };
 
   return (
-    <Row gutter={16} style={{ height: '100%' }}>
+    <Row gutter={8} style={{ height: '100%' }}>
       {/* 电子秤 */}
       <Col span={4} style={{ height: '100%' }}>
-        <Card 
-          style={{ height: '100%' }}
-          styles={{
-            body: {
-              height: '100%', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              padding: '24px 16px'
-            }
-          }}
-        >
+        <div style={{ 
+          height: '100%',
+          background: '#fff',
+          borderRadius: '4px',
+          // border: '1px solid #f0f0f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          // padding: '16px'
+        }}>
           <div style={{ textAlign: 'center', width: '100%' }}>
-            <div style={{ fontSize: '16px', marginBottom: '8px' }}>电子秤</div>
             <div style={{ 
-              fontSize: '32px', 
+              fontSize: '18px', 
               fontWeight: 'bold',
               color: '#1890ff',
               padding: '16px',
               background: '#f0f5ff',
-              borderRadius: '4px',
-              marginBottom: '8px'
+              borderRadius: '4px'
             }}>
               {weight} 斤
             </div>
-            {/* <div style={{ 
-              fontSize: '12px',
-              color: '#666',
-              wordBreak: 'break-all'
-            }}>
-              {debugInfo}
-            </div> */}
           </div>
-        </Card>
+        </div>
       </Col>
 
       {/* 筛选项和操作按钮 */}
       <Col span={20} style={{ height: '100%' }}>
-        <Card 
-          style={{ height: '100%' }}
-          styles={{
-            body: { 
-              height: '100%',
-              padding: '16px 24px',
-              display: 'flex',
-              flexDirection: 'column'
-            }
-          }}
-        >
-          {/* 筛选项 */}
-          <div style={{ flex: 1 }}>
-            <Form layout="inline">
-              <Form.Item style={{ marginBottom: 8 }}>
-                <Button 
-                  icon={<ArrowLeftOutlined />}
-                  onClick={() => navigate(-1)}
-                >
-                  返回
-                </Button>
-              </Form.Item>
-              <Form.Item 
-                label="供货日期" 
-                name="date" 
-                style={{ marginBottom: 8 }}
-                initialValue={dayjs(order.date)}
+        <div style={{ 
+          height: '100%',
+          background: '#fff',
+          borderRadius: '4px',
+          // border: '1px solid #f0f0f0',
+          // padding: '8px'
+        }}>
+          <Form layout="inline">
+            <Form.Item 
+              label="供货日期" 
+              name="date" 
+              style={{ marginBottom: 8, marginRight: 4 }}
+              initialValue={dayjs(order.date)}
+            >
+              <DatePicker 
+                style={{ width: 130 }}
+                format="YYYY-MM-DD"
+                disabled={true}
+              />
+            </Form.Item>
+            <Form.Item label="下单时间" style={{ marginBottom: 8, marginRight: 4 }}>
+              <Input 
+                disabled 
+                value={order.createTime ? dayjs(order.createTime).format('YYYY-MM-DD HH:mm:ss') : ''} 
+                style={{ width: 160 }} 
+              />
+            </Form.Item>
+            <Form.Item
+              label="配货状态"
+              style={{ marginBottom: 8, marginRight: 4 }}
+            >
+              <Select
+                style={{ width: 100 }}
+                value={order.status}
+                onChange={onStatusChange}
               >
-                <DatePicker 
-                  style={{ width: 130 }}
-                  format="YYYY-MM-DD"
-                  disabled={true}
-                />
-              </Form.Item>
-              <Form.Item label="下单时间" style={{ marginBottom: 8 }}>
+                {statusList.map(status => (
+                  <Select.Option 
+                    key={status.orderStatusCode} 
+                    value={status.orderStatusCode}
+                  >
+                    {status.orderStatusName}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item label="客户信息" style={{ marginBottom: 8, marginRight: 4 }}>
+              <Space>
                 <Input 
-                  disabled 
-                  value={order.createTime ? dayjs(order.createTime).format('YYYY-MM-DD HH:mm:ss') : ''} 
-                  style={{ width: 160 }} 
+                  value={order.customerName}
+                  disabled
+                  style={{ width: 120 }}
                 />
-              </Form.Item>
-              <Form.Item
-                label="配货状态"
-                style={{ marginBottom: 8 }}
-              >
-                <Select
-                  style={{ width: 100 }}
-                  value={order.status}
-                  onChange={onStatusChange}
-                >
-                  {statusList.map(status => (
-                    <Select.Option 
-                      key={status.orderStatusCode} 
-                      value={status.orderStatusCode}
-                    >
-                      {status.orderStatusName}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              <Form.Item label="客户信息" style={{ marginBottom: 8 }}>
-                <Space>
-                  <Input 
-                    value={order.customerName}
-                    disabled
-                    style={{ width: 120 }}
-                  />
-                  <Input 
-                    value={formatPhone(order.customerPhone)}
-                    disabled
-                    style={{ width: 120 }}
-                  />
-                </Space>
-              </Form.Item>
-            </Form>
-          </div>
-
-          {/* 操作按钮 */}
-          <div style={{ 
-            borderTop: '1px solid #f0f0f0', 
-            paddingTop: 16,
-            display: 'flex',
-            justifyContent: 'space-between'  // 添加两端对齐
-          }}>
-            {/* 左侧按钮组 */}
-            <Space size="small">
-              {isAdmin && (
-                <>
-                  <span style={{
-                    fontSize: 16, 
-                    fontWeight: 500 
-                  }}>
+                <Input 
+                  value={formatPhone(order.customerPhone)}
+                  disabled
+                  style={{ width: 120 }}
+                />
+              </Space>
+            </Form.Item>
+            {isAdmin && (
+              <>
+                <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
+                  <span style={{ fontSize: 16, fontWeight: 500 }}>
                     总计：￥{order.totalPrice.toFixed(2)}
                   </span>
+                </Form.Item>
+                <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
                   <span style={{
                     fontSize: 16,
                     color: order.payStatusName === '已付款' ? '#52c41a' : '#f5222d'
                   }}>
                     {order.payStatusName}
                   </span>
+                </Form.Item>
+                <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
                   <Button 
                     type="primary"
                     onClick={() => onPayStatusChange('waitPay')}
                   >
                     未结算
                   </Button>
+                </Form.Item>
+                <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
                   <Button 
                     type="primary"
                     onClick={() => onPayStatusChange('paySuccess')}
                   >
                     结算完成
                   </Button>
-                </>
-              )}
-            </Space>
-
-            {/* 右侧按钮组 */}
-            <Space size="small">
+                </Form.Item>
+              </>
+            )}
+            <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
               <Button 
                 type="primary" 
                 icon={<PrinterOutlined />}
@@ -367,7 +333,11 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
               >
                 打印
               </Button>
-              <Button onClick={handleExport}>导出Excel</Button>
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
+              <Button onClick={handleExport}>导出</Button>
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 8 }}>
               <Popconfirm
                 title="确定要删除这个供货单吗？"
                 onConfirm={handleDeleteOrder}
@@ -376,9 +346,9 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
               >
                 <Button danger>删除</Button>
               </Popconfirm>
-            </Space>
-          </div>
-        </Card>
+            </Form.Item>
+          </Form>
+        </div>
       </Col>
     </Row>
   );

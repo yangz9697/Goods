@@ -34,6 +34,7 @@ interface OrderItemTableProps {
   type: 'all' | 'bulk';
   isAdmin: boolean;
   deliveryUsers: { label: string; value: string }[];
+  weight: string;
   onEdit: (values: {
     objectDetailId: number;
     count: number;
@@ -67,6 +68,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   type,
   isAdmin,
   deliveryUsers,
+  weight,
   onEdit,
   onDelete,
   onAdd
@@ -93,6 +95,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   const [remarkInputValues, setRemarkInputValues] = useState<Record<string | number, string>>({});
   const [countValues, setCountValues] = useState<Record<string | number, number>>({});
   const [showButtonMap, setShowButtonMap] = useState<Record<string | number, boolean>>({});
+  const [activeInputKey, setActiveInputKey] = useState<string | number | null>(null);
   const scaleServiceRef = useRef<ScaleService | null>(null);
   const [isScaleConnected, setIsScaleConnected] = useState(false);
 
@@ -208,50 +211,69 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     });
   };
 
+  const handleInputFocus = (key: string | number) => {
+    setActiveInputKey(key);
+    setShowButtonMap(prev => ({
+      ...prev,
+      [key]: true
+    }));
+  };
+
+  const handleInputBlur = (key: string | number, record: TableOrderItem) => {
+    // 更新表单数据
+    const newValue = countValues[key] ?? record.count;
+    if (newValue !== record.count) {
+      onEdit({
+        objectDetailId: record.objectDetailId,
+        count: newValue,
+        price: record.price,
+        remark: record.remark,
+        deliveryName: record.deliveryName,
+        unitName: record.unit
+      });
+    }
+
+    // 延迟隐藏按钮，给点击事件一个执行的机会
+    setTimeout(() => {
+      if (activeInputKey === key) {
+        setActiveInputKey(null);
+        setShowButtonMap(prev => ({
+          ...prev,
+          [key]: false
+        }));
+      }
+    }, 200);
+  };
+
   const handleScaleButtonClick = async (record: TableOrderItem) => {
     const key = record.objectDetailId || record.id;
     
-    if (!scaleServiceRef.current) {
-      scaleServiceRef.current = new ScaleService();
-    }
-
-    if (!isScaleConnected) {
-      const connected = await scaleServiceRef.current.connect();
-      if (!connected) {
-        message.error('连接电子秤失败');
-        return;
-      }
-      setIsScaleConnected(true);
-    }
-
-    try {
-      await scaleServiceRef.current.startReading((weight) => {
-        if (weight !== null) {
-          setCountValues(prev => ({
-            ...prev,
-            [key]: weight
-          }));
-          onEdit({
-            objectDetailId: record.objectDetailId,
-            count: weight,
-            price: record.price,
-            remark: record.remark,
-            deliveryName: record.deliveryName,
-            unitName: record.unit
-          });
-        }
+    // 使用传入的 weight 值更新输入框
+    console.log('weight', weight);
+    const weightValue = parseFloat(weight);
+    if (!isNaN(weightValue)) {
+      console.log('weightValue', weightValue);
+      setCountValues(prev => ({
+        ...prev,
+        [key]: weightValue
+      }));
+      onEdit({
+        objectDetailId: record.objectDetailId,
+        count: weightValue,
+        price: record.price,
+        remark: record.remark,
+        deliveryName: record.deliveryName,
+        unitName: record.unit
       });
-    } catch (error) {
-      message.error('读取电子秤数据失败');
-      // 如果读取失败，重置串口连接
-      await ScaleService.reset();
-      setIsScaleConnected(false);
     }
   };
 
-  // 添加重置串口的方法
+  // 修改重置方法
   const handleResetScale = async () => {
-    await ScaleService.reset();
+    if (scaleServiceRef.current) {
+      await scaleServiceRef.current.disconnect();
+      scaleServiceRef.current = null;
+    }
     setIsScaleConnected(false);
     message.success('已重置电子秤连接');
   };
@@ -369,35 +391,8 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                     [key]: value || 0
                   }));
                 }}
-                onFocus={(e) => {
-                  e.target.select();
-                  setShowButtonMap(prev => ({
-                    ...prev,
-                    [key]: true
-                  }));
-                }}
-                onBlur={(e) => {
-                  const newValue = parseFloat(e.target.value);
-                  setCountValues(prev => {
-                    const updated = { ...prev };
-                    delete updated[key];
-                    return updated;
-                  });
-                  if (newValue !== record.count) {
-                    onEdit({
-                      objectDetailId: record.objectDetailId,
-                      count: newValue,
-                      price: record.price,
-                      remark: record.remark,
-                      deliveryName: record.deliveryName,
-                      unitName: record.unit
-                    });
-                  }
-                  setShowButtonMap(prev => ({
-                    ...prev,
-                    [key]: false
-                  }));
-                }}
+                onFocus={() => handleInputFocus(key)}
+                onBlur={() => handleInputBlur(key, record)}
                 placeholder="请输入数量"
               />
               {showButton && (
@@ -410,7 +405,9 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                       height: '22px',
                       lineHeight: '22px'
                     }}
-                    onClick={() => handleScaleButtonClick(record)}
+                    onClick={() => {
+                      handleScaleButtonClick(record);
+                    }}
                   >
                     代入
                   </Button>
@@ -654,6 +651,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         scroll={{ y: '100%' }}
         style={{ height: '100%' }}
         sticky
+        size="small"
       />
       <CreateObjectModal
         visible={createModalVisible}

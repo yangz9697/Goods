@@ -104,9 +104,9 @@ export const routes: RouteObject[] = [
       {
         path: '/customers',
         element: (
-          <RequireManagerOrAdmin>
+          <RequireSuperAdmin>
             <Customers />
-          </RequireManagerOrAdmin>
+          </RequireSuperAdmin>
         )
       },
       {

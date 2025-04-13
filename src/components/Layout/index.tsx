@@ -61,7 +61,7 @@ const AppLayout: React.FC = () => {
       icon: <PayCircleOutlined />,
       label: '价格管理'
     },
-    (role === 'admin' || role === 'manager') && {
+    role === 'admin' && {
       key: '/customers',
       icon: <TeamOutlined />,
       label: '客户管理'
