@@ -131,6 +131,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
     count: number;
     objectDetailId: number;
     price: number;
+    totalPrice?: number;
     remark: string;
     unitName?: string;
     deliveryName?: string;

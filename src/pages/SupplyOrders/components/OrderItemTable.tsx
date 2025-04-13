@@ -39,6 +39,7 @@ interface OrderItemTableProps {
     objectDetailId: number;
     count: number;
     price: number;
+    totalPrice?: number;
     remark: string;
     deliveryName?: string;
     unitName: string;
@@ -92,6 +93,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   const [remarkValues, setRemarkValues] = useState<Record<string | number, string>>({});
   const [deliveryValues, setDeliveryValues] = useState<Record<string | number, string>>({});
   const [priceValues, setPriceValues] = useState<Record<string | number, number>>({});
+  const [totalPriceValues, setTotalPriceValues] = useState<Record<string | number, number>>({});
   const [remarkInputValues, setRemarkInputValues] = useState<Record<string | number, string>>({});
   const [countValues, setCountValues] = useState<Record<string | number, number>>({});
   const [showButtonMap, setShowButtonMap] = useState<Record<string | number, boolean>>({});
@@ -612,9 +614,44 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
           dataIndex: 'totalPrice',
           key: 'totalPrice',
           width: 80,
-          render: (_, record: any) => (
-            <span>{record.totalPrice?.toFixed(2) || '-'}</span>
-          ),
+          render: (_, record: any) => {
+            const key = record.objectDetailId || record.id;
+            const currentValue = totalPriceValues[key] ?? record.totalPrice;
+
+            return (
+              <InputNumber
+                value={currentValue}
+                min={0}
+                precision={2}
+                style={{ width: '100%' }}
+                onChange={(value) => {
+                  setTotalPriceValues(prev => ({
+                    ...prev,
+                    [key]: value || 0
+                  }));
+                }}
+                onBlur={(e) => {
+                  const newValue = parseFloat(e.target.value);
+                  setTotalPriceValues(prev => {
+                    const updated = { ...prev };
+                    delete updated[key];
+                    return updated;
+                  });
+                  if (newValue !== record.totalPrice) {
+                    onEdit({
+                      objectDetailId: record.objectDetailId,
+                      count: record.count,
+                      price: record.price,
+                      totalPrice: newValue,
+                      remark: record.remark,
+                      deliveryName: record.deliveryName,
+                      unitName: record.unit
+                    });
+                  }
+                }}
+              />
+            );
+          },
         }
       );
     }

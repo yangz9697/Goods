@@ -19,6 +19,7 @@ interface PageOrderItem {
   remark: string;
   createTime: number;
   updateTime: number;
+  printTime?: number;
 }
 
 interface ContextType {
@@ -272,6 +273,12 @@ const OrderList: React.FC = () => {
       dataIndex: 'updateTime',
       key: 'updateTime',
       render: (time: number) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
+    },
+    {
+      title: '打印时间',
+      dataIndex: 'printTime',
+      key: 'printTime',
+      render: (time: number | undefined) => time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
     {
       title: '操作',
