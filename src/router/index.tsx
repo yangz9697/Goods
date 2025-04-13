@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, RouteObject } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouteObject, Outlet } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Inventory from '../pages/Inventory';
 import Pricing from '../pages/Pricing';
@@ -24,8 +24,8 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// 创建一个需要管理员权限的路由包装组件
-const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// 创建一个需要超级管理员权限的路由包装组件
+const RequireSuperAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const role = localStorage.getItem('role');
   
   if (role !== 'admin') {
@@ -61,10 +61,15 @@ export const routes: RouteObject[] = [
     children: [
       {
         path: '',
-        element: <Navigate to="/dashboard/overview" replace />
+        element: <Navigate to="/supply-orders" replace />
       },
       {
         path: 'dashboard',
+        element: (
+          <RequireSuperAdmin>
+            <Outlet />
+          </RequireSuperAdmin>
+        ),
         children: [
           {
             path: '',
@@ -76,11 +81,7 @@ export const routes: RouteObject[] = [
           },
           {
             path: 'payment',
-            element: (
-              <RequireAdmin>
-                <DashboardPayment />
-              </RequireAdmin>
-            )
+            element: <DashboardPayment />
           }
         ]
       },
@@ -102,7 +103,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: '/customers',
-        element: <Customers />
+        element: (
+          <RequireManagerOrAdmin>
+            <Customers />
+          </RequireManagerOrAdmin>
+        )
       },
       {
         path: '/supply-orders',
@@ -125,17 +130,17 @@ export const routes: RouteObject[] = [
       {
         path: '/permissions',
         element: (
-          <RequireManagerOrAdmin>
+          <RequireSuperAdmin>
             <Permissions />
-          </RequireManagerOrAdmin>
+          </RequireSuperAdmin>
         )
       },
       {
         path: '/tenants',
         element: (
-          <RequireAdmin>
+          <RequireSuperAdmin>
             <Tenants />
-          </RequireAdmin>
+          </RequireSuperAdmin>
         )
       }
     ]

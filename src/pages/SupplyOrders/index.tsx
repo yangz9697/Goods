@@ -61,7 +61,11 @@ const SupplyOrders: React.FC = () => {
   const isToday = selectedDate.isSame(dayjs(), 'day');
 
   return (
-    <div style={{ padding: '0 24px' }}>
+    <div style={{ 
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
       <ConfigProvider locale={zhCN}>
         {/* 只在非详情页显示日期选择器 */}
         {!isDetailPage && (

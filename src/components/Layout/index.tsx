@@ -13,7 +13,8 @@ import {
   ShoppingCartOutlined,
   SafetyCertificateOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons';
 import { authApi } from '../../api/auth';
 import './index.less';
@@ -35,7 +36,7 @@ const AppLayout: React.FC = () => {
   const [tenantList, setTenantList] = useState<{ tenant: string; tenantName: string }[]>([]);
 
   const menuItems = [
-    {
+    role === 'admin' && {
       key: 'dashboard',
       icon: <DashboardOutlined />,
       label: '数据看板',
@@ -44,7 +45,7 @@ const AppLayout: React.FC = () => {
           key: '/dashboard/overview',
           label: '销售概览'
         },
-        role === 'admin' && {
+        {
           key: '/dashboard/payment',
           label: '付款情况'
         }
@@ -60,7 +61,7 @@ const AppLayout: React.FC = () => {
       icon: <PayCircleOutlined />,
       label: '价格管理'
     },
-    {
+    (role === 'admin' || role === 'manager') && {
       key: '/customers',
       icon: <TeamOutlined />,
       label: '客户管理'
@@ -70,7 +71,7 @@ const AppLayout: React.FC = () => {
       icon: <ShoppingCartOutlined />,
       label: '供货单'
     },
-    (role === 'admin' || role === 'manager') && {
+    role === 'admin' && {
       key: '/permissions',
       icon: <SafetyCertificateOutlined />,
       label: '权限管理'
@@ -199,45 +200,45 @@ const AppLayout: React.FC = () => {
   return (
     <AntLayout style={{ height: '100vh' }}>
       <Sider trigger={null} collapsible collapsed={collapsed}>
-        <div className="logo">
-          仓库管理系统
-        </div>
+        <div className="logo" />
         <Menu
           theme="dark"
-          selectedKeys={[location.pathname]}
           mode="inline"
+          selectedKeys={[location.pathname]}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <AntLayout style={{ display: 'flex', flexDirection: 'column' }}>
-        <Header 
-          style={{ 
-            padding: '0 16px', 
-            background: '#fff',
-            position: 'sticky',
-            top: 0,
-            zIndex: 1,
-            boxShadow: '0 1px 4px rgba(0,21,41,.08)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            width: '100%'
-          }}
-        >
+      <AntLayout>
+        <Header style={{ padding: 0, background: '#fff', display: 'flex', alignItems: 'center' }}>
           <Button
             type="text"
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setCollapsed(!collapsed)}
+            style={{
+              fontSize: '16px',
+              width: 64,
+              height: 64,
+            }}
           />
-          <Space>
-            <Dropdown menu={userMenuItems} placement="bottomRight">
-              <Space style={{ cursor: 'pointer' }}>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate(-1)}
+            style={{
+              fontSize: '16px',
+              height: 64,
+            }}
+          >
+            返回上一页
+          </Button>
+          <div style={{ flex: 1 }} />
+          <Space style={{ marginRight: 16 }}>
+            <span>{tenantName}</span>
+            <Dropdown menu={userMenuItems}>
+              <Space>
                 <Avatar icon={<UserOutlined />} />
                 <span>{username}</span>
-                {role === 'admin' && tenantName && (
-                  <span className="tenant-info">({tenantName})</span>
-                )}
               </Space>
             </Dropdown>
           </Space>
@@ -246,17 +247,12 @@ const AppLayout: React.FC = () => {
           style={{
             margin: '24px 16px',
             padding: 24,
+            minHeight: 280,
             background: '#fff',
-            borderRadius: '4px',
-            flex: 1,
-            overflow: 'auto',
-            display: 'flex',
-            flexDirection: 'column'
+            overflow: 'auto'
           }}
         >
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <Outlet />
-          </div>
+          <Outlet />
         </Content>
       </AntLayout>
 

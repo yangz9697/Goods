@@ -4,7 +4,8 @@ import { formatPhone } from '@/utils/format';
 import dayjs from 'dayjs';
 import { Order, OrderStatus, OrderStatusCode } from '@/types/order';
 import { orderApi } from '@/api/orders';
-import { PrinterOutlined } from '@ant-design/icons';
+import { PrinterOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 // 扩展 Order 类型，确保包含所有需要的属性
 interface ExtendedOrder extends Order {
@@ -40,6 +41,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   const [weight, setWeight] = useState<string>('0');
   const [port, setPort] = useState<SerialPort | null>(null);
   const [, setDebugInfo] = useState<string>('等待连接...');
+  const navigate = useNavigate();
 
   // 初始化串口连接
   useEffect(() => {
@@ -254,6 +256,14 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
           {/* 筛选项 */}
           <div style={{ flex: 1 }}>
             <Form layout="inline">
+              <Form.Item style={{ marginBottom: 8 }}>
+                <Button 
+                  icon={<ArrowLeftOutlined />}
+                  onClick={() => navigate(-1)}
+                >
+                  返回
+                </Button>
+              </Form.Item>
               <Form.Item 
                 label="供货日期" 
                 name="date" 
@@ -263,6 +273,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                 <DatePicker 
                   style={{ width: 130 }}
                   format="YYYY-MM-DD"
+                  disabled={true}
                 />
               </Form.Item>
               <Form.Item label="下单时间" style={{ marginBottom: 8 }}>
