@@ -135,6 +135,8 @@ const OrderList: React.FC = () => {
         printFrame.onload = () => {
           try {
             printFrame.contentWindow?.print();
+            // 打印成功后刷新列表
+            fetchOrders(currentPage, pageSize);
           } catch (error) {
             message.error('打印失败：' + (error as Error).message);
           }
@@ -147,7 +149,7 @@ const OrderList: React.FC = () => {
         setPrintLoading(false);
       }
     }, 300),
-    [selectedRowKeys]
+    [selectedRowKeys, currentPage, pageSize]
   );
 
   // 使用防抖包装导出函数
