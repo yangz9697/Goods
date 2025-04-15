@@ -50,7 +50,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
         statusName: orderRes.data.orderStatusName,
         remark: orderRes.data.remark,
         items: (orderRes.data.objectInfoList || []).map((item): OrderDetailItem => ({
-          id: `item-${item.objectDetailId}`,
+          id: item.id,
           name: item.objectDetailName,
           planCount: item.planCount,
           remarkCount: item.remarkCount,
@@ -109,10 +109,10 @@ export const useOrderDetail = (orderNo: string | undefined) => {
     }
   };
 
-  const handleDeleteItem = async (objectDetailId: number) => {
+  const handleDeleteItem = async (id: string) => {
     try {
       const response = await orderObjectApi.deleteOrderObject({
-        objectDetailId,
+        id: parseInt(id),
         orderNo: orderNo!
       });
 

@@ -260,6 +260,7 @@ export interface GetOrderInfoResponse {
     createTime: string | null;
     remark: string;
     objectInfoList: Array<{
+      id: string;
       objectDetailId: number;
       objectDetailName: string;
       count: number;

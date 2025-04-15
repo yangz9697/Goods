@@ -40,11 +40,12 @@ export interface AddOrderObjectRequest {
 
 export interface UpdateOrderObjectRequest extends AddOrderObjectRequest {
   deliveryName?: string;
+  totalPrice?: number;
 }
 
 export interface DeleteOrderObjectRequest {
   orderNo: string;
-  objectDetailId: number;
+  id: number;
 }
 
 interface GetInventoryResponse extends BaseResponse {

@@ -7,6 +7,7 @@ import CreateObjectModal from '@/components/CreateObjectModal';
 import { ScaleService } from '@/services/ScaleService';
 
 interface TableOrderItem {
+  rowId?: string;
   id: string;
   name: string;
   unit: string;
@@ -27,6 +28,7 @@ interface TableOrderItem {
   remarkCount?: string;  // 报单数量
   planCount?: number;    // 报单总数
   count: number;         // 实际数量
+  isEmptyRow?: boolean;  // 是否是空行
 }
 
 interface OrderItemTableProps {
@@ -36,6 +38,7 @@ interface OrderItemTableProps {
   deliveryUsers: { label: string; value: string }[];
   weight: string;
   onEdit: (values: {
+    id: string;
     objectDetailId: number;
     count: number;
     price: number;
@@ -46,7 +49,7 @@ interface OrderItemTableProps {
     remarkCount?: string;
     planCount?: number;
   }) => void;
-  onDelete: (objectDetailId: number) => void;
+  onDelete: (id: string) => void;
   onAdd: (values: {
     objectDetailId: number;
     objectDetailName: string;
@@ -77,7 +80,8 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   const [searchOptions, setSearchOptions] = useState<ObjectOption[]>([]);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [emptyRow, setEmptyRow] = useState<TableOrderItem>({
-    id: 'empty',
+    rowId: 'empty',
+    id: '',
     name: '',
     unit: '斤',
     price: 0,
@@ -87,9 +91,10 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     count: 0,
     remarkCount: '',
     planCount: undefined,
-    deliveryName: undefined
+    deliveryName: undefined,
+    isEmptyRow: true
   });
-  const [newItems, setNewItems] = useState<TableOrderItem[]>([]);
+  const [newItems,] = useState<TableOrderItem[]>([]);
   const [remarkValues, setRemarkValues] = useState<Record<string | number, string>>({});
   const [deliveryValues, setDeliveryValues] = useState<Record<string | number, string>>({});
   const [priceValues, setPriceValues] = useState<Record<string | number, number>>({});
@@ -128,22 +133,17 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   };
 
   const handleDeleteRow = (record: TableOrderItem) => {
-    const isNewItem = record.id.toString().startsWith('new-');
     const hasContent = record.objectDetailId && record.count > 0;
 
-    if (isNewItem || !hasContent) {
-      if (isNewItem) {
-        setNewItems(prev => prev.filter(item => item.id !== record.id));
-      } else {
-        onDelete(record.objectDetailId);
-      }
+    if (!hasContent) {
+      onDelete(record.id);
     } else {
       Modal.confirm({
         title: '确认删除',
         content: `确定要删除${record.name}吗？`,
         okText: '确定',
         cancelText: '取消',
-        onOk: () => onDelete(record.objectDetailId)
+        onOk: () => onDelete(record.id)
       });
     }
   };
@@ -158,10 +158,21 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         price: 0,
         remark: ''
       });
-      // 添加成功后重置空行
+      // 添加成功后重置空行和搜索选项
       setEmptyRow({
-        ...emptyRow,
-        id: `empty-${Date.now()}` // 更新 id 触发重新渲染
+        rowId: `empty-${Date.now()}`, // 更新 id 触发重新渲染
+        id: '',
+        name: '',
+        unit: '斤',
+        price: 0,
+        unitPrice: 0,
+        remark: '',
+        objectDetailId: 0,
+        count: 0,
+        remarkCount: '',
+        planCount: undefined,
+        deliveryName: undefined,
+        isEmptyRow: true
       });
     } catch (error) {
       message.error('添加商品失败：' + (error as Error).message);
@@ -203,6 +214,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
       .reduce((sum, num) => sum + num, 0);
 
     onEdit({
+      id: record.id,
       objectDetailId: record.objectDetailId,
       remarkCount: newValue,
       planCount,
@@ -226,6 +238,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     const newValue = countValues[key] ?? record.count;
     if (newValue !== record.count) {
       onEdit({
+        id: record.id,
         objectDetailId: record.objectDetailId,
         count: newValue,
         price: record.price,
@@ -248,7 +261,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   };
 
   const handleScaleButtonClick = async (record: TableOrderItem) => {
-    const key = record.objectDetailId || record.id;
+    const key = record.id;
     
     // 使用传入的 weight 值更新输入框
     console.log('weight', weight);
@@ -260,6 +273,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         [key]: weightValue
       }));
       onEdit({
+        id: record.id,
         objectDetailId: record.objectDetailId,
         count: weightValue,
         price: record.price,
@@ -289,7 +303,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         width: 140,
         render: (_, record: TableOrderItem) => {
           // 如果是已有记录，显示名称
-          if (record.objectDetailId !== 0) {
+          if (!record.isEmptyRow) {
             return record.name;
           }
           
@@ -307,6 +321,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                   label: opt.objectDetailName,
                   value: opt.objectDetailId
                 }))}
+                allowClear
                 notFoundContent={
                   <div style={{ padding: '8px 0', fontSize: '12px', textAlign: 'center' }}>
                     <div style={{ marginBottom: 8 }}>未找到相关货品</div>
@@ -326,7 +341,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         key: 'remarkCount',
         width: 120,
         render: (_, record) => {
-          const key = record.objectDetailId || record.id;
+          const key = record.id;
           const inputValue = remarkInputValues[key] ?? record.remarkCount;
 
           return (
@@ -335,12 +350,15 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
               style={{ width: 120 }}
               value={inputValue}
               onFocus={() => {
-                if (record.remarkCount && !record.remarkCount.endsWith('+')) {
-                  setRemarkInputValues(prev => ({
-                    ...prev,
-                    [key]: record.remarkCount + '+'
-                  }));
-                }
+                // 延迟添加加号，避免影响光标位置
+                setTimeout(() => {
+                  if (record.remarkCount && !record.remarkCount.endsWith('+')) {
+                    setRemarkInputValues(prev => ({
+                      ...prev,
+                      [key]: record.remarkCount + '+'
+                    }));
+                  }
+                }, 50);
               }}
               onChange={(e) => {
                 const value = e.target.value.replace(/[^0-9.+]/g, '');
@@ -375,7 +393,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         key: 'count',
         width: 120,
         render: (_, record) => {
-          const key = record.objectDetailId || record.id;
+          const key = record.id;
           const currentValue = countValues[key] ?? record.count;
           const showButton = showButtonMap[key] || false;
 
@@ -454,6 +472,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
               onChange={(value) => {
                 if (value !== record.unit) {
                   onEdit({
+                    id: record.id,
                     objectDetailId: record.objectDetailId,
                     count: record.count,
                     price: record.price,
@@ -475,7 +494,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         key: 'remark',
         width: 100,
         render: (_, record) => {
-          const key = record.objectDetailId || record.id;
+          const key = record.id;
           const currentValue = remarkValues[key] ?? record.remark;
 
           return (
@@ -499,6 +518,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                 // 只在值发生变化时才调用 onEdit
                 if (newValue !== record.remark) {
                   onEdit({
+                    id: record.id,
                     objectDetailId: record.objectDetailId,
                     count: record.count,
                     price: record.price,
@@ -517,7 +537,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         key: 'deliveryName',
         width: 100,
         render: (_, record) => {
-          const key = record.objectDetailId || record.id;
+          const key = record.id;
           const currentValue = deliveryValues[key] ?? record.deliveryName;
 
           return (
@@ -536,6 +556,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                 }));
                 // 直接调用 onEdit，因为 Select 不需要失焦处理
                 onEdit({
+                  id: record.id,
                   objectDetailId: record.objectDetailId,
                   count: record.count,
                   price: record.price,
@@ -565,7 +586,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         key: 'price',
         width: 100,
         render: (_, record) => {
-          const key = record.objectDetailId || record.id;
+          const key = record.id;
           const currentValue = priceValues[key] ?? record.price;
 
           return (
@@ -590,6 +611,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                   });
                   if (newValue !== record.price) {
                     onEdit({
+                      id: record.id,
                       objectDetailId: record.objectDetailId,
                       count: record.count,
                       price: newValue,
@@ -615,7 +637,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
           key: 'totalPrice',
           width: 80,
           render: (_, record: any) => {
-            const key = record.objectDetailId || record.id;
+            const key = record.id;
             const currentValue = totalPriceValues[key] ?? record.totalPrice;
 
             return (
@@ -639,6 +661,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                   });
                   if (newValue !== record.totalPrice) {
                     onEdit({
+                      id: record.id,
                       objectDetailId: record.objectDetailId,
                       count: record.count,
                       price: record.price,
@@ -683,7 +706,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
       <Table
         columns={getColumns()}
         dataSource={[...items, emptyRow, ...newItems]}
-        rowKey="id"
+        rowKey="rowId"
         pagination={false}
         scroll={{ y: '100%' }}
         style={{ height: '100%' }}
