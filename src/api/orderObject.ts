@@ -19,6 +19,7 @@ interface OrderObjectInfo {
   createTime: number;
   updater: string;
   updateTime: number;
+  jinPerBox?: number;
 }
 
 interface GetObjectListResponse extends BaseResponse {
@@ -50,6 +51,19 @@ export interface DeleteOrderObjectRequest {
 
 interface GetInventoryResponse extends BaseResponse {
   data: number | null;
+}
+
+interface CreateObjectRequest {
+  objectDetailName: string;
+  unitName: string;
+  price: number;
+  remark: string;
+}
+
+interface CreateObjectResponse extends BaseResponse {
+  data: {
+    objectDetailId: number;
+  };
 }
 
 export const orderObjectApi = {
@@ -119,6 +133,18 @@ export const orderObjectApi = {
       return response.data;
     } catch (error) {
       throw new Error('获取商品库存失败：' + (error as Error).message);
+    }
+  },
+
+  createObject: async (data: CreateObjectRequest): Promise<CreateObjectResponse> => {
+    try {
+      const response = await request.post<CreateObjectResponse>(
+        '/erp/orderObject/createObject',
+        data
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('创建货品失败：' + (error as Error).message);
     }
   }
 }; 

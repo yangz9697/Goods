@@ -7,7 +7,7 @@ interface QueryObjectOrderRequest {
   keyWord?: string;
 }
 
-interface OrderInfo {
+export interface OrderInfo {
   orderSupplyDate: string;
   orderNo: string;
   orderStatus: OrderStatusCode;
@@ -19,6 +19,8 @@ interface OrderInfo {
   createTime: string;
   isUrgent: boolean;
   updateTime: number;
+  deliveryCount: number;
+  totalObjectCount: number;
 }
 
 interface CustomerOrder {
@@ -255,10 +257,13 @@ export interface GetOrderInfoResponse {
     orderStatus: OrderStatusCode;
     orderStatusName: string;
     payStatusName: string;
+    payStatus: 'waitPay' | 'paySuccess';
     userName: string;
     userMobile: string;
     createTime: string | null;
     remark: string;
+    deliveryCount: number;
+    totalObjectCount: number;
     objectInfoList: Array<{
       id: string;
       objectDetailId: number;
@@ -276,6 +281,7 @@ export interface GetOrderInfoResponse {
       updateTime: number;
       planCount?: number;
       remarkCount?: string;
+      jinPerBox?: number;
     }> | null;
     orderTotalPrice: number | null;
   };

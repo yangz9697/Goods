@@ -49,6 +49,9 @@ export const useOrderDetail = (orderNo: string | undefined) => {
         status: orderRes.data.orderStatus,
         statusName: orderRes.data.orderStatusName,
         remark: orderRes.data.remark,
+        payStatus: orderRes.data.payStatus,
+        deliveryCount: orderRes.data.deliveryCount || 0,
+        totalObjectCount: orderRes.data.totalObjectCount || 0,
         items: (orderRes.data.objectInfoList || []).map((item): OrderDetailItem => ({
           id: item.id,
           name: item.objectDetailName,
@@ -69,6 +72,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
           orderStatusName: orderRes.data.orderStatusName,
           createTime: item.createTime,
           updateTime: item.updateTime,
+          jinPerBox: item.jinPerBox || 0
         })),
         payStatusName: orderRes.data.payStatusName,
         totalPrice: orderRes.data.orderTotalPrice || 0

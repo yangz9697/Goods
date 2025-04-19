@@ -16,8 +16,11 @@ interface ExtendedOrder extends Order {
   status: OrderStatusCode;
   statusName: string;
   payStatusName: string;
+  payStatus: 'waitPay' | 'paySuccess';
   totalPrice: number;
   id: string;  // 改为只接受 string 类型
+  deliveryCount: number;
+  totalObjectCount: number;
 }
 
 interface OrderHeaderProps {
@@ -187,7 +190,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
       // 创建一个隐藏的 a 标签来下载文件
       const link = document.createElement('a');
       link.href = url;
-      link.download = `供货单_${order.orderNo}.xlsx`;  // 设置下载文件名
+      link.download = `${order.customerName}${order.date}.xlsx`;  // 设置下载文件名
       document.body.appendChild(link);
       link.click();
       
@@ -240,113 +243,138 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
           // padding: '8px'
         }}>
           <Form layout="inline">
-            <Form.Item 
-              label="供货日期" 
-              name="date" 
-              style={{ marginBottom: 8, marginRight: 4 }}
-              initialValue={dayjs(order.date)}
-            >
-              <DatePicker 
-                style={{ width: 130 }}
-                format="YYYY-MM-DD"
-                disabled={true}
-              />
-            </Form.Item>
-            <Form.Item label="下单时间" style={{ marginBottom: 8, marginRight: 4 }}>
-              <Input 
-                disabled 
-                value={order.createTime ? dayjs(order.createTime).format('YYYY-MM-DD HH:mm:ss') : ''} 
-                style={{ width: 160 }} 
-              />
-            </Form.Item>
-            <Form.Item
-              label="配货状态"
-              style={{ marginBottom: 8, marginRight: 4 }}
-            >
-              <Select
-                style={{ width: 100 }}
-                value={order.status}
-                onChange={onStatusChange}
-              >
-                {statusList.map(status => (
-                  <Select.Option 
-                    key={status.orderStatusCode} 
-                    value={status.orderStatusCode}
+            {/* 第一行 */}
+            <Row style={{ width: '100%', marginBottom: 8 }}>
+              <Col flex="auto">
+                <Form.Item label="客户信息" style={{ marginBottom: 0, marginRight: 4 }}>
+                  <Space>
+                    <Input 
+                      value={order.customerName+formatPhone(order.customerPhone)}
+                      disabled
+                      style={{ 
+                        width: 200,
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        color: '#1890ff'
+                      }}
+                    />
+                  </Space>
+                </Form.Item>
+              </Col>
+              <Col>
+                <Space>
+                  <Form.Item 
+                    label="供货日期" 
+                    name="date" 
+                    style={{ marginBottom: 0, marginRight: 4 }}
+                    initialValue={dayjs(order.date)}
                   >
-                    {status.orderStatusName}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-            <Form.Item label="客户信息" style={{ marginBottom: 8, marginRight: 4 }}>
-              <Space>
-                <Input 
-                  value={order.customerName}
-                  disabled
-                  style={{ width: 120 }}
-                />
-                <Input 
-                  value={formatPhone(order.customerPhone)}
-                  disabled
-                  style={{ width: 120 }}
-                />
-              </Space>
-            </Form.Item>
-            {isAdmin && (
-              <>
-                <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
-                  <span style={{ fontSize: 16, fontWeight: 500 }}>
-                    总计：￥{order.totalPrice.toFixed(2)}
-                  </span>
+                    <DatePicker 
+                      style={{ width: 130 }}
+                      format="YYYY-MM-DD"
+                      disabled={true}
+                    />
+                  </Form.Item>
+                  <Form.Item label="下单时间" style={{ marginBottom: 0, marginRight: 4 }}>
+                    <Input 
+                      disabled 
+                      value={order.createTime ? dayjs(order.createTime).format('YYYY-MM-DD HH:mm:ss') : ''} 
+                      style={{ width: 160 }} 
+                    />
+                  </Form.Item>
+                </Space>
+              </Col>
+            </Row>
+
+            {/* 第二行 */}
+            <Row style={{ width: '100%' }}>
+              <Col flex="auto">
+                <Form.Item
+                  label="配货状态"
+                  style={{ marginBottom: 0, marginRight: 4 }}
+                >
+                  <Space>
+                    <Select
+                      style={{ width: 100 }}
+                      value={order.status}
+                      onChange={onStatusChange}
+                    >
+                      {statusList.map(status => (
+                        <Select.Option 
+                          key={status.orderStatusCode} 
+                          value={status.orderStatusCode}
+                        >
+                          {status.orderStatusName}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                    <span style={{ 
+                      fontSize: '14px', 
+                      fontWeight: 500,
+                      color: '#1890ff',
+                      marginLeft: '8px'
+                    }}>
+                      配货进度：{order.deliveryCount}/{order.totalObjectCount}
+                    </span>
+                  </Space>
                 </Form.Item>
-                <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
-                  <span style={{
-                    fontSize: 16,
-                    color: order.payStatusName === '已付款' ? '#52c41a' : '#f5222d'
-                  }}>
-                    {order.payStatusName}
-                  </span>
-                </Form.Item>
-                <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
-                  <Button 
-                    type="primary"
-                    onClick={() => onPayStatusChange('waitPay')}
-                  >
-                    未结算
-                  </Button>
-                </Form.Item>
-                <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
-                  <Button 
-                    type="primary"
-                    onClick={() => onPayStatusChange('paySuccess')}
-                  >
-                    结算完成
-                  </Button>
-                </Form.Item>
-              </>
-            )}
-            <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
-              <Button 
-                type="primary" 
-                icon={<PrinterOutlined />}
-                onClick={handlePrint}
-              >
-                打印
-              </Button>
-            </Form.Item>
-            <Form.Item style={{ marginBottom: 8, marginRight: 4 }}>
-              <Button onClick={handleExport}>导出</Button>
-            </Form.Item>
-            <Form.Item style={{ marginBottom: 8 }}>
-              <Popconfirm
-                title="确定要删除这个供货单吗？"
-                onConfirm={handleDeleteOrder}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button danger>删除</Button>
-              </Popconfirm>
-            </Form.Item>
+              </Col>
+              <Col>
+                <Space>
+                  {isAdmin && (
+                    <>
+                      <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
+                        <span style={{ fontSize: 16, fontWeight: 500 }}>
+                          总计：￥{order.totalPrice}
+                        </span>
+                      </Form.Item>
+                      {order.payStatus === 'waitPay' && (
+                        <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
+                          <Button 
+                            type="primary"
+                            onClick={() => onPayStatusChange('paySuccess')}
+                          >
+                            结算完成
+                          </Button>
+                        </Form.Item>
+                      )}
+                      {order.payStatus === 'paySuccess' && (
+                        <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
+                          <Button 
+                            type="primary"
+                            onClick={() => onPayStatusChange('waitPay')}
+                          >
+                            未结算
+                          </Button>
+                        </Form.Item>
+                      )}
+                    </>
+                  )}
+                  <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
+                    <Button 
+                      type="primary" 
+                      icon={<PrinterOutlined />}
+                      onClick={handlePrint}
+                    >
+                      打印
+                    </Button>
+                  </Form.Item>
+                  <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
+                    <Button onClick={handleExport}>导出</Button>
+                  </Form.Item>
+                  <Form.Item style={{ marginBottom: 0 }}>
+                    <Popconfirm
+                      title="确定要删除这个供货单吗？"
+                      onConfirm={handleDeleteOrder}
+                      okText="确定"
+                      cancelText="取消"
+                    >
+                      <Button danger>删除</Button>
+                    </Popconfirm>
+                  </Form.Item>
+                </Space>
+              </Col>
+            </Row>
           </Form>
         </div>
       </Col>

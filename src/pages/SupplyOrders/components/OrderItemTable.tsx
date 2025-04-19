@@ -3,6 +3,7 @@ import { Table, InputNumber, Input, Select, Space, Tag, Button, message, Modal }
 import type { ColumnsType } from 'antd/es/table';
 import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
+import { addObject } from '@/api/objectDetail';
 import CreateObjectModal from '@/components/CreateObjectModal';
 import { ScaleService } from '@/services/ScaleService';
 
@@ -29,6 +30,7 @@ interface TableOrderItem {
   planCount?: number;    // 报单总数
   count: number;         // 实际数量
   isEmptyRow?: boolean;  // 是否是空行
+  jinPerBox?: number;    // 斤/箱
 }
 
 interface OrderItemTableProps {
@@ -179,6 +181,39 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     }
   };
 
+  const handleObjectBlur = async (value: string) => {
+    if (!value) return;
+    
+    // 检查是否已经存在这个货品
+    const existingOption = searchOptions.find(opt => opt.objectDetailName === value);
+    if (existingOption) {
+      await handleObjectSelect(existingOption.objectDetailId, { label: value });
+      return;
+    }
+
+    try {
+      // 使用 addObject 创建新货品
+      const createRes = await addObject({
+        objectDetailName: value,
+        amountForBox: 0,
+        jinForBox: 0
+      });
+
+      if (createRes.success) {
+        // 重新搜索获取新创建的货品
+        const searchRes = await orderObjectApi.selectObjectByName(value);
+        if (searchRes.success && searchRes.data && searchRes.data.length > 0) {
+          const newObject = searchRes.data[0];
+          await handleObjectSelect(newObject.objectDetailId, { label: value });
+        }
+      } else {
+        message.error(createRes.displayMsg || '创建货品失败');
+      }
+    } catch (error) {
+      message.error('创建货品失败：' + (error as Error).message);
+    }
+  };
+
   // 处理报单数量的输入
   const handleRemarkCountChange = (record: TableOrderItem, value: string) => {
     // 如果值没有变化，直接返回
@@ -260,9 +295,26 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     }, 200);
   };
 
-  const handleScaleButtonClick = async (record: TableOrderItem) => {
+  const handleScaleButtonClick = async (record: TableOrderItem, clear: boolean = false) => {
     const key = record.id;
     
+    if (clear) {
+      setCountValues(prev => ({
+        ...prev,
+        [key]: 0
+      }));
+      onEdit({
+        id: record.id,
+        objectDetailId: record.objectDetailId,
+        count: 0,
+        price: record.price,
+        remark: record.remark,
+        deliveryName: record.deliveryName,
+        unitName: record.unit
+      });
+      return;
+    }
+
     // 使用传入的 weight 值更新输入框
     console.log('weight', weight);
     const weightValue = parseFloat(weight);
@@ -317,6 +369,14 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                 filterOption={false}
                 onSearch={searchObjects}
                 onChange={(value, option) => handleObjectSelect(value, option)}
+                onDropdownVisibleChange={(visible) => {
+                  if (!visible) {
+                    const inputValue = (document.activeElement as HTMLInputElement)?.value;
+                    if (inputValue) {
+                      handleObjectBlur(inputValue);
+                    }
+                  }
+                }}
                 options={searchOptions.map(opt => ({
                   label: opt.objectDetailName,
                   value: opt.objectDetailId
@@ -325,9 +385,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                 notFoundContent={
                   <div style={{ padding: '8px 0', fontSize: '12px', textAlign: 'center' }}>
                     <div style={{ marginBottom: 8 }}>未找到相关货品</div>
-                    <Button type="link" onClick={() => setCreateModalVisible(true)} style={{ fontSize: '12px', padding: 0 }}>
-                      点击创建新货品
-                    </Button>
+                    <div style={{ fontSize: '12px', color: '#999' }}>失焦后将自动创建该货品</div>
                   </div>
                 }
               />
@@ -345,45 +403,52 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
           const inputValue = remarkInputValues[key] ?? record.remarkCount;
 
           return (
-            <Input.TextArea
-              autoSize={{ minRows: 1, maxRows: 3 }}
-              style={{ width: 120 }}
-              value={inputValue}
-              onFocus={() => {
-                // 延迟添加加号，避免影响光标位置
-                setTimeout(() => {
-                  if (record.remarkCount && !record.remarkCount.endsWith('+')) {
-                    setRemarkInputValues(prev => ({
-                      ...prev,
-                      [key]: record.remarkCount + '+'
-                    }));
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Input.TextArea
+                autoSize={{ minRows: 1, maxRows: 3 }}
+                style={{ width: 120 }}
+                value={inputValue}
+                onFocus={() => {
+                  // 延迟添加加号，避免影响光标位置
+                  setTimeout(() => {
+                    if (record.remarkCount && !record.remarkCount.endsWith('+')) {
+                      setRemarkInputValues(prev => ({
+                        ...prev,
+                        [key]: record.remarkCount + '+'
+                      }));
+                    }
+                  }, 50);
+                }}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9.+]/g, '');
+                  const parts = value.split('.');
+                  const cleanValue = parts.length > 2 
+                    ? `${parts[0]}.${parts.slice(1).join('')}`
+                    : value;
+                  const finalValue = cleanValue.replace(/\++/g, '+');
+                  setRemarkInputValues(prev => ({
+                    ...prev,
+                    [key]: finalValue
+                  }));
+                }}
+                onBlur={() => {
+                  const value = remarkInputValues[key];
+                  setRemarkInputValues(prev => {
+                    const updated = { ...prev };
+                    delete updated[key];
+                    return updated;
+                  });
+                  if (value !== record.remarkCount) {
+                    handleRemarkCountChange(record, value || '');
                   }
-                }, 50);
-              }}
-              onChange={(e) => {
-                const value = e.target.value.replace(/[^0-9.+]/g, '');
-                const parts = value.split('.');
-                const cleanValue = parts.length > 2 
-                  ? `${parts[0]}.${parts.slice(1).join('')}`
-                  : value;
-                const finalValue = cleanValue.replace(/\++/g, '+');
-                setRemarkInputValues(prev => ({
-                  ...prev,
-                  [key]: finalValue
-                }));
-              }}
-              onBlur={() => {
-                const value = remarkInputValues[key];
-                setRemarkInputValues(prev => {
-                  const updated = { ...prev };
-                  delete updated[key];
-                  return updated;
-                });
-                if (value !== record.remarkCount) {
-                  handleRemarkCountChange(record, value || '');
-                }
-              }}
-            />
+                }}
+              />
+              {record.planCount !== undefined && record.remarkCount && (
+                <span style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                  总计: {record.planCount}
+                </span>
+              )}
+            </div>
           );
         },
       },
@@ -425,11 +490,21 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                       height: '22px',
                       lineHeight: '22px'
                     }}
-                    onClick={() => {
-                      handleScaleButtonClick(record);
-                    }}
+                    onClick={() => handleScaleButtonClick(record)}
                   >
                     代入
+                  </Button>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{
+                      padding: '0 4px',
+                      height: '22px',
+                      lineHeight: '22px'
+                    }}
+                    onClick={() => handleScaleButtonClick(record, true)}
+                  >
+                    清空
                   </Button>
                   {isScaleConnected && (
                     <Button
@@ -460,31 +535,48 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         render: (_, record) => (
           type === 'bulk' ? (
             // 大货固定为箱
-            <Select
-              value="箱"
-              disabled
-              style={{ width: '100%' }}
-              options={[{ label: '箱', value: '箱' }]}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Select
+                value="箱"
+                disabled
+                style={{ width: '100%' }}
+                options={[{ label: '箱', value: '箱' }]}
+              />
+              {record.jinPerBox && record.jinPerBox > 0 && (
+                <span style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                  {record.jinPerBox}斤/箱
+                </span>
+              )}
+            </div>
           ) : (
-            <Select
-              value={record.unit}
-              onChange={(value) => {
-                if (value !== record.unit) {
-                  onEdit({
-                    id: record.id,
-                    objectDetailId: record.objectDetailId,
-                    count: record.count,
-                    price: record.price,
-                    remark: record.remark,
-                    deliveryName: record.deliveryName,
-                    unitName: value
-                  });
-                }
-              }}
-              options={UNIT_OPTIONS}
-              style={{ width: '100%' }}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <Select
+                value={record.unit}
+                onChange={(value) => {
+                  if (value !== record.unit) {
+                    onEdit({
+                      id: record.id,
+                      objectDetailId: record.objectDetailId,
+                      count: record.count,
+                      price: record.price,
+                      remark: record.remark,
+                      deliveryName: record.deliveryName,
+                      unitName: value
+                    });
+                  }
+                }}
+                options={UNIT_OPTIONS}
+                style={{ width: '100%' }}
+              >
+                <Select.Option value="斤">斤</Select.Option>
+                <Select.Option value="箱">箱</Select.Option>
+              </Select>
+              {record.unit === '箱' && record.jinPerBox && record.jinPerBox > 0 && (
+                <span style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                  {record.jinPerBox}斤/箱
+                </span>
+              )}
+            </div>
           )
         ),
       },
@@ -543,7 +635,6 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
           return (
             <Select
               allowClear
-              showSearch
               style={{ width: '100%' }}
               placeholder="选择配货员"
               value={currentValue}
@@ -579,58 +670,58 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
             />
           );
         },
-      },
-      {
-        title: '单价',
-        dataIndex: 'price',
-        key: 'price',
-        width: 100,
-        render: (_, record) => {
-          const key = record.id;
-          const currentValue = priceValues[key] ?? record.price;
-
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <InputNumber
-                value={currentValue}
-                min={0}
-                precision={2}
-                style={{ width: '100%' }}
-                onChange={(value) => {
-                  setPriceValues(prev => ({
-                    ...prev,
-                    [key]: value || 0
-                  }));
-                }}
-                onBlur={(e) => {
-                  const newValue = parseFloat(e.target.value);
-                  setPriceValues(prev => {
-                    const updated = { ...prev };
-                    delete updated[key];
-                    return updated;
-                  });
-                  if (newValue !== record.price) {
-                    onEdit({
-                      id: record.id,
-                      objectDetailId: record.objectDetailId,
-                      count: record.count,
-                      price: newValue,
-                      remark: record.remark,
-                      deliveryName: record.deliveryName,
-                      unitName: record.unit
-                    });
-                  }
-                }}
-              />
-              <Tag color="blue" style={{ margin: 0, alignSelf: 'flex-start' }}>今日价: {record.unitPrice}</Tag>
-            </div>
-          );
-        },
-      },
+      }
     ];
 
     if (isAdmin) {
       baseColumns.push(
+        {
+          title: '单价',
+          dataIndex: 'price',
+          key: 'price',
+          width: 100,
+          render: (_, record) => {
+            const key = record.id;
+            const currentValue = priceValues[key] ?? record.price;
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <InputNumber
+                  value={currentValue}
+                  min={0}
+                  precision={2}
+                  style={{ width: '100%' }}
+                  onChange={(value) => {
+                    setPriceValues(prev => ({
+                      ...prev,
+                      [key]: value || 0
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    const newValue = parseFloat(e.target.value);
+                    setPriceValues(prev => {
+                      const updated = { ...prev };
+                      delete updated[key];
+                      return updated;
+                    });
+                    if (newValue !== record.price) {
+                      onEdit({
+                        id: record.id,
+                        objectDetailId: record.objectDetailId,
+                        count: record.count,
+                        price: newValue,
+                        remark: record.remark,
+                        deliveryName: record.deliveryName,
+                        unitName: record.unit
+                      });
+                    }
+                  }}
+                />
+                <Tag color="blue" style={{ margin: 0, alignSelf: 'flex-start' }}>今日价: {record.unitPrice}</Tag>
+              </div>
+            );
+          },
+        },
         {
           title: '金额',
           dataIndex: 'totalPrice',

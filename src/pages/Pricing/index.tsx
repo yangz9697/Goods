@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Input, Modal, Form, InputNumber, message, DatePicker, Typography, Tag } from 'antd';
+import { Table, Button, Space, Input, Modal, Form, InputNumber, message, DatePicker, Typography, Tag, Select } from 'antd';
 import type { Dayjs } from 'dayjs';
 import type { ObjectPrice } from '../../types/objectDetail';
 import { pageObjectPrice, updateObjectPrice } from '../../api/objectDetail';
@@ -23,20 +23,29 @@ const Pricing: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [priceIsEmpty, setPriceIsEmpty] = useState<boolean | null>(null);
   const [form] = Form.useForm();
 
   // 获取价格列表
-  const fetchPriceList = async (page: number, size: number, searchKey: string = '') => {
+  const fetchPriceList = async (page: number, size: number, searchKey: string = '', customFilters?: any) => {
     setLoading(true);
     try {
       const filters: any = {
         startTime: selectedDate.startOf('day').valueOf(),
-        endTime: selectedDate.endOf('day').valueOf()
+        endTime: selectedDate.endOf('day').valueOf(),
+        ...customFilters
       };
 
       if (searchKey) {
         filters.detailObjectName = searchKey;
       }
+
+      // 只在 priceIsEmpty 不为 null 时添加筛选条件
+      if (priceIsEmpty !== null) {
+        filters.priceIsEmpty = priceIsEmpty;
+      }
+
+      console.log('请求参数:', filters);
 
       const response = await pageObjectPrice({
         currentPage: page,
@@ -51,6 +60,8 @@ const Pricing: React.FC = () => {
           createTime: new Date(item.createTime).getTime()
         }));
 
+        console.log('响应数据:', items);
+
         setPriceData(items);
         setTotal(response.data.total);
       } else {
@@ -63,17 +74,35 @@ const Pricing: React.FC = () => {
     }
   };
 
+  // 在组件加载时获取数据
+  useEffect(() => {
+    const filters: any = {
+      startTime: selectedDate.startOf('day').valueOf(),
+      endTime: selectedDate.endOf('day').valueOf()
+    };
+
+    if (searchText) {
+      filters.detailObjectName = searchText;
+    }
+
+    if (priceIsEmpty !== null) {
+      filters.priceIsEmpty = priceIsEmpty;
+    }
+
+    fetchPriceList(currentPage, pageSize, searchText, filters);
+  }, [currentPage, pageSize, selectedDate, priceIsEmpty, searchText]);
+
   // 搜索功能
   const handleSearch = (value: string) => {
     setSearchText(value);
     setCurrentPage(1);
-    fetchPriceList(1, pageSize, value);
   };
 
-  // 在组件加载时获取数据
-  useEffect(() => {
-    fetchPriceList(currentPage, pageSize, searchText);
-  }, [currentPage, pageSize, selectedDate]);
+  // 价格状态变化时触发搜索
+  const handlePriceIsEmptyChange = (value: boolean | null) => {
+    setPriceIsEmpty(value);
+    setCurrentPage(1);
+  };
 
   // 编辑价格
   const handleEdit = async (values: any) => {
@@ -111,12 +140,12 @@ const Pricing: React.FC = () => {
       title: '价格(个)',
       dataIndex: 'priceForAmount',
       key: 'priceForAmount',
-      render: (price: number, record: ObjectPrice) => (
+      render: (price: number | null, record: ObjectPrice) => (
         <div>
-          <div>{price ? `¥${price.toFixed(2)}` : '-'}</div>
-          {record.yesterdayPriceForAmount && (
+          <div>{price != null ? `¥${price}` : '-'}</div>
+          {record.yesterdayPriceForAmount != null && (
             <div style={{ fontSize: '12px', color: '#999' }}>
-              昨日：¥{record.yesterdayPriceForAmount.toFixed(2)}
+              昨日：¥{record.yesterdayPriceForAmount}
             </div>
           )}
         </div>
@@ -126,12 +155,12 @@ const Pricing: React.FC = () => {
       title: '价格(斤)',
       dataIndex: 'priceForJin',
       key: 'priceForJin',
-      render: (price: number, record: ObjectPrice) => (
+      render: (price: number | null, record: ObjectPrice) => (
         <div>
-          <div>{price ? `¥${price.toFixed(2)}` : '-'}</div>
-          {record.yesterdayPriceForJin && (
+          <div>{price != null ? `¥${price}` : '-'}</div>
+          {record.yesterdayPriceForJin != null && (
             <div style={{ fontSize: '12px', color: '#999' }}>
-              昨日：¥{record.yesterdayPriceForJin.toFixed(2)}
+              昨日：¥{record.yesterdayPriceForJin}
             </div>
           )}
         </div>
@@ -141,12 +170,12 @@ const Pricing: React.FC = () => {
       title: '价格(箱)',
       dataIndex: 'priceForBox',
       key: 'priceForBox',
-      render: (price: number, record: ObjectPrice) => (
+      render: (price: number | null, record: ObjectPrice) => (
         <div>
-          <div>{price ? `¥${price.toFixed(2)}` : '-'}</div>
-          {record.yesterdayPriceForBox && (
+          <div>{price != null ? `¥${price}` : '-'}</div>
+          {record.yesterdayPriceForBox != null && (
             <div style={{ fontSize: '12px', color: '#999' }}>
-              昨日：¥{record.yesterdayPriceForBox.toFixed(2)}
+              昨日：¥{record.yesterdayPriceForBox}
             </div>
           )}
         </div>
@@ -208,16 +237,28 @@ const Pricing: React.FC = () => {
             onChange={(date) => date && setSelectedDate(date)}
             allowClear={false}
             style={{ marginLeft: 16 }}
-            locale={locale}  // 添加中文配置
+            locale={locale}
           />
         </Space>
 
-        {/* 搜索框 */}
-        <Search
-          placeholder="请输入商品名称"
-          onSearch={handleSearch}
-          style={{ width: 200 }}
-        />
+        {/* 搜索框和筛选器 */}
+        <Space>
+          <Search
+            placeholder="请输入商品名称"
+            onSearch={handleSearch}
+            style={{ width: 200 }}
+          />
+          <Select
+            style={{ width: 120 }}
+            value={priceIsEmpty}
+            onChange={handlePriceIsEmptyChange}
+            placeholder="价格状态"
+          >
+            <Select.Option value={null}>全部</Select.Option>
+            <Select.Option value={true}>价格待补充</Select.Option>
+            <Select.Option value={false}>价格已完善</Select.Option>
+          </Select>
+        </Space>
 
         {/* 数据表格 */}
         <Table 

@@ -25,8 +25,30 @@ const SalesOverview: React.FC = () => {
     dayjs().subtract(7, 'days'),
     dayjs()
   ]);
+  const [monthValue, setMonthValue] = useState<dayjs.Dayjs | null>(null);
   const [salesData, setSalesData] = useState<SalesData | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const handleMonthChange = (date: dayjs.Dayjs | null) => {
+    setMonthValue(date);
+    if (date) {
+      // 当选择月份时，设置日期范围为该月的第一天到最后一天
+      setDateRange([
+        date.startOf('month'),
+        date.endOf('month')
+      ]);
+    }
+  };
+
+  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    if (dates) {
+      setDateRange([dates[0]!, dates[1]!]);
+      // 如果日期范围跨越了月份，清空月份选择
+      if (!dates[0]?.isSame(dates[1], 'month')) {
+        setMonthValue(null);
+      }
+    }
+  };
 
   const fetchSalesData = async (startTime: number, endTime: number) => {
     setLoading(true);
@@ -88,14 +110,10 @@ const SalesOverview: React.FC = () => {
 
   return (
     <>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
         <RangePicker
           value={dateRange}
-          onChange={(dates) => {
-            if (dates) {
-              setDateRange([dates[0]!, dates[1]!]);
-            }
-          }}
+          onChange={handleDateRangeChange}
           locale={locale}
           allowClear={false}
           ranges={{
@@ -105,6 +123,15 @@ const SalesOverview: React.FC = () => {
             '本月': [dayjs().startOf('month'), dayjs()],
             '上月': [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')]
           }}
+        />
+        <DatePicker
+          value={monthValue}
+          onChange={handleMonthChange}
+          picker="month"
+          placeholder="选择月份"
+          allowClear
+          format="YYYY年MM月"
+          locale={locale}
         />
       </div>
 
@@ -122,9 +149,9 @@ const SalesOverview: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 销售趋势和货品销售统计并排 */}
+      {/* 销售趋势 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={12}>
+        <Col span={24}>
           <Card 
             title="销售趋势" 
             bodyStyle={{ padding: '12px 0' }}
@@ -134,9 +161,13 @@ const SalesOverview: React.FC = () => {
             <Line {...lineConfig} />
           </Card>
         </Col>
-        <Col span={12}>
+      </Row>
+
+      {/* 货品销售统计 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col span={24}>
           <Card 
-            title="货品销售统计" 
+            title="货品金额统计" 
             bodyStyle={{ padding: '12px 0' }}
             headStyle={{ padding: '0 12px' }}
             loading={loading}

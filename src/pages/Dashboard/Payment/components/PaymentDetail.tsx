@@ -80,13 +80,13 @@ const PaymentDetail: React.FC<PaymentDetailProps> = ({ userId, onMonthClick }) =
       title: '已付金额',
       dataIndex: 'paySuccessPrice',
       key: 'paySuccessPrice',
-      render: (amount: number) => `¥${amount.toFixed(2)}`,
+      render: (amount: string) => `¥${amount}`,
     },
     {
       title: '待付金额',
       dataIndex: 'waitPayPrice',
       key: 'waitPayPrice',
-      render: (amount: number) => `¥${amount.toFixed(2)}`,
+      render: (amount: string) => `¥${amount}`,
     },
     {
       title: '操作',

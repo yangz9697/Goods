@@ -28,8 +28,30 @@ const ProductConsumption: React.FC = () => {
     dayjs().subtract(7, 'days'),
     dayjs()
   ]);
+  const [monthValue, setMonthValue] = useState<dayjs.Dayjs | null>(null);
   const [loading, setLoading] = useState(false);
   const [productData, setProductData] = useState<ProductDetail[]>([]);
+
+  const handleMonthChange = (date: dayjs.Dayjs | null) => {
+    setMonthValue(date);
+    if (date) {
+      // 当选择月份时，设置日期范围为该月的第一天到最后一天
+      setDateRange([
+        date.startOf('month'),
+        date.endOf('month')
+      ]);
+    }
+  };
+
+  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    if (dates) {
+      setDateRange([dates[0]!, dates[1]!]);
+      // 如果日期范围跨越了月份，清空月份选择
+      if (!dates[0]?.isSame(dates[1], 'month')) {
+        setMonthValue(null);
+      }
+    }
+  };
 
   const fetchProductData = async () => {
     setLoading(true);
@@ -37,7 +59,7 @@ const ProductConsumption: React.FC = () => {
       const response = await dashboardApi.getProductDetail({
         startTime: dateRange[0].startOf('day').valueOf(),
         endTime: dateRange[1].endOf('day').valueOf(),
-        unitName: '斤',
+        unitName: '箱',
         tenant: localStorage.getItem('tenant') || undefined
       });
 
@@ -125,7 +147,7 @@ const ProductConsumption: React.FC = () => {
       dataIndex: 'totalPrice',
       key: 'totalPrice',
       width: 120,
-      render: (amount: number) => `¥${amount.toFixed(2)}`,
+      render: (amount: string) => `¥${amount}`,
     },
     {
       title: '详情',
@@ -150,14 +172,10 @@ const ProductConsumption: React.FC = () => {
 
   return (
     <Card title="商品消耗统计">
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
         <RangePicker
           value={dateRange}
-          onChange={(dates) => {
-            if (dates) {
-              setDateRange([dates[0]!, dates[1]!]);
-            }
-          }}
+          onChange={handleDateRangeChange}
           locale={locale}
           allowClear={false}
           ranges={{
@@ -167,6 +185,15 @@ const ProductConsumption: React.FC = () => {
             '本月': [dayjs().startOf('month'), dayjs()],
             '上月': [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')]
           }}
+        />
+        <DatePicker
+          value={monthValue}
+          onChange={handleMonthChange}
+          picker="month"
+          placeholder="选择月份"
+          allowClear
+          format="YYYY年MM月"
+          locale={locale}
         />
       </div>
 

@@ -135,7 +135,7 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, startTime, endTim
       title: '金额',
       dataIndex: 'orderPrice',
       key: 'orderPrice',
-      render: (price: number) => `¥${price.toFixed(2)}`,
+      render: (price: number) => `¥${price}`,
     },
     {
       title: '状态',
@@ -160,7 +160,7 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, startTime, endTim
           <span style={{ marginRight: 16 }}>
             待付金额：
             <span style={{ color: '#cf1322' }}>
-              ¥{totalUnpaid.toFixed(2)}
+              ¥{totalUnpaid}
             </span>
           </span>
           <Button

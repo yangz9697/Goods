@@ -6,11 +6,19 @@ import dayjs from 'dayjs';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import AddOrderModal from './components/AddOrderModal';
 import { formatPhone } from '@/utils/format';
-import { OrderStatusCode, OrderStatusMap } from '@/types/order';
+import { OrderStatusMap } from '@/types/order';
+import { OrderInfo } from '@/api/orders';
 
 interface ContextType {
   selectedDate: dayjs.Dayjs;
   dateChanged: string | null;
+}
+
+interface CustomerOrder {
+  userId: number;
+  userName: string | null;
+  mobile: string | null;
+  orderInfoList: OrderInfo[];
 }
 
 const SupplyOrderList: React.FC = () => {
@@ -21,13 +29,7 @@ const SupplyOrderList: React.FC = () => {
     userId: number;
     userName: string | null;
     mobile: string | null;
-    orderInfoList: Array<{
-      orderNo: string;
-      orderStatus: OrderStatusCode;
-      remark: string;
-      isUrgent: boolean;
-      updateTime: number;
-    }>;
+    orderInfoList: OrderInfo[];
   }>>([]);
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,7 +39,7 @@ const SupplyOrderList: React.FC = () => {
     mobile: string | null;
     label: string;
   } | null>(null);
-  const [expandedCustomer, setExpandedCustomer] = useState<typeof customerOrders[0] | null>(null);
+  const [expandedCustomer, setExpandedCustomer] = useState<CustomerOrder | null>(null);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
   // 添加一个标记首次加载的 ref
@@ -90,7 +92,7 @@ const SupplyOrderList: React.FC = () => {
     fetchData('');
   };
 
-  const handleOrderListClick = (customer: typeof customerOrders[0]) => {
+  const handleOrderListClick = (customer: CustomerOrder) => {
     // 如果只有一个订单，直接跳转到订单详情
     if (customer.orderInfoList.length === 1) {
       navigate(`/supply-orders/detail/${customer.orderInfoList[0].orderNo}`);
@@ -145,7 +147,7 @@ const SupplyOrderList: React.FC = () => {
   };
 
   // 添加卡片头部颜色判断函数
-  const getCardHeaderStyle = (customer: typeof customerOrders[0]) => {
+  const getCardHeaderStyle = (customer: CustomerOrder) => {
     if (!customer.orderInfoList || customer.orderInfoList.length === 0) {
       return { backgroundColor: '#f5f5f5' };  // 没有订单时显示灰色
     }
@@ -159,7 +161,7 @@ const SupplyOrderList: React.FC = () => {
   };
 
   // 修改渲染客户卡片的函数
-  const renderCustomerCard = (customer: typeof customerOrders[0]) => (
+  const renderCustomerCard = (customer: CustomerOrder) => (
     <div 
       style={{ 
         border: '1px solid #f0f0f0',
@@ -179,13 +181,48 @@ const SupplyOrderList: React.FC = () => {
         borderTopRightRadius: '8px',
         borderBottom: '1px solid #f0f0f0'
       }}>
-        <Space>
-          <span style={{ fontWeight: 'bold' }}>
-            {customer.userName || '未命名客户'}
-          </span>
-          <span style={{ color: '#666' }}>
-            {formatPhone(customer.mobile || '')}
-          </span>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space>
+            <span style={{ fontWeight: 'bold' }}>
+              {customer.userName || '未命名客户'}
+            </span>
+            <span style={{ color: '#666' }}>
+              {formatPhone(customer.mobile || '')}
+            </span>
+          </Space>
+          {customer.orderInfoList.slice(0, 2).map(order => (
+            <div key={order.orderNo} style={{ width: '100%' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                fontSize: '12px',
+                marginBottom: order.totalObjectCount > 0 ? '4px' : 0
+              }}>
+                {order.totalObjectCount > 0 && (
+                  <>
+                    <span>{order.orderNo}</span>
+                    <span>{order.deliveryCount}/{order.totalObjectCount}</span>
+                  </>
+                )}
+              </div>
+              {order.totalObjectCount > 0 && (
+                <div style={{
+                  width: '100%',
+                  height: '6px',
+                  backgroundColor: '#f0f0f0',
+                  borderRadius: '3px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${(order.deliveryCount / order.totalObjectCount) * 100}%`,
+                    height: '100%',
+                    backgroundColor: '#1890ff',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              )}
+            </div>
+          ))}
         </Space>
       </div>
 

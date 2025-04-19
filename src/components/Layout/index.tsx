@@ -51,17 +51,17 @@ const AppLayout: React.FC = () => {
         }
       ].filter(Boolean) as Required<MenuProps>['items']
     },
-    (role === 'admin' || role === 'manager') && {
+    (role === 'admin' || role === 'manager' || role === 'managerLeader') && {
       key: '/inventory',
       icon: <DatabaseOutlined />,
       label: '库存管理'
     },
-    (role === 'admin' || role === 'manager') && {
+    (role === 'admin' || role === 'manager' || role === 'managerLeader') && {
       key: '/pricing',
       icon: <PayCircleOutlined />,
       label: '价格管理'
     },
-    role === 'admin' && {
+    (role === 'admin' || role === 'managerLeader') && {
       key: '/customers',
       icon: <TeamOutlined />,
       label: '客户管理'

@@ -31,18 +31,14 @@ export interface ObjectOption {
 }
 
 export enum OrderStatusCode {
-  ADD = 'add',
   WAIT = 'wait',
   READY = 'ready',
-  WAIT_CHECK = 'waitCheck',
   END = 'end'
 }
 
 export const OrderStatusMap: Record<OrderStatusCode, string> = {
-  [OrderStatusCode.ADD]: '加单中',
   [OrderStatusCode.WAIT]: '待配货',
   [OrderStatusCode.READY]: '配货中',
-  [OrderStatusCode.WAIT_CHECK]: '待检查',
   [OrderStatusCode.END]: '已完成'
 };
 
@@ -61,9 +57,12 @@ export interface Order {
   status: OrderStatusCode;
   statusName: string;
   payStatusName: string;
+  payStatus: 'waitPay' | 'paySuccess';
   remark: string;
   items: OrderDetailItem[];
   totalPrice: number;
+  deliveryCount: number;
+  totalObjectCount: number;
 }
 
 export interface OrderDetailItem {
@@ -86,6 +85,7 @@ export interface OrderDetailItem {
   planCount?: number;
   remarkCount?: string;
   count: number;
+  jinPerBox?: number;
 }
 
 export interface OrderInfo {
@@ -100,6 +100,8 @@ export interface OrderInfo {
   createTime: string;
   isUrgent: boolean;
   updateTime: number;
+  deliveryCount: number;
+  totalObjectCount: number;
 }
 
 export interface OrderType {

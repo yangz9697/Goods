@@ -39,7 +39,18 @@ const RequireSuperAdmin: React.FC<{ children: React.ReactNode }> = ({ children }
 const RequireManagerOrAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const role = localStorage.getItem('role');
   
-  if (role !== 'admin' && role !== 'manager') {
+  if (role !== 'admin' && role !== 'manager' && role !== 'managerLeader') {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// 创建一个需要超级管理员或高级管理员权限的路由包装组件
+const RequireSuperAdminOrManagerLeader: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const role = localStorage.getItem('role');
+  
+  if (role !== 'admin' && role !== 'managerLeader') {
     return <Navigate to="/" replace />;
   }
 
@@ -104,9 +115,9 @@ export const routes: RouteObject[] = [
       {
         path: '/customers',
         element: (
-          <RequireSuperAdmin>
+          <RequireSuperAdminOrManagerLeader>
             <Customers />
-          </RequireSuperAdmin>
+          </RequireSuperAdminOrManagerLeader>
         )
       },
       {

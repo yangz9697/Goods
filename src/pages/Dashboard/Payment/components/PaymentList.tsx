@@ -28,6 +28,7 @@ const PaymentList: React.FC<PaymentListProps> = ({ }) => {
     dayjs().subtract(7, 'days'),
     dayjs()
   ]);
+  const [monthValue, setMonthValue] = useState<dayjs.Dayjs | null>(null);
   const [searchText, setSearchText] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'all' | 'paySuccess' | 'waitPay'>('all');
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,27 @@ const PaymentList: React.FC<PaymentListProps> = ({ }) => {
     totalWaitPayPrice: 0,
     userPayInfoList: []
   });
+
+  const handleMonthChange = (date: dayjs.Dayjs | null) => {
+    setMonthValue(date);
+    if (date) {
+      // 当选择月份时，设置日期范围为该月的第一天到最后一天
+      setDateRange([
+        date.startOf('month'),
+        date.endOf('month')
+      ]);
+    }
+  };
+
+  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    if (dates) {
+      setDateRange([dates[0]!, dates[1]!]);
+      // 如果日期范围跨越了月份，清空月份选择
+      if (!dates[0]?.isSame(dates[1], 'month')) {
+        setMonthValue(null);
+      }
+    }
+  };
 
   const fetchPaymentData = async () => {
     setLoading(true);
@@ -88,14 +110,14 @@ const PaymentList: React.FC<PaymentListProps> = ({ }) => {
                 <span style={{ marginLeft: 8, color: '#666' }}>{user.mobile}</span>
               </div>
               <div style={{ marginBottom: 8 }}>
-                总金额：¥{user.totalPrice.toFixed(2)}
+                总金额：¥{user.totalPrice}
               </div>
               <div style={{ marginBottom: 8 }}>
                 <span style={{ color: '#52c41a' }}>
-                  已付：¥{user.paySuccessPrice.toFixed(2)}
+                  已付：¥{user.paySuccessPrice}
                 </span>
                 <span style={{ color: '#f5222d', marginLeft: 16 }}>
-                  待付：¥{user.waitPayPrice.toFixed(2)}
+                  待付：¥{user.waitPayPrice}
                 </span>
               </div>
             </Card>
@@ -109,23 +131,30 @@ const PaymentList: React.FC<PaymentListProps> = ({ }) => {
     <Card title="付款情况">
       <Row gutter={16}>
         <Col span={8}>
-          <RangePicker
-            value={dateRange}
-            onChange={(dates) => {
-              if (dates) {
-                setDateRange([dates[0]!, dates[1]!]);
-              }
-            }}
-            locale={locale}
-            allowClear={false}
-            ranges={{
-              '昨天': [dayjs().subtract(1, 'days'), dayjs().subtract(1, 'days')],
-              '最近7天': [dayjs().subtract(7, 'days'), dayjs()],
-              '最近30天': [dayjs().subtract(30, 'days'), dayjs()],
-              '本月': [dayjs().startOf('month'), dayjs()],
-              '上月': [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')]
-            }}
-          />
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <RangePicker
+              value={dateRange}
+              onChange={handleDateRangeChange}
+              locale={locale}
+              allowClear={false}
+              ranges={{
+                '昨天': [dayjs().subtract(1, 'days'), dayjs().subtract(1, 'days')],
+                '最近7天': [dayjs().subtract(7, 'days'), dayjs()],
+                '最近30天': [dayjs().subtract(30, 'days'), dayjs()],
+                '本月': [dayjs().startOf('month'), dayjs()],
+                '上月': [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')]
+              }}
+            />
+            <DatePicker
+              value={monthValue}
+              onChange={handleMonthChange}
+              picker="month"
+              placeholder="选择月份"
+              allowClear
+              format="YYYY年MM月"
+              locale={locale}
+            />
+          </div>
         </Col>
         <Col span={8}>
           <Search

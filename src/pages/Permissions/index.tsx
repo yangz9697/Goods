@@ -12,14 +12,14 @@ const Permissions: React.FC = () => {
   
   // 如果不是管理员或经理，重定向到首页
   useEffect(() => {
-    if (role !== 'admin' && role !== 'manager') {
+    if (role !== 'admin' && role !== 'manager' && role !== 'managerLeader') {
       message.error('没有访问权限');
       navigate('/');
     }
   }, [role, navigate]);
 
   // 如果不是管理员或经理，不渲染内容
-  if (role !== 'admin' && role !== 'manager') {
+  if (role !== 'admin' && role !== 'manager' && role !== 'managerLeader') {
     return null;
   }
 
@@ -144,6 +144,29 @@ const Permissions: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = async (record: AccountItem) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除用户"${record.name}"吗？`,
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const response = await accountApi.deleteAccount(record.id);
+          
+          if (response.success) {
+            message.success('删除用户成功');
+            fetchAccounts(currentPage, pageSize);
+          } else {
+            message.error(response.displayMsg || '删除用户失败');
+          }
+        } catch (error) {
+          message.error('删除用户失败：' + (error as Error).message);
+        }
+      }
+    });
+  };
+
   const columns = [
     {
       title: '用户名',
@@ -163,12 +186,14 @@ const Permissions: React.FC = () => {
         const colorMap = {
           admin: 'red',
           manager: 'blue',
-          employee: 'green'
+          employee: 'green',
+          managerLeader: 'purple'
         };
         const roleNameMap = {
           admin: '超级管理员',
           manager: '管理员',
-          employee: '普通员工'
+          employee: '普通员工',
+          managerLeader: '高级管理员'
         };
         return (
           <Tag color={colorMap[role as keyof typeof colorMap]}>
@@ -215,6 +240,15 @@ const Permissions: React.FC = () => {
           <Button onClick={() => handleResetPassword(record.username)}>
             重置密码
           </Button>
+          {role === 'admin' && (
+            <Button 
+              type="link" 
+              danger
+              onClick={() => handleDeleteUser(record)}
+            >
+              删除
+            </Button>
+          )}
         </Space>
       ),
       onCell: () => ({ style: { padding: 0 } })

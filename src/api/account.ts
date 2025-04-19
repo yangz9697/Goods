@@ -14,14 +14,16 @@ interface AccountListParams {
 }
 
 export interface AccountItem {
+  id: number;
   name: string;
   username: string;
-  role: 'admin' | 'manager' | 'employee';
+  role: 'admin' | 'manager' | 'employee' | 'managerLeader';
   tenant: string;
   creator: string | null;
   updater: string | null;
   createTime: string;
   updateTime: string;
+  userId: number;
 }
 
 interface RoleItem {
@@ -113,6 +115,15 @@ export const accountApi = {
       return response.data;
     } catch (error) {
       throw new Error('更新角色失败：' + (error as Error).message);
+    }
+  },
+
+  deleteAccount: async (id: number) => {
+    try {
+      const response = await request.post('/erp/account/deleteAccount', { id });
+      return response.data;
+    } catch (error) {
+      throw new Error('删除用户失败：' + (error as Error).message);
     }
   }
 }; 
