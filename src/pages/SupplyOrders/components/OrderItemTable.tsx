@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Table, InputNumber, Input, Select, Space, Tag, Button, message, Modal } from 'antd';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { Table, InputNumber, Input, Select, Space, Tag, Button, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
@@ -110,7 +110,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   const [activeInputKey, setActiveInputKey] = useState<string | number | null>(null);
   const scaleServiceRef = useRef<ScaleService | null>(null);
   const [isScaleConnected, setIsScaleConnected] = useState(false);
-  const [isSelecting, setIsSelecting] = useState(false);
+  const [, setIsSelecting] = useState(false);
   const tableRef = useRef<any>(null);
 
   useEffect(() => {
@@ -387,8 +387,9 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
     if (lastDeliveryItem) {
       const index = items.findIndex(item => item.id === lastDeliveryItem.id);
       if (index !== -1) {
+        // 使用 Table 的 scrollTo 方法
         tableRef.current.scrollTo({
-          index,
+          index: index - 1, // 减去一行，因为 index 是从 0 开始的
           behavior: 'smooth'
         });
       }
