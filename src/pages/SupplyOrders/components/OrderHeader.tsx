@@ -328,26 +328,17 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                           总计：￥{order.totalPrice}
                         </span>
                       </Form.Item>
-                      {order.payStatus === 'waitPay' && (
-                        <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
-                          <Button 
-                            type="primary"
-                            onClick={() => onPayStatusChange('paySuccess')}
-                          >
-                            结算完成
-                          </Button>
-                        </Form.Item>
-                      )}
-                      {order.payStatus === 'paySuccess' && (
-                        <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
-                          <Button 
-                            type="primary"
-                            onClick={() => onPayStatusChange('waitPay')}
-                          >
-                            未结算
-                          </Button>
-                        </Form.Item>
-                      )}
+                      <Form.Item style={{ marginBottom: 0, marginRight: 4 }} label="结算状态">
+                        <Select
+                          value={order.payStatus}
+                          onChange={onPayStatusChange}
+                          style={{ width: 100 }}
+                          options={[
+                            { label: '未结算', value: 'waitPay' },
+                            { label: '已结算', value: 'paySuccess' }
+                          ]}
+                        />
+                      </Form.Item>
                     </>
                   )}
                   <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>

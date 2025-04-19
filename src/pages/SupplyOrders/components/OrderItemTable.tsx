@@ -28,7 +28,7 @@ interface TableOrderItem {
   updateTime?: number;
   remarkCount?: string;  // 报单数量
   planCount?: number;    // 报单总数
-  count: number;         // 实际数量
+  count: number | undefined;         // 实际数量
   isEmptyRow?: boolean;  // 是否是空行
   jinPerBox?: number;    // 斤/箱
 }
@@ -42,7 +42,7 @@ interface OrderItemTableProps {
   onEdit: (values: {
     id: string;
     objectDetailId: number;
-    count: number;
+    count: number | undefined;
     price: number;
     totalPrice?: number;
     remark: string;
@@ -105,12 +105,12 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   const [priceValues, setPriceValues] = useState<Record<string | number, number>>({});
   const [totalPriceValues, setTotalPriceValues] = useState<Record<string | number, number>>({});
   const [remarkInputValues, setRemarkInputValues] = useState<Record<string | number, string>>({});
-  const [countValues, setCountValues] = useState<Record<string | number, number>>({});
+  const [countValues, setCountValues] = useState<Record<string | number, number | undefined>>({});
   const [showButtonMap, setShowButtonMap] = useState<Record<string | number, boolean>>({});
   const [activeInputKey, setActiveInputKey] = useState<string | number | null>(null);
   const scaleServiceRef = useRef<ScaleService | null>(null);
   const [isScaleConnected, setIsScaleConnected] = useState(false);
-  const [, setIsSelecting] = useState(false);
+  const isSelectingOptionRef = useRef(false);
   const tableRef = useRef<any>(null);
 
   useEffect(() => {
@@ -162,7 +162,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   };
 
   const handleObjectSelect = async (value: number, option: any) => {
-    setIsSelecting(true);
     try {
       const newId = await onAdd({
         objectDetailId: value,
@@ -207,8 +206,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       }, 100);
     } catch (error) {
       message.error('添加商品失败：' + (error as Error).message);
-    } finally {
-      setIsSelecting(false);
     }
   };
 
@@ -297,6 +294,13 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       ...prev,
       [key]: true
     }));
+    // 选中输入框内容
+    setTimeout(() => {
+      const input = document.activeElement as HTMLInputElement;
+      if (input) {
+        input.select();
+      }
+    }, 0);
   };
 
   const handleInputBlur = (key: string | number, record: TableOrderItem) => {
@@ -332,12 +336,12 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
     if (clear) {
       setCountValues(prev => ({
         ...prev,
-        [key]: 0
+        [key]: undefined
       }));
       onEdit({
         id: record.id,
         objectDetailId: record.objectDetailId,
-        count: 0,
+        count: undefined,
         price: record.price,
         remark: record.remark,
         deliveryName: record.deliveryName,
@@ -347,10 +351,8 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
     }
 
     // 使用传入的 weight 值更新输入框
-    console.log('weight', weight);
     const weightValue = parseFloat(weight);
     if (!isNaN(weightValue)) {
-      console.log('weightValue', weightValue);
       setCountValues(prev => ({
         ...prev,
         [key]: weightValue
@@ -418,13 +420,19 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                 placeholder="搜索选择货品"
                 filterOption={false}
                 onSearch={searchObjects}
-                onChange={(value, option) => handleObjectSelect(value, option)}
+                onChange={(value, option) => {
+                  isSelectingOptionRef.current = true;
+                  handleObjectSelect(value, option);
+                }}
                 onDropdownVisibleChange={(visible) => {
                   if (!visible) {
                     const inputValue = (document.activeElement as HTMLInputElement)?.value;
-                    if (inputValue && !searchOptions.some(opt => opt.objectDetailName === inputValue)) {
+                    if (inputValue && 
+                        !searchOptions.some(opt => opt.objectDetailName === inputValue) &&
+                        !isSelectingOptionRef.current) {
                       handleObjectBlur(inputValue);
                     }
+                    isSelectingOptionRef.current = false;
                   }
                 }}
                 options={searchOptions.map(opt => ({
@@ -536,7 +544,10 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                     [key]: value || 0
                   }));
                 }}
-                onFocus={() => handleInputFocus(key)}
+                onFocus={(e) => {
+                  handleInputFocus(key);
+                  e.target.select();
+                }}
                 onBlur={() => handleInputBlur(key, record)}
                 placeholder="请输入数量"
               />
@@ -553,18 +564,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                     onClick={() => handleScaleButtonClick(record)}
                   >
                     代入
-                  </Button>
-                  <Button
-                    type="link"
-                    size="small"
-                    style={{
-                      padding: '0 4px',
-                      height: '22px',
-                      lineHeight: '22px'
-                    }}
-                    onClick={() => handleScaleButtonClick(record, true)}
-                  >
-                    清空
                   </Button>
                   {isScaleConnected && (
                     <Button
