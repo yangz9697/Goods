@@ -3,6 +3,7 @@ import request from './request';
 interface BaseResponse {
   success: boolean;
   displayMsg?: string;
+  data?: any;
 }
 
 interface OrderObjectInfo {

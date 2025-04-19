@@ -130,7 +130,7 @@ const PaymentList: React.FC<PaymentListProps> = ({ }) => {
   return (
     <Card title="付款情况">
       <Row gutter={16}>
-        <Col span={8}>
+        <Col span={10}>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <RangePicker
               value={dateRange}
@@ -156,7 +156,7 @@ const PaymentList: React.FC<PaymentListProps> = ({ }) => {
             />
           </div>
         </Col>
-        <Col span={8}>
+        <Col span={6}>
           <Search
             placeholder="搜索姓名/手机号"
             onSearch={setSearchText}

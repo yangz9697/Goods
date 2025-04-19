@@ -93,12 +93,12 @@ const ProductConsumption: React.FC = () => {
     },
     smooth: true,
     height: 200,
-    width: 400,  // 添加固定宽度
+    width: 500,  // 添加固定宽度
   });
 
   // 渲染图表内容
   const renderCharts = (product: ProductDetail) => (
-    <div style={{ width: 850 }}>  {/* 设置固定宽度 */}
+    <div style={{ width: 1000 }}>  {/* 设置固定宽度 */}
       <Row gutter={[16, 16]}>
         <Col span={12}>
           <Card 

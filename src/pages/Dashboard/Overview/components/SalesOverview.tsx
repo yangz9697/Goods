@@ -91,7 +91,7 @@ const SalesOverview: React.FC = () => {
       shape: 'circle',
     },
     smooth: true,
-    height: 260,
+    height: 150,
   };
 
   // 货品销售柱状图配置
@@ -102,7 +102,7 @@ const SalesOverview: React.FC = () => {
     })),
     xField: '货品',
     yField: '销售额',
-    height: 260,
+    height: 150,
     columnStyle: {
       radius: [4, 4, 0, 0],
     },

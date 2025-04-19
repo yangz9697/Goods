@@ -228,7 +228,8 @@ const Permissions: React.FC = () => {
       render: (_: any, record: AccountItem) => (
         <Space size="middle">
           <Button 
-            type="primary" 
+            type="link" 
+            size="small"
             onClick={() => {
               setEditingUser(record);
               editForm.setFieldsValue({ role: record.role });
@@ -237,7 +238,7 @@ const Permissions: React.FC = () => {
           >
             编辑权限
           </Button>
-          <Button onClick={() => handleResetPassword(record.username)}>
+          <Button type="link" size="small" onClick={() => handleResetPassword(record.username)}>
             重置密码
           </Button>
           {role === 'admin' && (

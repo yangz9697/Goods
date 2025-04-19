@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Table, InputNumber, Input, Select, Space, Tag, Button, message, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ObjectOption } from '@/types/order';
@@ -59,7 +59,7 @@ interface OrderItemTableProps {
     unitName: string;
     price: number;
     remark: string;
-  }) => void;
+  }) => Promise<string>;
 }
 
 // 修改单位选项的定义
@@ -69,7 +69,11 @@ const UNIT_OPTIONS = [
   { label: '箱', value: '箱' }
 ];
 
-export const OrderItemTable: React.FC<OrderItemTableProps> = ({
+export interface OrderItemTableRef {
+  scrollToLastDeliveryItem: () => void;
+}
+
+export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>(({
   items,
   type,
   isAdmin,
@@ -78,7 +82,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   onEdit,
   onDelete,
   onAdd
-}) => {
+}, ref) => {
   const [searchOptions, setSearchOptions] = useState<ObjectOption[]>([]);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [emptyRow, setEmptyRow] = useState<TableOrderItem>({
@@ -96,7 +100,6 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     deliveryName: undefined,
     isEmptyRow: true
   });
-  const [newItems,] = useState<TableOrderItem[]>([]);
   const [remarkValues, setRemarkValues] = useState<Record<string | number, string>>({});
   const [deliveryValues, setDeliveryValues] = useState<Record<string | number, string>>({});
   const [priceValues, setPriceValues] = useState<Record<string | number, number>>({});
@@ -107,6 +110,25 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   const [activeInputKey, setActiveInputKey] = useState<string | number | null>(null);
   const scaleServiceRef = useRef<ScaleService | null>(null);
   const [isScaleConnected, setIsScaleConnected] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const tableRef = useRef<any>(null);
+
+  useEffect(() => {
+    // 延迟执行，等待表格渲染完成
+    setTimeout(() => {
+      // 滚动到底部
+      const tableBody = document.querySelector('.ant-table-body');
+      if (tableBody) {
+        tableBody.scrollTop = tableBody.scrollHeight;
+      }
+      
+      // 聚焦到最后一行的货品搜索框
+      const lastRow = document.querySelector('.ant-table-row:last-child .ant-select-selector');
+      if (lastRow) {
+        (lastRow as HTMLElement).click();
+      }
+    }, 100);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -135,24 +157,14 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
   };
 
   const handleDeleteRow = (record: TableOrderItem) => {
-    const hasContent = record.objectDetailId && record.count > 0;
-
-    if (!hasContent) {
-      onDelete(record.id);
-    } else {
-      Modal.confirm({
-        title: '确认删除',
-        content: `确定要删除${record.name}吗？`,
-        okText: '确定',
-        cancelText: '取消',
-        onOk: () => onDelete(record.id)
-      });
-    }
+    const hasContent = record.id;
+    hasContent && onDelete(record.id);
   };
 
   const handleObjectSelect = async (value: number, option: any) => {
+    setIsSelecting(true);
     try {
-      await onAdd({
+      const newId = await onAdd({
         objectDetailId: value,
         objectDetailName: option.label,
         count: 0,
@@ -176,8 +188,27 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         deliveryName: undefined,
         isEmptyRow: true
       });
+
+      // 延迟执行，等待新行渲染完成
+      setTimeout(() => {
+        // 找到 rowId 匹配的行，并聚焦到该行的报单数量输入框
+        const rows = document.querySelectorAll('.ant-table-row');
+        for (const row of rows) {
+          const dataRowKey = row.getAttribute('data-row-key');
+
+          if (dataRowKey === newId) {
+            const remarkCountInput = row.querySelector('.ant-input');
+            if (remarkCountInput) {
+              (remarkCountInput as HTMLElement).focus();
+              break;
+            }
+          }
+        }
+      }, 100);
     } catch (error) {
       message.error('添加商品失败：' + (error as Error).message);
+    } finally {
+      setIsSelecting(false);
     }
   };
 
@@ -346,6 +377,24 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     message.success('已重置电子秤连接');
   };
 
+  const scrollToLastDeliveryItem = () => {
+    if (!tableRef.current) return;
+    
+    const lastDeliveryItem = [...items]
+      .reverse()
+      .find(item => item.deliveryName);
+      
+    if (lastDeliveryItem) {
+      const index = items.findIndex(item => item.id === lastDeliveryItem.id);
+      if (index !== -1) {
+        tableRef.current.scrollTo({
+          index,
+          behavior: 'smooth'
+        });
+      }
+    }
+  };
+
   const getColumns = (): ColumnsType<TableOrderItem> => {
     const baseColumns: ColumnsType<TableOrderItem> = [
       {
@@ -372,7 +421,7 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                 onDropdownVisibleChange={(visible) => {
                   if (!visible) {
                     const inputValue = (document.activeElement as HTMLInputElement)?.value;
-                    if (inputValue) {
+                    if (inputValue && !searchOptions.some(opt => opt.objectDetailName === inputValue)) {
                       handleObjectBlur(inputValue);
                     }
                   }
@@ -408,6 +457,16 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
                 autoSize={{ minRows: 1, maxRows: 3 }}
                 style={{ width: 120 }}
                 value={inputValue}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    // 找到最后一行的商品搜索框并聚焦
+                    const lastRow = document.querySelector('.ant-table-row:last-child .ant-select-selector');
+                    if (lastRow) {
+                      (lastRow as HTMLElement).click();
+                    }
+                  }
+                }}
                 onFocus={() => {
                   // 延迟添加加号，避免影响光标位置
                   setTimeout(() => {
@@ -792,11 +851,19 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
     return baseColumns;
   };
 
+  useImperativeHandle(ref, () => ({
+    scrollToLastDeliveryItem
+  }));
+
   return (
     <div style={{ height: '100%', width: '100%' }}>
       <Table
+        ref={tableRef}
         columns={getColumns()}
-        dataSource={[...items, emptyRow, ...newItems]}
+        dataSource={[
+          ...items.map(item => ({ ...item, rowId: item.id })),
+          { ...emptyRow, rowId: emptyRow.rowId }
+        ]}
         rowKey="rowId"
         pagination={false}
         scroll={{ y: '100%' }}
@@ -809,10 +876,9 @@ export const OrderItemTable: React.FC<OrderItemTableProps> = ({
         onCancel={() => setCreateModalVisible(false)}
         onSuccess={() => {
           setCreateModalVisible(false);
-          // 清空搜索框，触发重新搜索
           setSearchOptions([]);
         }}
       />
     </div>
   );
-}; 
+}); 

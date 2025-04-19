@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { message } from 'antd';
+import { message, Button } from 'antd';
 import { useOrderDetail } from './hooks/useOrderDetail';
-import { OrderItemTable } from './components/OrderItemTable';
+import { OrderItemTable, OrderItemTableRef } from './components/OrderItemTable';
 import { OrderHeader } from '@/pages/SupplyOrders/components/OrderHeader';
 
 const OrderDetail: React.FC = () => {
@@ -12,6 +12,7 @@ const OrderDetail: React.FC = () => {
   const isAdmin = role === 'admin';
   const navigate = useNavigate();
   const [weight, setWeight] = useState<string>('0');
+  const tableRef = useRef<OrderItemTableRef>(null);
 
   const {
     order,
@@ -27,6 +28,12 @@ const OrderDetail: React.FC = () => {
   const handleDeleteSuccess = () => {
     message.success('删除供货单成功');
     navigate('/supply-orders/list');
+  };
+
+  const handleJumpToLastDelivery = () => {
+    if (tableRef.current) {
+      tableRef.current.scrollToLastDeliveryItem();
+    }
   };
 
   if (!order) {
@@ -64,32 +71,39 @@ const OrderDetail: React.FC = () => {
         <div style={{ 
           display: 'flex', 
           borderBottom: '1px solid #f0f0f0',
-          padding: '0 16px'
+          padding: '0 16px',
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
-          <div
-            style={{
-              padding: '12px 16px',
-              cursor: 'pointer',
-              borderBottom: activeTab === 'all' ? '2px solid #1890ff' : 'none',
-              color: activeTab === 'all' ? '#1890ff' : 'inherit',
-              marginBottom: '-1px'
-            }}
-            onClick={() => setActiveTab('all')}
-          >
-            全部
+          <div style={{ display: 'flex' }}>
+            <div
+              style={{
+                padding: '12px 16px',
+                cursor: 'pointer',
+                borderBottom: activeTab === 'all' ? '2px solid #1890ff' : 'none',
+                color: activeTab === 'all' ? '#1890ff' : 'inherit',
+                marginBottom: '-1px'
+              }}
+              onClick={() => setActiveTab('all')}
+            >
+              全部
+            </div>
+            <div
+              style={{
+                padding: '12px 16px',
+                cursor: 'pointer',
+                borderBottom: activeTab === 'box' ? '2px solid #1890ff' : 'none',
+                color: activeTab === 'box' ? '#1890ff' : 'inherit',
+                marginBottom: '-1px'
+              }}
+              onClick={() => setActiveTab('box')}
+            >
+              大货
+            </div>
           </div>
-          <div
-            style={{
-              padding: '12px 16px',
-              cursor: 'pointer',
-              borderBottom: activeTab === 'box' ? '2px solid #1890ff' : 'none',
-              color: activeTab === 'box' ? '#1890ff' : 'inherit',
-              marginBottom: '-1px'
-            }}
-            onClick={() => setActiveTab('box')}
-          >
-            大货
-          </div>
+          <Button type="primary" onClick={handleJumpToLastDelivery}>
+            跳转
+          </Button>
         </div>
         <div style={{ 
           flex: 1, 
@@ -98,6 +112,7 @@ const OrderDetail: React.FC = () => {
         }}>
           {activeTab === 'all' && (
             <OrderItemTable
+              ref={tableRef}
               type="all"
               items={order.items.map(item => ({
                 ...item,
@@ -113,6 +128,7 @@ const OrderDetail: React.FC = () => {
           )}
           {activeTab === 'box' && (
             <OrderItemTable
+              ref={tableRef}
               type="bulk"
               items={order.items
                 .filter(item => item.unit === '箱')

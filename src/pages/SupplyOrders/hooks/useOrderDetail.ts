@@ -105,11 +105,14 @@ export const useOrderDetail = (orderNo: string | undefined) => {
       if (response.success) {
         message.success('添加成功');
         fetchOrderDetail();
+        return response.data?.toString() || '';
       } else {
         message.error(response.displayMsg || '添加失败');
+        return '';
       }
     } catch (error) {
       message.error((error as Error).message);
+      return '';
     }
   };
 
