@@ -47,67 +47,85 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
 
   // 初始化串口连接
   useEffect(() => {
-    const initSerialPort = async () => {
-      try {
-        console.log('正在获取串口列表...');
-        const ports = await navigator.serial.getPorts();
+  const initSerialPort = async () => {
+    try {
+      console.log('正在获取串口列表...');
+      const ports = await navigator.serial.getPorts();
         let serialPort;
         
         if (ports.length === 0) {
-          console.log('请选择串口...');
+      console.log('请选择串口...');
           serialPort = await navigator.serial.requestPort();
         } else {
           console.log('使用已授权的串口...');
           serialPort = ports[0];
         }
+      
+      console.log('正在打开串口...');
+      await serialPort.open({ 
+        baudRate: 9600,
+        dataBits: 8,
+        stopBits: 1,
+        parity: 'none',
+        flowControl: 'none'
+      });
 
-        console.log('正在打开串口...');
-        await serialPort.open({ 
-          baudRate: 9600,
-          dataBits: 8,
-          stopBits: 1,
-          parity: 'none',
-          flowControl: 'none'
-        });
+      setPort(serialPort);
+      console.log('串口已打开，等待数据...');
 
-        setPort(serialPort);
-        console.log('串口已打开，等待数据...');
-
-        while (serialPort.readable) {
-          const reader = serialPort.readable.getReader();
-          try {
-            console.log('开始读取数据...');
-            while (true) {
-              const { value, done } = await reader.read();
-              if (done) {
-                console.log('读取结束');
-                break;
+      while (serialPort.readable) {
+        const reader = serialPort.readable.getReader();
+        try {
+          console.log('开始读取数据...');
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              console.log('读取结束');
+              break;
+            }
+            
+            const weightData = new TextDecoder().decode(value);
+            console.log(`收到数据: ${weightData}`);
+            
+            let newWeight: string | null = null;
+            
+            // 处理以=开头的格式
+            if (weightData.startsWith('=')) {
+              // 将字符串倒序处理
+              const reversedData = weightData.split('').reverse().join('');
+              const match = reversedData.match(/^(-)?(\d+\.\d+)=/);
+              if (match) {
+                const weight = parseFloat(match[2]);
+                newWeight = match[1] ? `-${(weight * 2).toFixed(3)}` : (weight * 2).toFixed(3);
               }
-              
-              const weightData = new TextDecoder().decode(value);
-              console.log(`收到数据: ${weightData}`);
-              
+            } else {
+              // 处理以kg结尾的格式
               const match = weightData.match(/(\d+(\.\d+)?)\s*kg$/);
               if (match) {
-                const newWeight = match[1];
-                setWeight(newWeight);
-                onWeightChange(newWeight);
-                console.log(`解析重量: ${newWeight} kg`);
+                const weight = parseFloat(match[1]);
+                newWeight = (weight * 2).toFixed(3);
               }
             }
-          } catch (error) {
-            console.log(`读取错误: ${(error as Error).message}`);
-            console.error('读取串口数据失败:', error);
-          } finally {
-            reader.releaseLock();
+            
+            if (newWeight !== null) {
+              setWeight(newWeight);
+              onWeightChange(newWeight);
+              console.log(`解析重量: ${newWeight} kg`);
+            }
           }
+        } catch (error) {
+          console.log(`读取错误: ${(error as Error).message}`);
+          console.error('读取串口数据失败:', error);
+        } finally {
+          reader.releaseLock();
         }
-      } catch (error) {
-        console.log(`连接错误: ${(error as Error).message}`);
-        console.error('初始化串口失败:', error);
-        message.error('连接电子秤失败，请检查设备连接');
       }
-    };
+    } catch (error) {
+      console.log(`连接错误: ${(error as Error).message}`);
+      console.error('初始化串口失败:', error);
+      message.error('连接电子秤失败，请检查设备连接');
+    }
+  };
 
     initSerialPort();
 
@@ -219,16 +237,16 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
           // padding: '16px'
         }}>
           <div style={{ textAlign: 'center', width: '100%' }}>
-            <div style={{ 
-              fontSize: '18px', 
-              fontWeight: 'bold',
-              color: '#1890ff',
-              padding: '16px',
-              background: '#f0f5ff',
-              borderRadius: '4px'
-            }}>
-              {weight} 斤
-            </div>
+              <div style={{ 
+                fontSize: '18px', 
+                fontWeight: 'bold',
+                color: '#1890ff',
+                padding: '16px',
+                background: '#f0f5ff',
+                borderRadius: '4px'
+              }}>
+                {weight} 斤
+              </div>
           </div>
         </div>
       </Col>

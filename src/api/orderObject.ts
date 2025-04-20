@@ -40,9 +40,19 @@ export interface AddOrderObjectRequest {
   remark: string;
 }
 
-export interface UpdateOrderObjectRequest extends AddOrderObjectRequest {
-  deliveryName?: string;
+export interface UpdateOrderObjectRequest {
+  orderNo: string;
+  objectDetailName: string;
+  unitName: string;
+  id: string;
+  objectDetailId: number;
+  count: number | undefined;
+  price: number;
   totalPrice?: number;
+  remark: string;
+  deliveryName?: string;
+  remarkCount?: string;
+  planCount?: number;
 }
 
 export interface DeleteOrderObjectRequest {

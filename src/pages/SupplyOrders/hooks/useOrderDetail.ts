@@ -135,13 +135,16 @@ export const useOrderDetail = (orderNo: string | undefined) => {
   };
 
   const handleEdit = async (values: {
-    count: number;
+    id: string;
     objectDetailId: number;
+    count: number | undefined;
     price: number;
     totalPrice?: number;
     remark: string;
-    unitName?: string;
     deliveryName?: string;
+    unitName?: string;
+    remarkCount?: string;
+    planCount?: number;
   }) => {
     try {
       const currentItem = order?.items.find(item => item.objectDetailId === values.objectDetailId);
