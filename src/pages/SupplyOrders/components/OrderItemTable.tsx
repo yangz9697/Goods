@@ -5,7 +5,6 @@ import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
 import { addObject } from '@/api/objectDetail';
 import CreateObjectModal from '@/components/CreateObjectModal';
-import { ScaleService } from '@/services/ScaleService';
 
 interface TableOrderItem {
   rowId?: string;
@@ -108,8 +107,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   const [countValues, setCountValues] = useState<Record<string | number, number | undefined>>({});
   const [showButtonMap, setShowButtonMap] = useState<Record<string | number, boolean>>({});
   const [activeInputKey, setActiveInputKey] = useState<string | number | null>(null);
-  const scaleServiceRef = useRef<ScaleService | null>(null);
-  const [isScaleConnected, setIsScaleConnected] = useState(false);
   const isSelectingOptionRef = useRef(false);
   const tableRef = useRef<any>(null);
 
@@ -128,15 +125,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         (lastRow as HTMLElement).click();
       }
     }, 100);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      // 组件卸载时断开电子秤连接
-      if (scaleServiceRef.current) {
-        scaleServiceRef.current.disconnect();
-      }
-    };
   }, []);
 
   const searchObjects = async (keyword: string) => {
@@ -251,21 +239,24 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
 
     let newValue = value;
     
-    // 如果输入的是数字
-    if (/^\d*\.?\d*$/.test(value)) {
-      if (record.remarkCount) {
-        // 如果当前值已经包含加号，更新最后一个数字
-        if (record.remarkCount.includes('+')) {
-          const parts = record.remarkCount.split('+');
-          parts[parts.length - 1] = value;
-          newValue = parts.join('+');
+    // 只有当newValue不为空时才进行数字处理
+    if (newValue) {
+      // 如果输入的是数字
+      if (/^\d*\.?\d*$/.test(value)) {
+        if (record.remarkCount) {
+          // 如果当前值已经包含加号，更新最后一个数字
+          if (record.remarkCount.includes('+')) {
+            const parts = record.remarkCount.split('+');
+            parts[parts.length - 1] = value;
+            newValue = parts.join('+');
+          } else {
+            // 如果当前值不包含加号，添加加号
+            newValue = `${record.remarkCount}+${value}`;
+          }
         } else {
-          // 如果当前值不包含加号，添加加号
-          newValue = `${record.remarkCount}+${value}`;
+          // 如果没有当前值，直接使用输入的数字
+          newValue = value;
         }
-      } else {
-        // 如果没有当前值，直接使用输入的数字
-        newValue = value;
       }
     }
 
@@ -371,12 +362,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
 
   // 修改重置方法
   const handleResetScale = async () => {
-    if (scaleServiceRef.current) {
-      await scaleServiceRef.current.disconnect();
-      scaleServiceRef.current = null;
-    }
-    setIsScaleConnected(false);
-    message.success('已重置电子秤连接');
+    //Todo
   };
 
   const scrollToLastDeliveryItem = () => {
@@ -565,21 +551,19 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   >
                     代入
                   </Button>
-                  {isScaleConnected && (
-                    <Button
-                      type="link"
-                      size="small"
-                      danger
-                      style={{
-                        padding: '0 4px',
-                        height: '22px',
-                        lineHeight: '22px'
-                      }}
-                      onClick={handleResetScale}
-                    >
-                      重置
-                    </Button>
-                  )}
+                  <Button
+                    type="link"
+                    size="small"
+                    danger
+                    style={{
+                      padding: '0 4px',
+                      height: '22px',
+                      lineHeight: '22px'
+                    }}
+                    onClick={handleResetScale}
+                  >
+                    重置
+                  </Button>
                 </div>
               )}
             </div>

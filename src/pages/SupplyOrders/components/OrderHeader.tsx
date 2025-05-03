@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Form, Row, Col, DatePicker, Input, Select, Space, Button, Popconfirm, message } from 'antd';
 import { formatPhone } from '@/utils/format';
 import dayjs from 'dayjs';
@@ -44,98 +44,225 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
 }) => {
   const [weight, setWeight] = useState<string>('0');
   const [port, setPort] = useState<SerialPort | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
+  const isConnectingRef = useRef<boolean>(false);
 
-  // 初始化串口连接
-  useEffect(() => {
-  const initSerialPort = async () => {
+  // 清理函数
+  const cleanup = useCallback(async () => {
     try {
-      console.log('正在获取串口列表...');
-      const ports = await navigator.serial.getPorts();
-        let serialPort;
-        
-        if (ports.length === 0) {
-      console.log('请选择串口...');
-          serialPort = await navigator.serial.requestPort();
-        } else {
-          console.log('使用已授权的串口...');
-          serialPort = ports[0];
-        }
-      
-      console.log('正在打开串口...');
-      await serialPort.open({ 
-        baudRate: 9600,
-        dataBits: 8,
-        stopBits: 1,
-        parity: 'none',
-        flowControl: 'none'
-      });
-
-      setPort(serialPort);
-      console.log('串口已打开，等待数据...');
-
-      while (serialPort.readable) {
-        const reader = serialPort.readable.getReader();
+      if (readerRef.current) {
         try {
-          console.log('开始读取数据...');
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) {
-              console.log('读取结束');
-              break;
-            }
-            
-            const weightData = new TextDecoder().decode(value);
-            console.log(`收到数据: ${weightData}`);
-            
-            let newWeight: string | null = null;
-            
-            // 处理以=开头的格式
-            if (weightData.startsWith('=')) {
-              // 将字符串倒序处理
-              const reversedData = weightData.split('').reverse().join('');
-              const match = reversedData.match(/^(-)?(\d+\.\d+)=/);
-              if (match) {
-                const weight = parseFloat(match[2]);
-                newWeight = match[1] ? `-${(weight * 2).toFixed(3)}` : (weight * 2).toFixed(3);
-              }
-            } else {
-              // 处理以kg结尾的格式
-              const match = weightData.match(/(\d+(\.\d+)?)\s*kg$/);
-              if (match) {
-                const weight = parseFloat(match[1]);
-                newWeight = (weight * 2).toFixed(3);
-              }
-            }
-            
-            if (newWeight !== null) {
-              setWeight(newWeight);
-              onWeightChange(newWeight);
-              console.log(`解析重量: ${newWeight} kg`);
-            }
+          await readerRef.current.releaseLock();
+        } catch (error) {
+          console.error('释放 reader 失败:', error);
+        }
+        readerRef.current = null;
+      }
+      if (port) {
+        try {
+          if (port.readable) {
+            await port.close();
           }
         } catch (error) {
-          console.log(`读取错误: ${(error as Error).message}`);
-          console.error('读取串口数据失败:', error);
-        } finally {
-          reader.releaseLock();
+          console.error('关闭串口失败:', error);
+        }
+        setPort(null);
+      }
+      setIsConnected(false);
+    } catch (error) {
+      console.error('清理过程出错:', error);
+    }
+  }, [port]);
+
+  // 初始化串口连接
+  const initSerialPort = useCallback(async () => {
+    if (isConnectingRef.current) {
+      console.log('正在连接中，跳过重复连接');
+      return;
+    }
+
+    try {
+      isConnectingRef.current = true;
+      setConnectionError(null);
+
+      // 先检查是否已经有打开的串口
+      const ports = await navigator.serial.getPorts();
+      let serialPort = ports[0];
+
+      if (!serialPort) {
+        console.log('没有已授权的串口，请求用户选择...');
+        try {
+          serialPort = await navigator.serial.requestPort();
+        } catch (error) {
+          console.error('用户取消选择串口:', error);
+          setConnectionError('请选择正确的串口设备');
+          return;
+        }
+      }
+
+      // 检查串口是否已经打开
+      if (serialPort.readable) {
+        console.log('串口已经打开，直接使用');
+        setPort(serialPort);
+        setIsConnected(true);
+        startReading(serialPort);
+        return;
+      }
+
+      console.log('正在打开串口...');
+      try {
+        await serialPort.open({ 
+          baudRate: 9600,
+          dataBits: 8,
+          stopBits: 1,
+          parity: 'none',
+          flowControl: 'none'
+        });
+      } catch (error) {
+        console.error('打开串口失败:', error);
+        if (error instanceof DOMException) {
+          if (error.message.includes('already open')) {
+            console.log('串口已经打开，继续使用');
+            setPort(serialPort);
+            setIsConnected(true);
+            startReading(serialPort);
+            return;
+          }
+        }
+        throw error;
+      }
+
+      setPort(serialPort);
+      setIsConnected(true);
+      startReading(serialPort);
+    } catch (error) {
+      console.error('初始化串口失败:', error);
+      if (error instanceof DOMException) {
+        if (error.name === 'NetworkError') {
+          setConnectionError('串口连接失败，请检查设备连接或重新选择串口');
+        } else if (error.name === 'SecurityError') {
+          setConnectionError('没有串口访问权限，请检查浏览器设置');
+        } else {
+          setConnectionError(`连接失败: ${error.message}`);
+        }
+      } else {
+        setConnectionError('连接电子秤失败，请检查设备连接');
+      }
+      setIsConnected(false);
+      await cleanup();
+    } finally {
+      isConnectingRef.current = false;
+    }
+  }, [cleanup]);
+
+  const startReading = async (serialPort: SerialPort) => {
+    if (!serialPort.readable) {
+      console.error('串口不可读');
+      setConnectionError('串口不可读，请重新连接');
+      setIsConnected(false);
+      return;
+    }
+
+    try {
+      readerRef.current = serialPort.readable.getReader();
+      
+      while (true) {
+        const { value, done } = await readerRef.current.read();
+        if (done) {
+          console.log('读取结束');
+          setConnectionError('串口连接已断开，请重新连接');
+          setIsConnected(false);
+          break;
+        }
+        
+        const weightData = new TextDecoder().decode(value);
+        console.log(`收到数据: ${weightData}`);
+        
+        let newWeight: string | null = null;
+        
+        if (weightData.startsWith('=')) {
+          const reversedData = weightData.split('').reverse().join('');
+          const match = reversedData.match(/^(-)?(\d+\.\d+)=/);
+          if (match) {
+            const weight = parseFloat(match[2]);
+            newWeight = match[1] ? `-${(weight * 2).toFixed(3)}` : (weight * 2).toFixed(3);
+          }
+        } else {
+          const match = weightData.match(/(\d+(\.\d+)?)\s*kg$/);
+          if (match) {
+            const weight = parseFloat(match[1]);
+            newWeight = (weight * 2).toFixed(3);
+          }
+        }
+        
+        if (newWeight !== null) {
+          setWeight(newWeight);
+          onWeightChange(newWeight);
+          console.log(`解析重量: ${newWeight} kg`);
         }
       }
     } catch (error) {
-      console.log(`连接错误: ${(error as Error).message}`);
-      console.error('初始化串口失败:', error);
-      message.error('连接电子秤失败，请检查设备连接');
+      console.error('读取串口数据失败:', error);
+      // 只有在特定错误时才显示重新连接
+      if (error instanceof DOMException && 
+          (error.message.includes('The port is closed') || 
+           error.message.includes('The port is not open'))) {
+        setConnectionError('串口连接已断开，请重新连接');
+        setIsConnected(false);
+      }
+    } finally {
+      if (readerRef.current) {
+        try {
+          await readerRef.current.releaseLock();
+        } catch (error) {
+          console.error('释放 reader 失败:', error);
+        }
+        readerRef.current = null;
+      }
     }
   };
 
+  useEffect(() => {
     initSerialPort();
-
     return () => {
-      if (port) {
-        port.close().catch(console.error);
-        console.log('串口已关闭');
-      }
+      cleanup();
     };
-  }, [onWeightChange]);
+  }, [initSerialPort, cleanup]);
+
+  // 手动重连函数
+  const handleReconnect = useCallback(async () => {
+    try {
+      // 先清理现有连接
+      await cleanup();
+      
+      // 等待一小段时间确保资源完全释放
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 清除所有已授权的串口权限
+      try {
+        const ports = await navigator.serial.getPorts();
+        console.log('找到已授权的串口数量:', ports.length);
+        for (const port of ports) {
+          try {
+            await port.forget();
+            console.log('成功清除串口权限');
+          } catch (error) {
+            console.error('清除串口权限失败:', error);
+          }
+        }
+      } catch (error) {
+        console.error('获取已授权串口失败:', error);
+      }
+      
+      // 重新初始化串口
+      await initSerialPort();
+    } catch (error) {
+      console.error('重新连接失败:', error);
+      setConnectionError('重新连接失败，请检查设备连接');
+    }
+  }, [cleanup, initSerialPort]);
 
   const handleDeleteOrder = async () => {
     try {
@@ -230,23 +357,26 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
           height: '100%',
           background: '#fff',
           borderRadius: '4px',
-          // border: '1px solid #f0f0f0',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          // padding: '16px'
         }}>
           <div style={{ textAlign: 'center', width: '100%' }}>
-              <div style={{ 
-                fontSize: '18px', 
-                fontWeight: 'bold',
-                color: '#1890ff',
-                padding: '16px',
-                background: '#f0f5ff',
-                borderRadius: '4px'
-              }}>
-                {weight} 斤
-              </div>
+            <div style={{ 
+              fontSize: '18px', 
+              fontWeight: 'bold',
+              color: isConnected ? '#1890ff' : isConnectingRef.current ? '#faad14' : '#ff4d4f',
+              padding: '16px',
+              background: '#f0f5ff',
+              borderRadius: '4px'
+            }}>
+              {isConnected ? `${weight} 斤` : isConnectingRef.current ? '连接中...' : '未连接'}
+            </div>
+            {connectionError && !isConnectingRef.current && (
+              <Button type="primary" onClick={handleReconnect} style={{ marginTop: 8 }}>
+                重新连接
+              </Button>
+            )}
           </div>
         </div>
       </Col>
@@ -257,8 +387,6 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
           height: '100%',
           background: '#fff',
           borderRadius: '4px',
-          // border: '1px solid #f0f0f0',
-          // padding: '8px'
         }}>
           <Form layout="inline">
             {/* 第一行 */}
@@ -389,4 +517,4 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
       </Col>
     </Row>
   );
-}; 
+};

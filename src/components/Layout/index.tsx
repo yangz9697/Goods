@@ -199,28 +199,32 @@ const AppLayout: React.FC = () => {
 
   return (
     <AntLayout style={{ height: '100vh' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed}>
-        <div className="logo" />
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-        />
-      </Sider>
+      {role !== 'employee' && (
+        <Sider trigger={null} collapsible collapsed={collapsed}>
+          <div className="logo" />
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={({ key }) => navigate(key)}
+          />
+        </Sider>
+      )}
       <AntLayout>
         <Header style={{ padding: 0, background: '#fff', display: 'flex', alignItems: 'center' }}>
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{
-              fontSize: '16px',
-              width: 64,
-              height: 64,
-            }}
-          />
+          {role !== 'employee' && (
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              style={{
+                fontSize: '16px',
+                width: 64,
+                height: 64,
+              }}
+            />
+          )}
           <Button
             type="text"
             icon={<ArrowLeftOutlined />}

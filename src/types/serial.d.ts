@@ -12,6 +12,7 @@ interface SerialPort {
   writable: WritableStream;
   open(options: SerialOptions): Promise<void>;
   close(): Promise<void>;
+  forget(): Promise<void>;
 }
 
 interface SerialPortRequestOptions {
