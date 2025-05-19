@@ -3,7 +3,7 @@ import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message,
 import type { InventoryItem, UnitType } from '../../types/inventory';
 import type { ObjectOpLog } from '../../types/objectDetail';
 import dayjs from 'dayjs';
-import { addObject, pageObjectDetail, deleteObject, updateObjectInventory, queryObjectOpLog, updateObjectUnitAndPrice, UpdateObjectUnitAndPriceRequest } from '../../api/objectDetail';
+import { addObject, pageObjectDetail, deleteObject, updateObjectInventory, queryObjectOpLog, updateObjectUnitAndPrice, UpdateObjectUnitAndPriceRequest, updateObject } from '../../api/objectDetail';
 import { useNavigate } from 'react-router-dom';
 
 const { Search } = Input;
@@ -30,7 +30,8 @@ const Inventory: React.FC = () => {
   const [opLogs, setOpLogs] = useState<ObjectOpLog[]>([]);
   const [editValues, setEditValues] = useState({
     jinPerBox: 0,
-    piecePerBox: 0
+    piecePerBox: 0,
+    name: ''
   });
 
   // 搜索功能
@@ -195,6 +196,22 @@ const Inventory: React.FC = () => {
     try {
       if (!currentItem) return;
 
+      // 如果名称发生变化，先更新名称
+      if (editValues.name !== currentItem.name) {
+        const nameResponse = await updateObject({
+          objectDetailId: Number(currentItem.id),
+          objectDetailName: editValues.name,
+          amountForBox: editValues.piecePerBox,
+          jinForBox: editValues.jinPerBox
+        });
+
+        if (!nameResponse.success) {
+          message.error(nameResponse.displayMsg || '更新名称失败');
+          return;
+        }
+      }
+
+      // 更新单位和价格
       const requestData: UpdateObjectUnitAndPriceRequest = {
         objectDetailId: Number(currentItem.id),
         amount: editValues.piecePerBox,
@@ -379,7 +396,11 @@ const Inventory: React.FC = () => {
             <Button type="link" onClick={() => handleShowDetail(record)}>详情</Button>
             <Button type="link" onClick={() => {
               setCurrentItem(record);
-              setEditValues({ jinPerBox: record.jinPerBox, piecePerBox: record.piecePerBox });
+              setEditValues({ 
+                jinPerBox: record.jinPerBox, 
+                piecePerBox: record.piecePerBox,
+                name: record.name 
+              });
               setEditModalVisible(true);
             }}>编辑</Button>
             <Button type="link" danger onClick={() => handleDelete(record)}>
@@ -624,15 +645,25 @@ const Inventory: React.FC = () => {
           open={editModalVisible}
           onCancel={() => {
             setEditModalVisible(false);
-            setEditValues({ jinPerBox: 0, piecePerBox: 0 });
+            setEditValues({ jinPerBox: 0, piecePerBox: 0, name: '' });
           }}
           okText="确定"
           cancelText="取消"
-          onOk={handleEdit}
+          onOk={() => {
+            if (!editValues.name.trim()) {
+              message.error('请输入菜品名称');
+              return;
+            }
+            handleEdit();
+          }}
         >
           <div style={{ marginBottom: 16 }}>
-            <div style={{ marginBottom: 8 }}>名称</div>
-            <Input disabled value={currentItem?.name} />
+            <div style={{ marginBottom: 8 }}>名称 <span style={{ color: 'red' }}>*</span></div>
+            <Input 
+              value={editValues.name}
+              onChange={(e) => setEditValues(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="请输入菜品名称"
+            />
           </div>
           
           <div style={{ marginBottom: 16 }}>

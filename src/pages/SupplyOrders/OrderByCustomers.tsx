@@ -32,7 +32,7 @@ const SupplyOrderList: React.FC = () => {
     orderInfoList: OrderInfo[];
   }>>([]);
   const [searchText, setSearchText] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, ] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{
     userId: number;
     userName: string | null;
@@ -41,13 +41,16 @@ const SupplyOrderList: React.FC = () => {
   } | null>(null);
   const [expandedCustomer, setExpandedCustomer] = useState<CustomerOrder | null>(null);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // 添加一个标记首次加载的 ref
   const isFirstLoad = useRef(true);
 
   // 获取供货单列表
   const fetchData = useCallback(async (keyword: string = '') => {
-    setLoading(true);
+    if (isRefreshing) return;
+    setIsRefreshing(true);
     try {
       const response = await orderApi.queryObjectOrder({
         startTime: selectedDate.startOf('day').valueOf(),
@@ -56,16 +59,18 @@ const SupplyOrderList: React.FC = () => {
       });
 
       if (response.success) {
+        requestAnimationFrame(() => {
         setCustomerOrders(response.data);
+        });
       } else {
         message.error(response.displayMsg || '获取供货单列表失败');
       }
     } catch (error) {
       message.error('获取供货单列表失败: ' + (error as Error).message);
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, isRefreshing]);
 
   useEffect(() => {
     if (isFirstLoad.current) {
@@ -78,6 +83,23 @@ const SupplyOrderList: React.FC = () => {
   useEffect(() => {
     fetchData(searchText);
   }, [selectedDate, dateChanged]);
+
+  // 添加自动刷新效果
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (autoRefresh) {
+      timer = setInterval(() => {
+        fetchData(searchText);
+      }, 1000);
+    }
+
+    return () => {
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [autoRefresh, fetchData, searchText]);
 
   const handleSearch = () => {
     fetchData(searchText);
@@ -168,8 +190,10 @@ const SupplyOrderList: React.FC = () => {
         borderRadius: '8px',
         backgroundColor: '#fff',
         cursor: 'pointer',
-        transition: 'box-shadow 0.3s',
-        height: '100%'
+        transition: 'all 0.3s ease-in-out',
+        height: '100%',
+        transform: 'translateZ(0)',
+        willChange: 'transform'
       }}
       onClick={() => handleOrderListClick(customer)}
     >
@@ -394,14 +418,35 @@ const SupplyOrderList: React.FC = () => {
             >
               添加供货单
             </Button>
+            <Button
+              type={autoRefresh ? "primary" : "default"}
+              onClick={() => setAutoRefresh(!autoRefresh)}
+            >
+              {autoRefresh ? '停止刷新' : '开始刷新'}
+            </Button>
           </Space>
         </Form.Item>
       </Form>
 
       {/* 客户列表 */}
-      <Row gutter={[16, 16]} style={{ opacity: loading ? 0.5 : 1 }}>
+      <Row 
+        gutter={[16, 16]} 
+        style={{ 
+          opacity: loading ? 0.5 : 1,
+          transition: 'opacity 0.3s ease-in-out'
+        }}
+      >
         {customerOrders.map(customer => (
-          <Col key={customer.userId} xs={24} sm={24} md={12} lg={8}>
+          <Col 
+            key={customer.userId} 
+            xs={24} 
+            sm={24} 
+            md={12} 
+            lg={8}
+            style={{
+              transition: 'all 0.3s ease-in-out'
+            }}
+          >
             {renderCustomerCard(customer)}
           </Col>
         ))}

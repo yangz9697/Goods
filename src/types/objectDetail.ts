@@ -87,6 +87,8 @@ export interface ObjectPrice {
   createTime: number;
   updateTime: number;
   updater: string;
+  jinForBox: number;
+  amountForBox: number;
 }
 
 export interface PageObjectPriceResponse {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Table, InputNumber, Input, Select, Space, Tag, Button, message } from 'antd';
+import { Table, InputNumber, Input, Select, Space, Tag, Button, message, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
@@ -474,12 +474,19 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   }, 50);
                 }}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/[^0-9.+]/g, '');
-                  const parts = value.split('.');
-                  const cleanValue = parts.length > 2 
-                    ? `${parts[0]}.${parts.slice(1).join('')}`
-                    : value;
-                  const finalValue = cleanValue.replace(/\++/g, '+');
+                  // 先按加号分割
+                  const parts = e.target.value.split('+');
+                  // 对每个部分单独处理
+                  const processedParts = parts.map(part => {
+                    // 只允许数字和一个小数点
+                    const cleanPart = part.replace(/[^0-9.]/g, '');
+                    const dotParts = cleanPart.split('.');
+                    return dotParts.length > 2 
+                      ? `${dotParts[0]}.${dotParts.slice(1).join('')}`
+                      : cleanPart;
+                  });
+                  // 重新组合，确保加号之间没有多余空格
+                  const finalValue = processedParts.join('+').replace(/\++/g, '+');
                   setRemarkInputValues(prev => ({
                     ...prev,
                     [key]: finalValue
@@ -487,14 +494,18 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                 }}
                 onBlur={() => {
                   const value = remarkInputValues[key];
-                  setRemarkInputValues(prev => {
-                    const updated = { ...prev };
-                    delete updated[key];
-                    return updated;
-                  });
+                  // 如果值发生变化（包括清空），则更新
                   if (value !== record.remarkCount) {
-                    handleRemarkCountChange(record, value || '');
+                    handleRemarkCountChange(record, value);
                   }
+                  // 在更新完成后清除本地状态
+                  setTimeout(() => {
+                    setRemarkInputValues(prev => {
+                      const updated = { ...prev };
+                      delete updated[key];
+                      return updated;
+                    });
+                  }, 0);
                 }}
               />
               {record.planCount !== undefined && record.remarkCount && (
@@ -675,6 +686,49 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           const key = record.id;
           const currentValue = deliveryValues[key] ?? record.deliveryName;
 
+          const handleDeliveryChange = (value: string | undefined) => {
+            // 如果当前已有配货员，且选择了新的配货员，则显示确认提示
+            if (record.deliveryName && value && value !== record.deliveryName) {
+              Modal.confirm({
+                title: '确认修改',
+                content: `${record.name}已配货，是否需要继续修改？`,
+                onOk: () => {
+                  // 更新本地状态
+                  setDeliveryValues(prev => ({
+                    ...prev,
+                    [key]: value || ''
+                  }));
+                  // 调用 onEdit
+                  onEdit({
+                    id: record.id,
+                    objectDetailId: record.objectDetailId,
+                    count: record.count,
+                    price: record.price,
+                    remark: record.remark,
+                    deliveryName: value,
+                    unitName: record.unit
+                  });
+                }
+              });
+            } else {
+              // 更新本地状态
+              setDeliveryValues(prev => ({
+                ...prev,
+                [key]: value || ''
+              }));
+              // 直接调用 onEdit
+              onEdit({
+                id: record.id,
+                objectDetailId: record.objectDetailId,
+                count: record.count,
+                price: record.price,
+                remark: record.remark,
+                deliveryName: value,
+                unitName: record.unit
+              });
+            }
+          };
+
           return (
             <Select
               allowClear
@@ -682,23 +736,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
               placeholder="选择配货员"
               value={currentValue}
               options={deliveryUsers}
-              onChange={(value) => {
-                // 更新本地状态
-                setDeliveryValues(prev => ({
-                  ...prev,
-                  [key]: value
-                }));
-                // 直接调用 onEdit，因为 Select 不需要失焦处理
-                onEdit({
-                  id: record.id,
-                  objectDetailId: record.objectDetailId,
-                  count: record.count,
-                  price: record.price,
-                  remark: record.remark,
-                  deliveryName: value,
-                  unitName: record.unit
-                });
-              }}
+              onChange={handleDeliveryChange}
               onBlur={() => {
                 // 清除本地状态
                 setDeliveryValues(prev => {
@@ -760,7 +798,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                     }
                   }}
                 />
-                <Tag color="blue" style={{ margin: 0, alignSelf: 'flex-start' }}>今日价: {record.unitPrice}</Tag>
+                <Tag color="blue" style={{ margin: 0, alignSelf: 'flex-start' }}>当日价: {record.unitPrice}</Tag>
               </div>
             );
           },

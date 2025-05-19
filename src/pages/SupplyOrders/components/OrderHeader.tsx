@@ -168,39 +168,57 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
     try {
       readerRef.current = serialPort.readable.getReader();
       
+      let buffer = '';
+      const textDecoder = new TextDecoder();
+
       while (true) {
         const { value, done } = await readerRef.current.read();
         if (done) {
-          console.log('读取结束');
+          console.log('串口已断开');
           setConnectionError('串口连接已断开，请重新连接');
           setIsConnected(false);
           break;
         }
         
-        const weightData = new TextDecoder().decode(value);
-        console.log(`收到数据: ${weightData}`);
-        
-        let newWeight: string | null = null;
-        
-        if (weightData.startsWith('=')) {
-          const reversedData = weightData.split('').reverse().join('');
-          const match = reversedData.match(/^(-)?(\d+\.\d+)=/);
-          if (match) {
-            const weight = parseFloat(match[2]);
-            newWeight = match[1] ? `-${(weight * 2).toFixed(3)}` : (weight * 2).toFixed(3);
+        if (value) {
+          const chunk = textDecoder.decode(value, { stream: true });
+          buffer += chunk;
+
+          // 尝试从缓冲中提取多个帧
+          while (buffer.length >= 18) {
+            const start = buffer.indexOf('ST');
+
+            if (start === -1) {
+              // 没有起始标志，丢弃前缀
+              buffer = '';
+              break;
+            }
+
+            // 如果剩余数据不足一帧，等待更多数据
+            if (start + 18 > buffer.length) break;
+
+            const potentialFrame = buffer.slice(start, start + 18);
+
+            if (potentialFrame.endsWith('kg\r\n')) {
+              console.log('收到完整数据帧:', potentialFrame);
+
+              // 提取重量字符串
+              const weightStr = potentialFrame.slice(8, 14).trim();
+              const weight = parseFloat(weightStr);
+
+              if (!isNaN(weight)) {
+                const newWeight = (weight * 2).toFixed(3);
+                setWeight(newWeight);
+                onWeightChange(newWeight);
+                console.log(`解析重量: ${newWeight}斤`);
+              }
+            } else {
+              console.warn('发现无效数据帧:', potentialFrame);
+            }
+
+            // 移除已处理内容
+            buffer = buffer.slice(start + 18);
           }
-        } else {
-          const match = weightData.match(/(\d+(\.\d+)?)\s*kg$/);
-          if (match) {
-            const weight = parseFloat(match[1]);
-            newWeight = (weight * 2).toFixed(3);
-          }
-        }
-        
-        if (newWeight !== null) {
-          setWeight(newWeight);
-          onWeightChange(newWeight);
-          console.log(`解析重量: ${newWeight} kg`);
         }
       }
     } catch (error) {

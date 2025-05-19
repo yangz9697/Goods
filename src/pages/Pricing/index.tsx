@@ -182,6 +182,26 @@ const Pricing: React.FC = () => {
       )
     },
     {
+      title: '单位',
+      key: 'unit',
+      render: (_: any, record: ObjectPrice) => {
+        const jinForBox = record.jinForBox;
+        const amountForBox = record.amountForBox;
+        const unitInfo = [];
+        
+        unitInfo.push(`${jinForBox || 0} 斤/箱`);
+        unitInfo.push(`${amountForBox || 0} 个/箱`);
+        
+        return (
+          <div style={{ fontSize: '12px', color: '#999' }}>
+            {unitInfo.map((info, index) => (
+              <div key={index}>{info}</div>
+            ))}
+          </div>
+        );
+      }
+    },
+    {
       title: '创建时间',
       dataIndex: 'createTime',
       key: 'createTime',
