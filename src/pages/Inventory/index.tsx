@@ -3,7 +3,7 @@ import { Table, Button, Space, Input, Modal, Form, Select, InputNumber, message,
 import type { InventoryItem, UnitType } from '../../types/inventory';
 import type { ObjectOpLog } from '../../types/objectDetail';
 import dayjs from 'dayjs';
-import { addObject, pageObjectDetail, deleteObject, updateObjectInventory, queryObjectOpLog, updateObjectUnitAndPrice, UpdateObjectUnitAndPriceRequest, updateObject } from '../../api/objectDetail';
+import { addObject, pageObjectDetail, deleteObject, updateObjectInventory, queryObjectOpLog, updateObjectUnitAndPrice, UpdateObjectUnitAndPriceRequest } from '../../api/objectDetail';
 import { useNavigate } from 'react-router-dom';
 
 const { Search } = Input;
@@ -33,24 +33,31 @@ const Inventory: React.FC = () => {
     piecePerBox: 0,
     name: ''
   });
+  const [adjustQuantity, setAdjustQuantity] = useState<number>(0);
+  const [adjustRemark, setAdjustRemark] = useState<string>('');
+  const [isTemp, setIsTemp] = useState<'all' | 'temp'>('all');
 
   // 搜索功能
   const handleSearch = (value: string) => {
     setSearchText(value);
     setCurrentPage(1); // 重置页码到第一页
-    fetchObjectList(1, pageSize, value); // 传入搜索关键字
+    fetchObjectList(1, pageSize, value, isTemp); // 传入搜索关键字
   };
 
   // 获取商品列表
-  const fetchObjectList = async (page: number, size: number, searchKey: string = '') => {
+  const fetchObjectList = async (page: number, size: number, searchKey: string = '', tempType: 'all' | 'temp' = isTemp) => {
     setLoading(true);
     try {
+      const filters: any = {
+        objectDetailName: searchKey
+      };
+      if (tempType === 'temp') {
+        filters.isTemp = true;
+      }
       const response = await pageObjectDetail({
         currentPage: page,
         pageSize: size,
-        filters: {
-          objectDetailName: searchKey
-        }
+        filters
       });
 
       if (response.data) {
@@ -60,6 +67,7 @@ const Inventory: React.FC = () => {
           boxQuantity: item.box,
           jinQuantity: item.jin,
           pieceQuantity: item.amount,
+          heQuantity: item.he || 0,
           jinPerBox: item.jinForBox,
           piecePerBox: item.amountForBox,
           updateTime: dayjs(item.updateTime).format('YYYY-MM-DD HH:mm:ss'),
@@ -80,8 +88,8 @@ const Inventory: React.FC = () => {
 
   // 在组件加载时获取数据
   useEffect(() => {
-    fetchObjectList(currentPage, pageSize, searchText);
-  }, [currentPage, pageSize]);
+    fetchObjectList(currentPage, pageSize, searchText, isTemp);
+  }, [currentPage, pageSize, isTemp]);
 
   // 添加新商品
   const handleAdd = async (values: any) => {
@@ -90,7 +98,7 @@ const Inventory: React.FC = () => {
       const { amountForBox, jinForBox, name, unit, quantity } = values;
       
       // 根据选择的单位和数量,计算其他单位的数量
-      let amount = 0, jin = 0, box = 0;
+      let amount = 0, jin = 0, box = 0, he = 0;
       
       switch (unit) {
         case 'piece':
@@ -108,6 +116,9 @@ const Inventory: React.FC = () => {
           jin = quantity * jinForBox;
           amount = quantity * amountForBox;
           break;
+        case 'he':
+          he = quantity;
+          break;
       }
 
       const requestData = {
@@ -117,7 +128,8 @@ const Inventory: React.FC = () => {
         tenant: 'default',
         amount: Math.round(amount * 100) / 100,
         jin: Math.round(jin * 100) / 100,
-        box: Math.round(box * 100) / 100
+        box: Math.round(box * 100) / 100,
+        he: Math.round(he * 100) / 100
       };
 
       const response = await addObject(requestData);
@@ -126,7 +138,7 @@ const Inventory: React.FC = () => {
         message.success('添加商品成功');
         setAddModalVisible(false);
         form.resetFields();
-        fetchObjectList(currentPage, pageSize);
+        fetchObjectList(currentPage, pageSize, searchText, isTemp);
         
         Modal.confirm({
           title: '提醒',
@@ -148,16 +160,16 @@ const Inventory: React.FC = () => {
   };
 
   // 调整库存
-  const handleAdjustInventory = async (values: any) => {
+  const handleAdjustInventory = async () => {
     try {
       if (!currentItem) return;
 
-      const quantity = values.quantity * (adjustType === 'reduce' ? -1 : 1);
+      const quantity = adjustQuantity * (adjustType === 'reduce' ? -1 : 1);
       
       // 准备请求数据
       const requestData: any = {
         detailObjectId: Number(currentItem.id),
-        remark: values.remark || ''  // 确保即使没有备注也传空字符串
+        remark: adjustRemark || ''  // 确保即使没有备注也传空字符串
       };
 
       // 根据调整单位设置对应的数量
@@ -171,6 +183,9 @@ const Inventory: React.FC = () => {
         case 'piece':
           requestData.amount = quantity;
           break;
+        case 'he':
+          requestData.he = quantity;
+          break;
       }
       
       setLoading(true);  // 添加loading状态
@@ -179,8 +194,9 @@ const Inventory: React.FC = () => {
       if (response.success) {
         message.success('库存调整成功');
         setAdjustModalVisible(false);
-        form.resetFields();
-        fetchObjectList(currentPage, pageSize, searchText);  // 刷新列表
+        setAdjustQuantity(0);
+        setAdjustRemark('');
+        fetchObjectList(currentPage, pageSize, searchText, isTemp);  // 刷新列表
       } else {
         message.error(response.displayMsg || '库存调整失败');
       }
@@ -196,26 +212,12 @@ const Inventory: React.FC = () => {
     try {
       if (!currentItem) return;
 
-      // 如果名称发生变化，先更新名称
-      if (editValues.name !== currentItem.name) {
-        const nameResponse = await updateObject({
-          objectDetailId: Number(currentItem.id),
-          objectDetailName: editValues.name,
-          amountForBox: editValues.piecePerBox,
-          jinForBox: editValues.jinPerBox
-        });
-
-        if (!nameResponse.success) {
-          message.error(nameResponse.displayMsg || '更新名称失败');
-          return;
-        }
-      }
-
       // 更新单位和价格
       const requestData: UpdateObjectUnitAndPriceRequest = {
         objectDetailId: Number(currentItem.id),
         amount: editValues.piecePerBox,
-        jin: editValues.jinPerBox
+        jin: editValues.jinPerBox,
+        objectDetailName: editValues.name
       };
 
       const response = await updateObjectUnitAndPrice(requestData);
@@ -223,7 +225,7 @@ const Inventory: React.FC = () => {
       if (response.data) {
         message.success('编辑成功');
         setEditModalVisible(false);
-        fetchObjectList(currentPage, pageSize, searchText);
+        fetchObjectList(currentPage, pageSize, searchText, isTemp);
       } else {
         message.error(response.displayMsg || '编辑失败');
       }
@@ -243,7 +245,7 @@ const Inventory: React.FC = () => {
           
           if (response.success) {
             message.success('删除成功');
-            fetchObjectList(currentPage, pageSize, searchText);
+            fetchObjectList(currentPage, pageSize, searchText, isTemp);
           } else {
             message.error(response.displayMsg || '删除失败');
           }
@@ -313,6 +315,31 @@ const Inventory: React.FC = () => {
               setCurrentItem(record);
               setAdjustType('reduce');
               setAdjustUnit('box');
+              setAdjustModalVisible(true);
+            }}>-</Button>
+          </Button.Group>
+        </div>
+      ),
+    },
+    {
+      title: '数量(盒)',
+      dataIndex: 'heQuantity',
+      key: 'heQuantity',
+      render: (text: number, record: InventoryItem) => (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{text}</span>
+          <Button.Group size="small">
+            <Button onClick={() => {
+              setCurrentItem(record);
+              setAdjustType('add');
+              setAdjustUnit('he');
+              form.resetFields();
+              setAdjustModalVisible(true);
+            }}>+</Button>
+            <Button onClick={() => {
+              setCurrentItem(record);
+              setAdjustType('reduce');
+              setAdjustUnit('he');
               setAdjustModalVisible(true);
             }}>-</Button>
           </Button.Group>
@@ -422,6 +449,17 @@ const Inventory: React.FC = () => {
             onSearch={handleSearch}
             style={{ width: 200 }}
           />
+          <Select
+            style={{ width: 120 }}
+            value={isTemp}
+            onChange={value => {
+              setIsTemp(value);
+              setCurrentPage(1);
+            }}
+          >
+            <Option value="all">全部</Option>
+            <Option value="temp">临时商品</Option>
+          </Select>
           <Button type="primary" onClick={() => setAddModalVisible(true)}>
             添加商品
           </Button>
@@ -518,13 +556,14 @@ const Inventory: React.FC = () => {
                 <Form.Item
                   name="unit"
                   noStyle
-                  initialValue="piece"
+                  initialValue="box"
                   rules={[{ required: true, message: '请选择库存单位' }]}
                 >
                   <Select style={{ width: 120 }}>
                     <Option value="piece">个</Option>
                     <Option value="jin">斤</Option>
                     <Option value="box">箱</Option>
+                    <Option value="he">盒</Option>
                   </Select>
                 </Form.Item>
               </Space.Compact>
@@ -549,46 +588,48 @@ const Inventory: React.FC = () => {
           open={adjustModalVisible}
           onCancel={() => {
             setAdjustModalVisible(false);
-            form.resetFields();
+            setAdjustQuantity(0);
+            setAdjustRemark('');
           }}
           footer={null}
         >
-          <Form 
-            form={form} 
-            onFinish={handleAdjustInventory}
-            preserve={false}
-          >
-            <Form.Item
-              name="quantity"
-              label="数量"
-              rules={[{ required: true, message: '请输入数量' }]}
-            >
+          <div style={{ padding: '24px 0' }}>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8 }}>数量 <span style={{ color: 'red' }}>*</span></div>
               <InputNumber 
                 min={0} 
                 precision={1}
                 step={0.1}
+                style={{ width: '100%' }}
+                value={adjustQuantity}
+                onChange={(value) => setAdjustQuantity(value || 0)}
+                placeholder="请输入数量"
               />
-            </Form.Item>
-            <Form.Item
-              name="remark"
-              label="备注原因"
-            >
-              <Input.TextArea placeholder="请输入备注原因（选填）" />
-            </Form.Item>
-            <Form.Item>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8 }}>备注原因</div>
+              <Input.TextArea 
+                value={adjustRemark}
+                onChange={(e) => setAdjustRemark(e.target.value)}
+                placeholder="请输入备注原因（选填）"
+                rows={4}
+              />
+            </div>
+            <div style={{ textAlign: 'right' }}>
               <Space>
-                <Button type="primary" htmlType="submit" loading={loading}>
+                <Button type="primary" onClick={handleAdjustInventory} loading={loading}>
                   确认
                 </Button>
                 <Button onClick={() => {
                   setAdjustModalVisible(false);
-                  form.resetFields();
+                  setAdjustQuantity(0);
+                  setAdjustRemark('');
                 }}>
                   取消
                 </Button>
               </Space>
-            </Form.Item>
-          </Form>
+            </div>
+          </div>
         </Modal>
 
         {/* 详情弹窗 */}

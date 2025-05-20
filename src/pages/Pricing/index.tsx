@@ -113,7 +113,8 @@ const Pricing: React.FC = () => {
         objectDetailId: currentItem.objectDetailId,
         priceForAmount: values.priceForAmount,
         priceForBox: values.priceForBox,
-        priceForJin: values.priceForJin
+        priceForJin: values.priceForJin,
+        priceForHe: values.priceForHe
       });
 
       if (response.success) {
@@ -182,6 +183,21 @@ const Pricing: React.FC = () => {
       )
     },
     {
+      title: '价格(盒)',
+      dataIndex: 'priceForHe',
+      key: 'priceForHe',
+      render: (price: number | null, record: ObjectPrice) => (
+        <div>
+          <div>{price != null ? `¥${price}` : '-'}</div>
+          {record.yesterdayPriceForHe != null && (
+            <div style={{ fontSize: '12px', color: '#999' }}>
+              昨日：¥{record.yesterdayPriceForHe}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
       title: '单位',
       key: 'unit',
       render: (_: any, record: ObjectPrice) => {
@@ -228,7 +244,8 @@ const Pricing: React.FC = () => {
             name: record.objectDetailName,
             priceForAmount: record.priceForAmount,
             priceForJin: record.priceForJin,
-            priceForBox: record.priceForBox
+            priceForBox: record.priceForBox,
+            priceForHe: record.priceForHe
           });
           setEditModalVisible(true);
         }}>
@@ -310,45 +327,92 @@ const Pricing: React.FC = () => {
       {/* 编辑价格弹窗 */}
       <Modal
         title="编辑价格"
-        visible={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
+        open={editModalVisible}
+        onCancel={() => {
+          setEditModalVisible(false);
+          form.resetFields();
+        }}
         footer={null}
       >
-        <Form form={form} onFinish={handleEdit}>
+        <Form
+          form={form}
+          onFinish={handleEdit}
+          layout="vertical"
+          preserve={false}
+        >
           <Form.Item
             name="name"
-            label="名称"
+            label="商品名称"
           >
             <Input disabled />
           </Form.Item>
+
           <Form.Item
             name="priceForAmount"
             label="价格(个)"
             rules={[{ required: true, message: '请输入价格' }]}
           >
-            <InputNumber min={0} precision={2} />
+            <InputNumber
+              min={0}
+              precision={2}
+              step={0.1}
+              style={{ width: '100%' }}
+              placeholder="请输入价格"
+            />
           </Form.Item>
+
           <Form.Item
             name="priceForJin"
             label="价格(斤)"
             rules={[{ required: true, message: '请输入价格' }]}
           >
-            <InputNumber min={0} precision={2} />
+            <InputNumber
+              min={0}
+              precision={2}
+              step={0.1}
+              style={{ width: '100%' }}
+              placeholder="请输入价格"
+            />
           </Form.Item>
+
           <Form.Item
             name="priceForBox"
             label="价格(箱)"
             rules={[{ required: true, message: '请输入价格' }]}
           >
-            <InputNumber min={0} precision={2} />
+            <InputNumber
+              min={0}
+              precision={2}
+              step={0.1}
+              style={{ width: '100%' }}
+              placeholder="请输入价格"
+            />
           </Form.Item>
+
+          <Form.Item
+            name="priceForHe"
+            label="价格(盒)"
+            rules={[{ required: true, message: '请输入价格' }]}
+          >
+            <InputNumber
+              min={0}
+              precision={2}
+              step={0.1}
+              style={{ width: '100%' }}
+              placeholder="请输入价格"
+            />
+          </Form.Item>
+
           <Form.Item>
-            <Space>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={() => {
+                setEditModalVisible(false);
+                form.resetFields();
+              }}>
+                取消
+              </Button>
               <Button type="primary" htmlType="submit">
                 确认
-              </Button>
-              <Button onClick={() => setEditModalVisible(false)}>
-                取消
               </Button>
             </Space>
           </Form.Item>

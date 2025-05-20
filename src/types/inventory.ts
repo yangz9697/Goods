@@ -1,7 +1,7 @@
 import { ObjectDetailResponse } from './objectDetail';
 
 // 单位类型
-export type UnitType = 'box' | 'jin' | 'piece';
+export type UnitType = 'box' | 'jin' | 'piece' | 'he';
 
 // 操作类型
 export type OperationType = 'add_inventory' | 'reduce_inventory' | 'new_item' | 'edit_item' | 'delete_item';
@@ -13,6 +13,7 @@ export interface InventoryItem {
   boxQuantity: number;
   jinQuantity: number;
   pieceQuantity: number;
+  heQuantity: number;
   jinPerBox: number;
   piecePerBox: number;
   updateTime: string;

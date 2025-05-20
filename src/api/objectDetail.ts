@@ -48,6 +48,7 @@ interface UpdateInventoryRequest {
   amount?: number;
   box?: number;
   jin?: number;
+  he?: number;
   detailObjectId: number;
   remark: string;
 }
@@ -89,6 +90,7 @@ interface UpdatePriceRequest {
   priceForAmount: number;
   priceForBox: number;
   priceForJin: number;
+  priceForHe: number;
 }
 
 export const updateObjectPrice = async (data: UpdatePriceRequest) => {
@@ -100,32 +102,6 @@ export const updateObjectPrice = async (data: UpdatePriceRequest) => {
   }
 };
 
-interface UpdateObjectRequest {
-  objectDetailId: number;
-  amountForBox: number;
-  jinForBox: number;
-  objectDetailName: string;
-  tenant?: string;
-}
-
-interface UpdateObjectResponse {
-  success: boolean;
-  data: any;
-  displayMsg?: string;
-}
-
-export const updateObject = async (data: UpdateObjectRequest): Promise<UpdateObjectResponse> => {
-  try {
-    const response = await request.post<UpdateObjectResponse>(
-      '/erp/objectDetail/updateObject',
-      data
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error('更新商品失败：' + (error as Error).message);
-  }
-};
-
 export interface UpdateObjectUnitAndPriceRequest {
   objectDetailId: number;
   amount?: number;  // 每箱个数
@@ -133,6 +109,7 @@ export interface UpdateObjectUnitAndPriceRequest {
   priceForAmount?: number;
   priceForBox?: number;
   priceForJin?: number;
+  objectDetailName?: string;
 }
 
 export interface UpdateObjectUnitAndPriceResponse {

@@ -1,6 +1,7 @@
 export interface ObjectDetailRequest {
   amountForBox: number;
   jinForBox: number;
+  he?: number;
   objectDetailName: string;
   tenant?: string;
 }
@@ -25,6 +26,7 @@ export interface ObjectDetailResponse {
     box: number;
     jin: number;
     jinForBox: number;
+    he: number;
     objectDetailId: number;
     objectDetailName: string;
     tenant: string;
@@ -59,6 +61,7 @@ export interface PageObjectDetailResponse {
       amount: number;
       jin: number;
       box: number;
+      he: number;
       updateTime: number;
       updater: string;
     }[];
@@ -81,9 +84,11 @@ export interface ObjectPrice {
   priceForAmount: number;
   priceForJin: number;
   priceForBox: number;
+  priceForHe: number;
   yesterdayPriceForAmount?: number;
   yesterdayPriceForJin?: number;
   yesterdayPriceForBox?: number;
+  yesterdayPriceForHe?: number;
   createTime: number;
   updateTime: number;
   updater: string;

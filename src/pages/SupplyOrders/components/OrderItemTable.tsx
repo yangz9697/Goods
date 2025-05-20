@@ -5,6 +5,7 @@ import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
 import { addObject } from '@/api/objectDetail';
 import CreateObjectModal from '@/components/CreateObjectModal';
+import dayjs from 'dayjs';
 
 interface TableOrderItem {
   rowId?: string;
@@ -30,6 +31,8 @@ interface TableOrderItem {
   count: number | undefined;         // 实际数量
   isEmptyRow?: boolean;  // 是否是空行
   jinPerBox?: number;    // 斤/箱
+  piecePerBox?: number;  // 个/箱
+  deliveryUpdateTime?: number;
 }
 
 interface OrderItemTableProps {
@@ -65,6 +68,7 @@ interface OrderItemTableProps {
 const UNIT_OPTIONS = [
   { label: '个', value: '个' },
   { label: '斤', value: '斤' },
+  { label: '盒', value: '盒' },
   { label: '箱', value: '箱' }
 ];
 
@@ -207,27 +211,35 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       return;
     }
 
-    try {
-      // 使用 addObject 创建新货品
-      const createRes = await addObject({
-        objectDetailName: value,
-        amountForBox: 0,
-        jinForBox: 0
-      });
+    // 显示确认弹窗
+    Modal.confirm({
+      title: '确认创建',
+      content: '仓库无此商品，是否继续创建？',
+      onOk: async () => {
+        try {
+          // 使用 addObject 创建新货品，设置默认值
+          const createRes = await addObject({
+            objectDetailName: value,
+            amountForBox: 1,  // 默认每箱1个
+            jinForBox: 1,     // 默认每箱1斤
+            he: 1             // 默认每箱1盒
+          });
 
-      if (createRes.success) {
-        // 重新搜索获取新创建的货品
-        const searchRes = await orderObjectApi.selectObjectByName(value);
-        if (searchRes.success && searchRes.data && searchRes.data.length > 0) {
-          const newObject = searchRes.data[0];
-          await handleObjectSelect(newObject.objectDetailId, { label: value });
+          if (createRes.success) {
+            // 重新搜索获取新创建的货品
+            const searchRes = await orderObjectApi.selectObjectByName(value);
+            if (searchRes.success && searchRes.data && searchRes.data.length > 0) {
+              const newObject = searchRes.data[0];
+              await handleObjectSelect(newObject.objectDetailId, { label: value });
+            }
+          } else {
+            message.error(createRes.displayMsg || '创建货品失败');
+          }
+        } catch (error) {
+          message.error('创建货品失败：' + (error as Error).message);
         }
-      } else {
-        message.error(createRes.displayMsg || '创建货品失败');
       }
-    } catch (error) {
-      message.error('创建货品失败：' + (error as Error).message);
-    }
+    });
   };
 
   // 处理报单数量的输入
@@ -625,9 +637,10 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                 <Select.Option value="斤">斤</Select.Option>
                 <Select.Option value="箱">箱</Select.Option>
               </Select>
-              {record.unit === '箱' && record.jinPerBox && record.jinPerBox > 0 && (
-                <span style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-                  {record.jinPerBox}斤/箱
+              {record.unit === '箱' && (
+                <span style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>
+                  {record.jinPerBox || 0}斤/箱、
+                  {record.piecePerBox || 0}个/箱
                 </span>
               )}
             </div>
@@ -730,25 +743,37 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           };
 
           return (
-            <Select
-              allowClear
-              style={{ width: '100%' }}
-              placeholder="选择配货员"
-              value={currentValue}
-              options={deliveryUsers}
-              onChange={handleDeliveryChange}
-              onBlur={() => {
-                // 清除本地状态
-                setDeliveryValues(prev => {
-                  const updated = { ...prev };
-                  delete updated[key];
-                  return updated;
-                });
-              }}
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
+            <div>
+              <Select
+                allowClear
+                style={{ width: '100%' }}
+                placeholder="选择配货员"
+                value={currentValue}
+                options={deliveryUsers}
+                onChange={handleDeliveryChange}
+                onBlur={() => {
+                  // 清除本地状态
+                  setDeliveryValues(prev => {
+                    const updated = { ...prev };
+                    delete updated[key];
+                    return updated;
+                  });
+                }}
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              />
+              {record.deliveryUpdateTime && (
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#999',
+                  marginTop: '4px',
+                  marginLeft: '8px'
+                }}>
+                  {dayjs(record.deliveryUpdateTime).format('YYYY-MM-DD HH:mm:ss')}
+                </div>
+              )}
+            </div>
           );
         },
       }
