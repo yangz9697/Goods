@@ -127,7 +127,7 @@ const SupplyOrderList: React.FC = () => {
   // 表头和数据行的通用样式
   const gridStyle = {
     display: 'grid',
-    gridTemplateColumns: '100px 70px 1fr 50px',  // 减小订单号和状态列宽，让备注列占据更多空间
+    gridTemplateColumns: '1fr 70px 50px 70px',  // 减小订单号和状态列宽，让备注列占据更多空间
     gap: '8px',
     padding: '8px 4px',
     borderBottom: '1px solid #f0f0f0',
@@ -163,186 +163,177 @@ const SupplyOrderList: React.FC = () => {
   // 表头样式
   const headerStyle = {
     ...gridStyle,
-    fontSize: '13px',
-    color: '#666',
-    fontWeight: 500  // 加粗表头
+    fontSize: '14px',
+    color: '#8D93A0',
   };
 
   // 添加卡片头部颜色判断函数
   const getCardHeaderStyle = (customer: CustomerOrder) => {
     if (!customer.orderInfoList || customer.orderInfoList.length === 0) {
-      return { backgroundColor: '#f5f5f5' };  // 没有订单时显示灰色
+      return { backgroundImage: 'linear-gradient(to bottom, #ADADB7 0%, #ffffff 100%)' };  // 没有订单时显示灰色
     }
     
     const hasUrgentOrder = customer.orderInfoList.some(order => order.isUrgent);
     if (hasUrgentOrder) {
-      return { backgroundColor: '#fff1f0' };  // 有加急订单时显示红色背景
+      return { backgroundImage: 'linear-gradient(to bottom, #E54631 0%, #ffffff 100%)' };  // 有加急订单时显示红色背景
     }
     
-    return { backgroundColor: '#ffffff' };  // 有普通订单时显示白色
+    return { backgroundImage: 'linear-gradient(to bottom, #42A96D 0%, #ffffff 100%)' };  // 有普通订单时显示白色
   };
 
   // 修改渲染客户卡片的函数
   const renderCustomerCard = (customer: CustomerOrder) => (
     <div 
       style={{ 
-        border: '1px solid #f0f0f0',
-        borderRadius: '8px',
-        backgroundColor: '#fff',
+        // border: '1px solid #f0f0f0',
+        ...getCardHeaderStyle(customer),
+        borderRadius: '16px',
         cursor: 'pointer',
         transition: 'all 0.3s ease-in-out',
         height: '100%',
         transform: 'translateZ(0)',
-        willChange: 'transform'
+        willChange: 'transform',
       }}
       onClick={() => handleOrderListClick(customer)}
     >
       {/* 卡片头部 */}
       <div style={{ 
-        ...getCardHeaderStyle(customer),
-        padding: '16px 24px',
+        padding: '8px 16px',
         borderTopLeftRadius: '8px',
         borderTopRightRadius: '8px',
-        borderBottom: '1px solid #f0f0f0'
+        color: '#ffffff',
+        // borderBottom: '1px solid #f0f0f0'
       }}>
         <Space direction="vertical" style={{ width: '100%' }}>
           <Space>
-            <span style={{ fontWeight: 'bold' }}>
+            <span style={{ fontSize: '16px' }}>
               {customer.userName || '未命名客户'}
             </span>
-            <span style={{ color: '#666' }}>
+            <span>
               {formatPhone(customer.mobile || '')}
             </span>
           </Space>
-          {customer.orderInfoList.slice(0, 2).map(order => (
-            <div key={order.orderNo} style={{ width: '100%' }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                fontSize: '12px',
-                marginBottom: order.totalObjectCount > 0 ? '4px' : 0
-              }}>
-                {order.totalObjectCount > 0 && (
-                  <>
-                    <span>{order.orderNo}</span>
-                    <span>{order.deliveryCount}/{order.totalObjectCount}</span>
-                  </>
-                )}
-              </div>
-              {order.totalObjectCount > 0 && (
-                <div style={{
-                  width: '100%',
-                  height: '6px',
-                  backgroundColor: '#f0f0f0',
-                  borderRadius: '3px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    width: `${(order.deliveryCount / order.totalObjectCount) * 100}%`,
-                    height: '100%',
-                    backgroundColor: '#1890ff',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-              )}
-            </div>
-          ))}
+          {/* {customer.orderInfoList.slice(0, 2).map(order => (
+            
+          ))} */}
         </Space>
       </div>
 
       {/* 卡片内容 */}
-      <div style={{ padding: '16px 24px' }}>
+      <div style={{ color: '#8D93A0', margin: '0 4px', padding: "8px 16px", background: '#ffffff', borderRadius: '16px'}}>
         {/* 订单列表 */}
         <div style={{ marginBottom: 16 }}>
           {/* 表头 */}
           <div style={headerStyle}>
             <span>订单号</span>
             <span>状态</span>
-            <span>备注</span>
+            <span>进度</span>
             <span>操作</span>
           </div>
           
           {customer.orderInfoList.slice(0, 2).map(order => (
-            <div key={order.orderNo} style={gridStyle}>
-              <span style={orderNoStyle}>
-                {order.isUrgent && (
-                  <Tag color="red" style={urgentTagStyle}>急</Tag>
-                )}
-                <span style={ellipsisStyle}>
-                  {order.orderNo}
+            <div key={order.orderNo}>
+              <div style={gridStyle}>
+                <span style={orderNoStyle}>
+                  {order.isUrgent && (
+                    <Tag color="#FA9C90" style={urgentTagStyle}>急</Tag>
+                  )}
+                  <span style={ellipsisStyle}>
+                    {order.orderNo}
+                  </span>
                 </span>
-              </span>
-              <span style={ellipsisStyle}>{OrderStatusMap[order.orderStatus]}</span>
-              <span style={{
-                ...ellipsisStyle,
-                color: '#666'  // 备注文字颜色调淡
-              }}>{order.remark || '无备注'}</span>
-              <div onClick={e => e.stopPropagation()}>
-                {order.isUrgent ? (
-                  <Button 
-                    type="link" 
-                    size="small"
-                    onClick={async () => {
-                      try {
-                        const response = await orderApi.cancelUrgentOrder(order.orderNo);
-                        if (response.success) {
-                          message.success('取消加急成功');
-                          fetchData(searchText);
-                          // 更新弹窗内的数据
-                          if (expandedCustomer) {
-                            setExpandedCustomer({
-                              ...expandedCustomer,
-                              orderInfoList: expandedCustomer.orderInfoList.map(o => 
-                                o.orderNo === order.orderNo 
-                                  ? { ...o, isUrgent: false } 
-                                  : o
-                              )
-                            });
+                <span style={ellipsisStyle}>{OrderStatusMap[order.orderStatus]}</span>
+                <span style={{
+                  ...ellipsisStyle,
+                  color: '#666'  // 备注文字颜色调淡
+                }}>{order.totalObjectCount > 0 ?  `${order.deliveryCount}/${order.totalObjectCount}`: '-'}</span>
+                <div onClick={e => e.stopPropagation()}>
+                  {order.isUrgent ? (
+                    <Button 
+                      style={{padding: '0', color: '#8D93A0'}}
+                      type="link" 
+                      size="small"
+                      onClick={async () => {
+                        try {
+                          const response = await orderApi.cancelUrgentOrder(order.orderNo);
+                          if (response.success) {
+                            message.success('取消加急成功');
+                            fetchData(searchText);
+                            // 更新弹窗内的数据
+                            if (expandedCustomer) {
+                              setExpandedCustomer({
+                                ...expandedCustomer,
+                                orderInfoList: expandedCustomer.orderInfoList.map(o => 
+                                  o.orderNo === order.orderNo 
+                                    ? { ...o, isUrgent: false } 
+                                    : o
+                                )
+                              });
+                            }
+                          } else {
+                            message.error(response.displayMsg || '取消加急失败');
                           }
-                        } else {
-                          message.error(response.displayMsg || '取消加急失败');
+                        } catch (error) {
+                          message.error('取消加急失败：' + (error as Error).message);
                         }
-                      } catch (error) {
-                        message.error('取消加急失败：' + (error as Error).message);
-                      }
-                    }}
-                  >
-                    取消加急
-                  </Button>
-                ) : (
-                  <Button 
-                    type="link" 
-                    size="small"
-                    onClick={async () => {
-                      try {
-                        const response = await orderApi.updateOrderUrgent({
-                          orderNo: order.orderNo,
-                          isUrgent: true
-                        });
-                        if (response.success) {
-                          message.success('设置加急成功');
-                          fetchData(searchText);
-                          // 更新弹窗内的数据
-                          if (expandedCustomer) {
-                            setExpandedCustomer({
-                              ...expandedCustomer,
-                              orderInfoList: expandedCustomer.orderInfoList.map(o => 
-                                o.orderNo === order.orderNo 
-                                  ? { ...o, isUrgent: true } 
-                                  : o
-                              )
-                            });
+                      }}
+                    >
+                      取消加急
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="link" 
+                      size="small"
+                      style={{padding: '0', color: '#E64C38'}}
+                      onClick={async () => {
+                        try {
+                          const response = await orderApi.updateOrderUrgent({
+                            orderNo: order.orderNo,
+                            isUrgent: true
+                          });
+                          if (response.success) {
+                            message.success('设置加急成功');
+                            fetchData(searchText);
+                            // 更新弹窗内的数据
+                            if (expandedCustomer) {
+                              setExpandedCustomer({
+                                ...expandedCustomer,
+                                orderInfoList: expandedCustomer.orderInfoList.map(o => 
+                                  o.orderNo === order.orderNo 
+                                    ? { ...o, isUrgent: true } 
+                                    : o
+                                )
+                              });
+                            }
+                          } else {
+                            message.error(response.displayMsg || '设置加急失败');
                           }
-                        } else {
-                          message.error(response.displayMsg || '设置加急失败');
+                        } catch (error) {
+                          message.error('设置加急失败：' + (error as Error).message);
                         }
-                      } catch (error) {
-                        message.error('设置加急失败：' + (error as Error).message);
-                      }
-                    }}
-                  >
-                    加急
-                  </Button>
+                      }}
+                    >
+                      加急
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div style={{ width: '100%' }}>
+                {order.totalObjectCount > 0 && (
+                  <div style={{
+                    width: '100%',
+                    height: '6px',
+                    backgroundColor: '#EEEEEE',
+                    borderRadius: '3px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(order.deliveryCount / order.totalObjectCount) * 100}%`,
+                      height: '100%',
+                      backgroundColor: order.isUrgent ? '#FA9C90' : '#7EE7AA',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
                 )}
               </div>
             </div>
@@ -364,6 +355,9 @@ const SupplyOrderList: React.FC = () => {
         {/* 底部按钮 */}
         <Button 
           type="dashed" 
+          style={{
+            color: '#434B57'
+          }}
           block
           onClick={(e) => {
             e.stopPropagation();
@@ -378,6 +372,14 @@ const SupplyOrderList: React.FC = () => {
         >
           新建供货单
         </Button>
+        {/* Display remarks for the first two orders */}
+        {customer.orderInfoList.slice(0, 2).map(order => (
+          order.remark && (
+            <div key={order.orderNo} style={{ marginTop: '4px', fontSize: '12px', color: '#8D93A0' }}>
+              备注({order.orderNo}):{order.remark}
+            </div>
+          )
+        ))}
       </div>
     </div>
   );

@@ -200,15 +200,19 @@ const AppLayout: React.FC = () => {
   return (
     <AntLayout style={{ height: '100vh' }}>
       {role !== 'employee' && (
-        <Sider trigger={null} collapsible collapsed={collapsed}>
-          <div className="logo" />
+        <Sider trigger={null} collapsible collapsed={collapsed} style={{ background: '#fff', filter: 'drop-shadow(0px 0px 12px rgba(68, 62, 132, 0.12))' }}>
+          <div style={{ height: '65px', display: 'flex', alignItems: 'center', paddingLeft: '24px', borderBottom: '1px solid #F4F6FA' }}>
+            <img src="/assets/logo.png" alt="logo" style={{ width: '22px', height: '19px', marginRight: '12px' }} />
+            <div style={{ color: '#35324D', fontWeight: 'bold', fontSize: '20px' }}>仓库管理系统</div>
+          </div>
           <Menu
-            theme="dark"
+            theme="light"
             mode="inline"
             selectedKeys={[location.pathname]}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
           />
+          <img src="/assets/comi.png" alt="decoration" style={{ width: '100%', height: 'auto', position: 'absolute', bottom: '20px' }} />
         </Sider>
       )}
       <AntLayout>
@@ -252,7 +256,6 @@ const AppLayout: React.FC = () => {
             margin: '24px 16px',
             padding: 24,
             minHeight: 280,
-            background: '#fff',
             overflow: 'auto'
           }}
         >
