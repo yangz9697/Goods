@@ -59,7 +59,6 @@ const ProductConsumption: React.FC = () => {
       const response = await dashboardApi.getProductDetail({
         startTime: dateRange[0].startOf('day').valueOf(),
         endTime: dateRange[1].endOf('day').valueOf(),
-        unitName: '箱',
         tenant: localStorage.getItem('tenant') || undefined
       });
 
@@ -81,7 +80,7 @@ const ProductConsumption: React.FC = () => {
 
   // 图表配置
   const getChartConfig = (data: any[], xField: string, yField: string) => ({
-    data: data.map(item => ({
+    data: data?.map(item => ({
       日期: item.orderDate,
       [yField]: item[xField]
     })),
@@ -131,16 +130,32 @@ const ProductConsumption: React.FC = () => {
       key: 'objectDetailName',
     },
     {
-      title: '单位',
-      dataIndex: 'unitName',
-      key: 'unitName',
-      width: 100,
+      title: '消耗量（个）',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      width: 120,
+      render: (amount: string) => `${amount}`,
     },
     {
-      title: '消耗量',
-      dataIndex: 'totalCount',
-      key: 'totalCount',
+      title: '消耗量（斤）',
+      dataIndex: 'totalJin',
+      key: 'totalJin',
       width: 120,
+      render: (amount: string) => `${amount}`,
+    },
+    {
+      title: '消耗量（箱）',
+      dataIndex: 'totalBox',
+      key: 'totalBox',
+      width: 120,
+      render: (amount: string) => `${amount}`,
+    },
+    {
+      title: '消耗量（盒）',
+      dataIndex: 'totalHe',
+      key: 'totalHe',
+      width: 120,
+      render: (amount: string) => `${amount}`,
     },
     {
       title: '销售金额',
@@ -150,7 +165,7 @@ const ProductConsumption: React.FC = () => {
       render: (amount: string) => `¥${amount}`,
     },
     {
-      title: '详情',
+      title: '消耗量',
       key: 'action',
       width: 100,
       render: (_: any, record: ProductDetail) => (
@@ -165,6 +180,28 @@ const ProductConsumption: React.FC = () => {
             查看趋势
           </Button>
         </Popover>
+      ),
+      onCell: () => ({ style: { padding: 0 } })
+    },
+    {
+      title: '历史价格',
+      key: 'action',
+      width: 100,
+      render: (_: any, record: ProductDetail) => (
+        // <Popover
+        //   content={renderCharts(record)}
+        //   title={`${record.objectDetailName}的详细数据`}
+        //   trigger="click"
+        //   placement="right"
+        //   overlayStyle={{ maxWidth: 'none' }}  // 允许 Popover 内容超出默认宽度
+        // >
+        //   <Button type="link">
+        //     查看趋势
+        //   </Button>
+        // </Popover>
+        <Button type="link">
+        查看趋势
+      </Button>
       ),
       onCell: () => ({ style: { padding: 0 } })
     },

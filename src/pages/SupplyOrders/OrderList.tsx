@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Space, Button, Tag, Input, message, Form, Popconfirm } from 'antd';
+import { Table, Space, Button, Tag, Input, message, Form, Popconfirm, DatePicker } from 'antd';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
@@ -25,11 +25,14 @@ interface PageOrderItem {
 interface ContextType {
   selectedDate: dayjs.Dayjs;
   dateChanged: string | null;
+  handleDateChange: (date: dayjs.Dayjs | null) => void;
+  isToday: boolean;
+  getDisabledDate: (current: dayjs.Dayjs) => boolean;
 }
 
 const OrderList: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedDate, dateChanged } = useOutletContext<ContextType>();
+  const { selectedDate, dateChanged, handleDateChange, isToday, getDisabledDate } = useOutletContext<ContextType>();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<PageOrderItem[]>([]);
@@ -311,54 +314,93 @@ const OrderList: React.FC = () => {
 
   return (
     <div>
-      <Form
-        form={form}
-        initialValues={initialValues}
-        layout="inline"
-        style={{ marginBottom: 16 }}
-      >
-        <Form.Item name="keyword">
-          <Input
-            placeholder="搜索姓名或手机号"
-            style={{ width: 200 }}
-            allowClear
-          />
-        </Form.Item>
+      <div style={{ 
+        background: '#fff',
+        padding: '16px 24px',
+        marginBottom: '16px'
+      }}>
+        <Form
+          form={form}
+          initialValues={initialValues}
+          layout="inline"
+        >
+          <Form.Item>
+            <DatePicker
+              value={selectedDate}
+              onChange={handleDateChange}
+              allowClear={false}
+              style={{
+                fontSize: '14px',
+                padding: '4px 11px',
+                width: 'auto',
+                minWidth: '200px'
+              }}
+              format="YYYY年MM月DD日"
+              popupStyle={{
+                fontSize: '14px'
+              }}
+              className="custom-datepicker"
+              disabledDate={getDisabledDate}
+            />
+            {isToday && (
+              <Tag 
+                color="red" 
+                style={{ 
+                  fontSize: '16px',
+                  padding: '4px 8px',
+                  margin: 0,
+                  marginLeft: '8px',
+                  borderRadius: '4px'
+                }}
+              >
+                今天
+              </Tag>
+            )}
+          </Form.Item>
 
-        <Form.Item>
-          <Space>
-            <Button
-              type="primary"
-              icon={<SearchOutlined />}
-              onClick={handleSearch}
-            >
-              搜索
-            </Button>
-            <Button onClick={handleReset}>重置</Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setIsAddModalVisible(true)}
-            >
-              添加供货单
-            </Button>
-            <Button
-              onClick={debouncedPrint}
-              disabled={selectedRowKeys.length === 0}
-              loading={printLoading}
-            >
-              批量打印
-            </Button>
-            <Button
-              onClick={debouncedExport}
-              disabled={selectedRowKeys.length === 0}
-              loading={exportLoading}
-            >
-              批量导出
-            </Button>
-          </Space>
-        </Form.Item>
-      </Form>
+          <Form.Item name="keyword">
+            <Input
+              placeholder="搜索姓名或手机号"
+              style={{ width: 200 }}
+              allowClear
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                onClick={handleSearch}
+              >
+                搜索
+              </Button>
+              <Button onClick={handleReset}>重置</Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setIsAddModalVisible(true)}
+              >
+                添加供货单
+              </Button>
+              <Button
+                onClick={debouncedPrint}
+                disabled={selectedRowKeys.length === 0}
+                loading={printLoading}
+              >
+                批量打印
+              </Button>
+              <Button
+                onClick={debouncedExport}
+                disabled={selectedRowKeys.length === 0}
+                loading={exportLoading}
+              >
+                批量导出
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </div>
 
       <Table 
         rowSelection={rowSelection}

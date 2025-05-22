@@ -253,10 +253,10 @@ const AppLayout: React.FC = () => {
         </Header>
         <Content
           style={{
-            margin: '24px 16px',
             padding: 24,
             minHeight: 280,
-            overflow: 'auto'
+            overflow: 'auto',
+            // backgroundColor: '#ffffff'
           }}
         >
           <Outlet />

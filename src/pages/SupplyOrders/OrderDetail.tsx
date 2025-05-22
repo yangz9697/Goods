@@ -45,7 +45,6 @@ const OrderDetail: React.FC = () => {
       height: '100%', 
       display: 'flex', 
       flexDirection: 'column',
-      background: '#fff'
     }}>
       <div style={{ marginBottom: '16px' }}>
         <OrderHeader

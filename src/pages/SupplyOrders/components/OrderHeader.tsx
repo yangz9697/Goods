@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Form, Row, Col, DatePicker, Input, Select, Space, Button, Popconfirm, message } from 'antd';
+import { Form, Row, Col, Select, Space, Button, Popconfirm, message } from 'antd';
 import { formatPhone } from '@/utils/format';
 import dayjs from 'dayjs';
 import { Order, OrderStatus, OrderStatusCode } from '@/types/order';
@@ -45,7 +45,6 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   const [weight, setWeight] = useState<string>('0');
   const [port, setPort] = useState<SerialPort | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
   const isConnectingRef = useRef<boolean>(false);
 
@@ -85,7 +84,6 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
 
     try {
       isConnectingRef.current = true;
-      setConnectionError(null);
 
       // 先检查是否已经有打开的串口
       const ports = await navigator.serial.getPorts();
@@ -97,7 +95,6 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
           serialPort = await navigator.serial.requestPort();
         } catch (error) {
           console.error('用户取消选择串口:', error);
-          setConnectionError('请选择正确的串口设备');
           return;
         }
       }
@@ -141,14 +138,14 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
       console.error('初始化串口失败:', error);
       if (error instanceof DOMException) {
         if (error.name === 'NetworkError') {
-          setConnectionError('串口连接失败，请检查设备连接或重新选择串口');
+          message.error('串口连接失败，请检查设备连接或重新选择串口');
         } else if (error.name === 'SecurityError') {
-          setConnectionError('没有串口访问权限，请检查浏览器设置');
+          message.error('没有串口访问权限，请检查浏览器设置');
         } else {
-          setConnectionError(`连接失败: ${error.message}`);
+          message.error(`连接失败: ${error.message}`);
         }
       } else {
-        setConnectionError('连接电子秤失败，请检查设备连接');
+        message.error('连接电子秤失败，请检查设备连接');
       }
       setIsConnected(false);
       await cleanup();
@@ -160,7 +157,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   const startReading = async (serialPort: SerialPort) => {
     if (!serialPort.readable) {
       console.error('串口不可读');
-      setConnectionError('串口不可读，请重新连接');
+      message.error('串口不可读，请重新连接');
       setIsConnected(false);
       return;
     }
@@ -175,7 +172,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
         const { value, done } = await readerRef.current.read();
         if (done) {
           console.log('串口已断开');
-          setConnectionError('串口连接已断开，请重新连接');
+          message.error('串口连接已断开，请重新连接');
           setIsConnected(false);
           break;
         }
@@ -227,7 +224,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
       if (error instanceof DOMException && 
           (error.message.includes('The port is closed') || 
            error.message.includes('The port is not open'))) {
-        setConnectionError('串口连接已断开，请重新连接');
+        message.error('串口连接已断开，请重新连接');
         setIsConnected(false);
       }
     } finally {
@@ -252,20 +249,14 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   // 手动重连函数
   const handleReconnect = useCallback(async () => {
     try {
-      // 先清理现有连接
       await cleanup();
-      
-      // 等待一小段时间确保资源完全释放
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // 清除所有已授权的串口权限
       try {
         const ports = await navigator.serial.getPorts();
-        console.log('找到已授权的串口数量:', ports.length);
         for (const port of ports) {
           try {
             await port.forget();
-            console.log('成功清除串口权限');
           } catch (error) {
             console.error('清除串口权限失败:', error);
           }
@@ -274,11 +265,10 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
         console.error('获取已授权串口失败:', error);
       }
       
-      // 重新初始化串口
       await initSerialPort();
     } catch (error) {
       console.error('重新连接失败:', error);
-      setConnectionError('重新连接失败，请检查设备连接');
+      message.error('重新连接失败，请检查设备连接');
     }
   }, [cleanup, initSerialPort]);
 
@@ -368,98 +358,201 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   };
 
   return (
-    <Row gutter={8} style={{ height: '100%' }}>
-      {/* 电子秤 */}
-      <Col span={4} style={{ height: '100%' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* 第一块：客户信息和操作按钮 */}
+      <div style={{ 
+        background: '#fff',
+        borderRadius: '4px',
+        padding: '16px'
+      }}>
+        <Form layout="inline" style={{ width: '100%' }}>
+          <Row style={{ width: '100%', alignItems: 'center' }}>
+            {/* 左侧 Logo */}
+            <Col>
+              <img 
+                src="/assets/avatar.png" 
+                alt="logo" 
+                style={{ 
+                  width: 48, 
+                  height: 48,
+                  marginRight: 16
+                }} 
+              />
+            </Col>
+
+            {/* 中间客户信息和日期信息 */}
+            <Col flex="auto">
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                {/* 客户信息行 */}
+                <div>
+                  <span style={{ 
+                    fontSize: '14px',
+                    color: '#666',
+                    marginRight: '8px'
+                  }}>
+                    客户信息：
+                  </span>
+                  <span style={{ 
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    color: '#1890ff'
+                  }}>
+                    {order.customerName + formatPhone(order.customerPhone)}
+                  </span>
+                </div>
+                {/* 日期信息行 */}
+                <div>
+                  <Space size={16}>
+                    <div>
+                      <span style={{ 
+                        fontSize: '14px',
+                        color: '#666',
+                        marginRight: '8px'
+                      }}>
+                        供货日期：
+                      </span>
+                      <span style={{ 
+                        fontSize: '14px',
+                        color: '#333'
+                      }}>
+                        {order.date}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ 
+                        fontSize: '14px',
+                        color: '#666',
+                        marginRight: '8px'
+                      }}>
+                        下单日期：
+                      </span>
+                      <span style={{ 
+                        fontSize: '14px',
+                        color: '#333'
+                      }}>
+                        {order.createTime ? dayjs(order.createTime).format('YYYY-MM-DD') : ''}
+                      </span>
+                    </div>
+                  </Space>
+                </div>
+              </Space>
+            </Col>
+
+            {/* 右侧操作按钮 */}
+            <Col>
+              <Space>
+                <Button 
+                  type="primary" 
+                  icon={<PrinterOutlined />}
+                  onClick={handlePrint}
+                >
+                  打印
+                </Button>
+                <Button onClick={handleExport}>导出</Button>
+                <Popconfirm
+                  title="确定要删除这个供货单吗？"
+                  onConfirm={handleDeleteOrder}
+                  okText="确定"
+                  cancelText="取消"
+                >
+                  <Button danger>删除</Button>
+                </Popconfirm>
+              </Space>
+            </Col>
+          </Row>
+        </Form>
+      </div>
+
+      {/* 第二块：电子秤、配货进度和结算信息 */}
+      <div style={{ display: 'flex', gap: '24px' }}>
+        {/* 1. 电子秤部分 */}
         <div style={{ 
-          height: '100%',
-          background: '#fff',
-          borderRadius: '4px',
+          flex: 1,
+          background: '#2759CD',
+          borderRadius: '6px',
+          padding: '16px 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          border: '1px solid #ffffff'
         }}>
           <div style={{ textAlign: 'center', width: '100%' }}>
+            {isConnected ? (
             <div style={{ 
-              fontSize: '18px', 
+                padding: '16px',
+                background: '#fff',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'center',
+                gap: '4px'
+              }}>
+                <span style={{ 
+                  fontSize: '40px',
+                  fontWeight: 'bold',
+                  color: '#1890ff'
+                }}>
+                  计重
+                </span>
+                <span style={{ 
+                  fontSize: '13px',
+                  color: '#1890ff'
+                }}>
+                  (斤)
+                </span>
+                <span style={{ 
+                  fontSize: '36px',
               fontWeight: 'bold',
-              color: isConnected ? '#1890ff' : isConnectingRef.current ? '#faad14' : '#ff4d4f',
-              padding: '16px',
-              background: '#f0f5ff',
-              borderRadius: '4px'
+                  color: '#1890ff'
             }}>
-              {isConnected ? `${weight} 斤` : isConnectingRef.current ? '连接中...' : '未连接'}
+                  {weight}
+                </span>
             </div>
-            {connectionError && !isConnectingRef.current && (
-              <Button type="primary" onClick={handleReconnect} style={{ marginTop: 8 }}>
-                重新连接
+            ) : (
+              <Button type="primary" onClick={handleReconnect}>
+                连接电子秤
               </Button>
             )}
           </div>
         </div>
-      </Col>
 
-      {/* 筛选项和操作按钮 */}
-      <Col span={20} style={{ height: '100%' }}>
+        {/* 2. 配货进度部分 */}
         <div style={{ 
-          height: '100%',
-          background: '#fff',
-          borderRadius: '4px',
+          flex: 1,
+          // background: '#f6ffed',
+          backgroundImage: 'linear-gradient(to bottom, #F3FAFF 0%, #ffffff 100%)',
+          borderRadius: '6px',
+          padding: '16px 20px',
+          display: 'flex',
+          flexDirection: 'column',  // 改为纵向排列
+          gap: '12px',  // 添加间距
+          border: '1px solid #ffffff'
         }}>
-          <Form layout="inline">
-            {/* 第一行 */}
-            <Row style={{ width: '100%', marginBottom: 8 }}>
-              <Col flex="auto">
-                <Form.Item label="客户信息" style={{ marginBottom: 0, marginRight: 4 }}>
-                  <Space>
-                    <Input 
-                      value={order.customerName+formatPhone(order.customerPhone)}
-                      disabled
-                      style={{ 
-                        width: 200,
+          {/* 标题行 */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span style={{ 
                         fontSize: '14px',
                         fontWeight: 500,
-                        color: '#1890ff'
-                      }}
-                    />
-                  </Space>
-                </Form.Item>
-              </Col>
-              <Col>
-                <Space>
-                  <Form.Item 
-                    label="供货日期" 
-                    name="date" 
-                    style={{ marginBottom: 0, marginRight: 4 }}
-                    initialValue={dayjs(order.date)}
-                  >
-                    <DatePicker 
-                      style={{ width: 130 }}
-                      format="YYYY-MM-DD"
-                      disabled={true}
-                    />
-                  </Form.Item>
-                  <Form.Item label="下单时间" style={{ marginBottom: 0, marginRight: 4 }}>
-                    <Input 
-                      disabled 
-                      value={order.createTime ? dayjs(order.createTime).format('YYYY-MM-DD HH:mm:ss') : ''} 
-                      style={{ width: 160 }} 
-                    />
-                  </Form.Item>
-                </Space>
-              </Col>
-            </Row>
+              color: '#333333'
+            }}>
+              配货状态
+            </span>
+            <span style={{ 
+              fontSize: '12px',
+              fontWeight: 500,
+              color: '#777777'
+            }}>
+              配货进度：<span style={{ color: '#409EFF' }}>{order.deliveryCount}/{order.totalObjectCount}</span>
+            </span>
+          </div>
 
-            {/* 第二行 */}
-            <Row style={{ width: '100%' }}>
-              <Col flex="auto">
-                <Form.Item
-                  label="配货状态"
-                  style={{ marginBottom: 0, marginRight: 4 }}
-                >
-                  <Space>
+          {/* 选择框 */}
                     <Select
-                      style={{ width: 100 }}
+            style={{ width: '100%' }}  // 宽度设为100%
                       value={order.status}
                       onChange={onStatusChange}
                     >
@@ -472,67 +565,54 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                         </Select.Option>
                       ))}
                     </Select>
+        </div>
+
+        {/* 3. 结算信息部分 */}
+        {isAdmin && (
+          <div style={{ 
+            flex: 1,
+            backgroundImage: 'linear-gradient(to bottom, #FFF4F4 0%, #ffffff 100%)',
+            borderRadius: '6px',
+            padding: '16px 20px',
+            display: 'flex',
+            flexDirection: 'column',  // 改为纵向排列
+            gap: '12px',  // 添加间距
+            border: '1px solid #ffffff'
+          }}>
+            {/* 标题行 */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
                     <span style={{ 
-                      fontSize: '14px', 
                       fontWeight: 500,
-                      color: '#1890ff',
-                      marginLeft: '8px'
+                color: '#333333'
                     }}>
-                      配货进度：{order.deliveryCount}/{order.totalObjectCount}
+                结算
                     </span>
-                  </Space>
-                </Form.Item>
-              </Col>
-              <Col>
-                <Space>
-                  {isAdmin && (
-                    <>
-                      <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
-                        <span style={{ fontSize: 16, fontWeight: 500 }}>
-                          总计：￥{order.totalPrice}
+              <span style={{
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#777777'
+              }}>
+                总计：<span style={{ color: '#FF7A7A' }}>￥{order.totalPrice}</span>
                         </span>
-                      </Form.Item>
-                      <Form.Item style={{ marginBottom: 0, marginRight: 4 }} label="结算状态">
+            </div>
+
+            {/* 选择框 */}
                         <Select
+              style={{ width: '100%' }}  // 宽度设为100%
                           value={order.payStatus}
                           onChange={onPayStatusChange}
-                          style={{ width: 100 }}
                           options={[
                             { label: '未结算', value: 'waitPay' },
                             { label: '已结算', value: 'paySuccess' }
                           ]}
                         />
-                      </Form.Item>
-                    </>
+          </div>
                   )}
-                  <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
-                    <Button 
-                      type="primary" 
-                      icon={<PrinterOutlined />}
-                      onClick={handlePrint}
-                    >
-                      打印
-                    </Button>
-                  </Form.Item>
-                  <Form.Item style={{ marginBottom: 0, marginRight: 4 }}>
-                    <Button onClick={handleExport}>导出</Button>
-                  </Form.Item>
-                  <Form.Item style={{ marginBottom: 0 }}>
-                    <Popconfirm
-                      title="确定要删除这个供货单吗？"
-                      onConfirm={handleDeleteOrder}
-                      okText="确定"
-                      cancelText="取消"
-                    >
-                      <Button danger>删除</Button>
-                    </Popconfirm>
-                  </Form.Item>
-                </Space>
-              </Col>
-            </Row>
-          </Form>
+      </div>
         </div>
-      </Col>
-    </Row>
   );
 };

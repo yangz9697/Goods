@@ -95,7 +95,6 @@ export const dashboardApi = {
   getProductDetail: async (params: {
     startTime: number;
     endTime: number;
-    unitName: string;
     tenant?: string;
   }): Promise<GetProductDetailResponse> => {
     try {

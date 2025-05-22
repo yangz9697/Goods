@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tabs, Tag, DatePicker, ConfigProvider } from 'antd';
+import { Tabs, ConfigProvider } from 'antd';
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -12,6 +12,14 @@ dayjs.locale('zh-cn');
 
 // 本地存储的 key
 const SUPPLY_ORDER_DATE_KEY = 'supply_order_date';
+
+// interface ContextType {
+//   selectedDate: dayjs.Dayjs;
+//   dateChanged: string | null;
+//   handleDateChange: (date: dayjs.Dayjs | null) => void;
+//   isToday: boolean;
+//   getDisabledDate: (current: dayjs.Dayjs) => boolean;
+// }
 
 const SupplyOrders: React.FC = () => {
   const location = useLocation();
@@ -74,71 +82,40 @@ const SupplyOrders: React.FC = () => {
     <div style={{ 
       height: '100%',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      background: '#f5f5f5'  // 添加整体背景色
     }}>
-      <ConfigProvider locale={zhCN}>
-        {/* 只在非详情页显示日期选择器 */}
-        {!isDetailPage && (
-          <div style={{ 
-            marginBottom: 24,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <DatePicker
-              value={selectedDate}
-              onChange={handleDateChange}
-              allowClear={false}
-              style={{
-                fontSize: '18px',
-                padding: '8px 16px',
-                width: 'auto',
-                minWidth: '200px'
-              }}
-              size="large"
-              format="YYYY年MM月DD日"
-              popupStyle={{
-                fontSize: '14px'
-              }}
-              className="custom-datepicker"
-              disabledDate={getDisabledDate}
-            />
-            {isToday && (
-              <Tag 
-                color="red" 
-                style={{ 
-                  fontSize: '16px',
-                  padding: '4px 8px',
-                  margin: 0,
-                  borderRadius: '4px'
-                }}
-              >
-                今天
-              </Tag>
-            )}
-          </div>
-        )}
-      </ConfigProvider>
-
-      {/* 只在非详情页显示 Tabs */}
       {!isDetailPage && (
-        <Tabs
-          activeKey={getActiveKey()}
-          onChange={handleTabChange}
-          items={[
-            {
-              key: 'customers',
-              label: '按客户查看',
-            },
-            {
-              key: 'list',
-              label: '供货单列表',
-            }
-          ]}
-        />
+        <ConfigProvider locale={zhCN}>
+          <div style={{ 
+            background: '#fff',
+            padding: '16px 24px 0',
+          }}>
+            <Tabs
+              activeKey={getActiveKey()}
+              onChange={handleTabChange}
+              items={[
+                {
+                  key: 'customers',
+                  label: '按客户查看',
+                },
+                {
+                  key: 'list',
+                  label: '供货单列表',
+                }
+              ]}
+            />
+          </div>
+        </ConfigProvider>
       )}
 
-      <Outlet context={{ selectedDate, dateChanged: searchParams.get('timestamp') }} />
+      <Outlet context={{ 
+        selectedDate, 
+        dateChanged: searchParams.get('timestamp'),
+        handleDateChange,
+        isToday,
+        getDisabledDate
+      }} />
     </div>
   );
 };

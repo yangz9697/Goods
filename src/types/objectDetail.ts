@@ -1,7 +1,10 @@
 export interface ObjectDetailRequest {
   amountForBox: number;
   jinForBox: number;
+  box?: number;
+  jin?: number;
   he?: number;
+  amount?: number;
   objectDetailName: string;
   tenant?: string;
 }

@@ -72,7 +72,8 @@ export const useOrderDetail = (orderNo: string | undefined) => {
           orderStatusName: orderRes.data.orderStatusName,
           createTime: item.createTime,
           updateTime: item.updateTime,
-          jinPerBox: item.jinPerBox || 0
+          jinPerBox: item.jinPerBox || 0,
+          deliverUpdateTime: item.deliverUpdateTime
         })),
         payStatusName: orderRes.data.payStatusName,
         totalPrice: orderRes.data.orderTotalPrice || 0
@@ -137,10 +138,10 @@ export const useOrderDetail = (orderNo: string | undefined) => {
   const handleEdit = async (values: {
     id: string;
     objectDetailId: number;
-    count: number | undefined;
-    price: number;
+    count?: number | undefined;
+    price?: number;
     totalPrice?: number;
-    remark: string;
+    remark?: string;
     deliveryName?: string;
     unitName?: string;
     remarkCount?: string;
@@ -152,7 +153,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
         ...values,
         orderNo: orderNo!,
         objectDetailName: currentItem?.name || '',
-        unitName: values.unitName || currentItem?.unit || '斤'
+        // unitName: values.unitName || currentItem?.unit || '斤'
       });
 
       if (response.success) {

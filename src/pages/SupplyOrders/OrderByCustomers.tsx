@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Row, Col, Space, Input, Button, message, Tag, Modal, Form } from 'antd';
+import { Row, Col, Space, Input, Button, message, Tag, Modal, Form, DatePicker } from 'antd';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
@@ -12,6 +12,9 @@ import { OrderInfo } from '@/api/orders';
 interface ContextType {
   selectedDate: dayjs.Dayjs;
   dateChanged: string | null;
+  handleDateChange: (date: dayjs.Dayjs | null) => void;
+  isToday: boolean;
+  getDisabledDate: (current: dayjs.Dayjs) => boolean;
 }
 
 interface CustomerOrder {
@@ -23,7 +26,7 @@ interface CustomerOrder {
 
 const SupplyOrderList: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedDate, dateChanged } = useOutletContext<ContextType>();
+  const { selectedDate, dateChanged, handleDateChange, isToday, getDisabledDate } = useOutletContext<ContextType>();
   const [form] = Form.useForm();
   const [customerOrders, setCustomerOrders] = useState<Array<{
     userId: number;
@@ -41,7 +44,6 @@ const SupplyOrderList: React.FC = () => {
   } | null>(null);
   const [expandedCustomer, setExpandedCustomer] = useState<CustomerOrder | null>(null);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // 添加一个标记首次加载的 ref
@@ -84,22 +86,20 @@ const SupplyOrderList: React.FC = () => {
     fetchData(searchText);
   }, [selectedDate, dateChanged]);
 
-  // 添加自动刷新效果
+  // 修改 useEffect，移除 autoRefresh 条件
   useEffect(() => {
     let timer: NodeJS.Timeout;
     
-    if (autoRefresh) {
-      timer = setInterval(() => {
-        fetchData(searchText);
-      }, 1000);
-    }
+    timer = setInterval(() => {
+      fetchData(searchText);
+    }, 1000);
 
     return () => {
       if (timer) {
         clearInterval(timer);
       }
     };
-  }, [autoRefresh, fetchData, searchText]);
+  }, [fetchData, searchText]);
 
   const handleSearch = () => {
     fetchData(searchText);
@@ -169,8 +169,14 @@ const SupplyOrderList: React.FC = () => {
 
   // 添加卡片头部颜色判断函数
   const getCardHeaderStyle = (customer: CustomerOrder) => {
+    // DFDFDF
     if (!customer.orderInfoList || customer.orderInfoList.length === 0) {
-      return { backgroundImage: 'linear-gradient(to bottom, #ADADB7 0%, #ffffff 100%)' };  // 没有订单时显示灰色
+      return { backgroundImage: 'linear-gradient(to bottom, #DFDFDF 0%, #ffffff 100%)' };  // 没有订单时显示灰色
+    }
+
+    //所有订单已完成
+    if (customer.orderInfoList.every(order => order.orderStatusName === '已完成')) {
+      return { backgroundImage: 'linear-gradient(to bottom, #ADADB7 0%, #ffffff 100%)' };  // 所有订单已完成时显示绿色背景
     }
     
     const hasUrgentOrder = customer.orderInfoList.some(order => order.isUrgent);
@@ -185,7 +191,6 @@ const SupplyOrderList: React.FC = () => {
   const renderCustomerCard = (customer: CustomerOrder) => (
     <div 
       style={{ 
-        // border: '1px solid #f0f0f0',
         ...getCardHeaderStyle(customer),
         borderRadius: '16px',
         cursor: 'pointer',
@@ -193,6 +198,7 @@ const SupplyOrderList: React.FC = () => {
         height: '100%',
         transform: 'translateZ(0)',
         willChange: 'transform',
+        position: 'relative'  // 添加相对定位
       }}
       onClick={() => handleOrderListClick(customer)}
     >
@@ -220,215 +226,292 @@ const SupplyOrderList: React.FC = () => {
       </div>
 
       {/* 卡片内容 */}
-      <div style={{ color: '#8D93A0', margin: '0 4px', padding: "8px 16px", background: '#ffffff', borderRadius: '16px'}}>
+      <div style={{ 
+        color: '#8D93A0', 
+        margin: '0 4px', 
+        padding: "8px 16px", 
+        background: '#ffffff', 
+        borderRadius: '16px',
+        height: 'calc(100% - 48px)',  // 减去头部高度
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
         {/* 订单列表 */}
-        <div style={{ marginBottom: 16 }}>
-          {/* 表头 */}
-          <div style={headerStyle}>
-            <span>订单号</span>
-            <span>状态</span>
-            <span>进度</span>
-            <span>操作</span>
-          </div>
-          
-          {customer.orderInfoList.slice(0, 2).map(order => (
-            <div key={order.orderNo}>
-              <div style={gridStyle}>
-                <span style={orderNoStyle}>
-                  {order.isUrgent && (
-                    <Tag color="#FA9C90" style={urgentTagStyle}>急</Tag>
-                  )}
-                  <span style={ellipsisStyle}>
-                    {order.orderNo}
-                  </span>
-                </span>
-                <span style={ellipsisStyle}>{OrderStatusMap[order.orderStatus]}</span>
-                <span style={{
-                  ...ellipsisStyle,
-                  color: '#666'  // 备注文字颜色调淡
-                }}>{order.totalObjectCount > 0 ?  `${order.deliveryCount}/${order.totalObjectCount}`: '-'}</span>
-                <div onClick={e => e.stopPropagation()}>
-                  {order.isUrgent ? (
-                    <Button 
-                      style={{padding: '0', color: '#8D93A0'}}
-                      type="link" 
-                      size="small"
-                      onClick={async () => {
-                        try {
-                          const response = await orderApi.cancelUrgentOrder(order.orderNo);
-                          if (response.success) {
-                            message.success('取消加急成功');
-                            fetchData(searchText);
-                            // 更新弹窗内的数据
-                            if (expandedCustomer) {
-                              setExpandedCustomer({
-                                ...expandedCustomer,
-                                orderInfoList: expandedCustomer.orderInfoList.map(o => 
-                                  o.orderNo === order.orderNo 
-                                    ? { ...o, isUrgent: false } 
-                                    : o
-                                )
-                              });
-                            }
-                          } else {
-                            message.error(response.displayMsg || '取消加急失败');
-                          }
-                        } catch (error) {
-                          message.error('取消加急失败：' + (error as Error).message);
-                        }
-                      }}
-                    >
-                      取消加急
-                    </Button>
-                  ) : (
-                    <Button 
-                      type="link" 
-                      size="small"
-                      style={{padding: '0', color: '#E64C38'}}
-                      onClick={async () => {
-                        try {
-                          const response = await orderApi.updateOrderUrgent({
-                            orderNo: order.orderNo,
-                            isUrgent: true
-                          });
-                          if (response.success) {
-                            message.success('设置加急成功');
-                            fetchData(searchText);
-                            // 更新弹窗内的数据
-                            if (expandedCustomer) {
-                              setExpandedCustomer({
-                                ...expandedCustomer,
-                                orderInfoList: expandedCustomer.orderInfoList.map(o => 
-                                  o.orderNo === order.orderNo 
-                                    ? { ...o, isUrgent: true } 
-                                    : o
-                                )
-                              });
-                            }
-                          } else {
-                            message.error(response.displayMsg || '设置加急失败');
-                          }
-                        } catch (error) {
-                          message.error('设置加急失败：' + (error as Error).message);
-                        }
-                      }}
-                    >
-                      加急
-                    </Button>
-                  )}
-                </div>
+        <div style={{ 
+          marginBottom: 16,
+          flex: 1,  // 让列表区域占满剩余空间
+          overflow: 'auto'  // 内容过多时可滚动
+        }}>
+          {customer.orderInfoList.length > 0 ? (
+            <>
+              <div style={headerStyle}>
+                <span>订单号</span>
+                <span>状态</span>
+                <span>进度</span>
+                <span>操作</span>
               </div>
-              <div style={{ width: '100%' }}>
-                {order.totalObjectCount > 0 && (
-                  <div style={{
-                    width: '100%',
-                    height: '6px',
-                    backgroundColor: '#EEEEEE',
-                    borderRadius: '3px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      width: `${(order.deliveryCount / order.totalObjectCount) * 100}%`,
-                      height: '100%',
-                      backgroundColor: order.isUrgent ? '#FA9C90' : '#7EE7AA',
-                      transition: 'width 0.3s ease'
-                    }} />
+              {customer.orderInfoList.slice(0, 2).map(order => (
+                <div key={order.orderNo}>
+                  <div style={gridStyle}>
+                    <span style={orderNoStyle}>
+                      {order.isUrgent && (
+                        <Tag color="#FA9C90" style={urgentTagStyle}>急</Tag>
+                      )}
+                      <span style={ellipsisStyle}>
+                        {order.orderNo}
+                      </span>
+                    </span>
+                    <span style={ellipsisStyle}>{OrderStatusMap[order.orderStatus]}</span>
+                    <span style={{
+                      ...ellipsisStyle,
+                      color: '#666'  // 备注文字颜色调淡
+                    }}>{order.totalObjectCount > 0 ?  `${order.deliveryCount}/${order.totalObjectCount}`: '-'}</span>
+                    <div onClick={e => e.stopPropagation()}>
+                      {order.isUrgent ? (
+                        <Button 
+                          style={{padding: '0', color: '#8D93A0'}}
+                          type="link" 
+                          size="small"
+                          onClick={async () => {
+                            try {
+                              const response = await orderApi.cancelUrgentOrder(order.orderNo);
+                              if (response.success) {
+                                message.success('取消加急成功');
+                                fetchData(searchText);
+                                // 更新弹窗内的数据
+                                if (expandedCustomer) {
+                                  setExpandedCustomer({
+                                    ...expandedCustomer,
+                                    orderInfoList: expandedCustomer.orderInfoList.map(o => 
+                                      o.orderNo === order.orderNo 
+                                        ? { ...o, isUrgent: false } 
+                                        : o
+                                    )
+                                  });
+                                }
+                              } else {
+                                message.error(response.displayMsg || '取消加急失败');
+                              }
+                            } catch (error) {
+                              message.error('取消加急失败：' + (error as Error).message);
+                            }
+                          }}
+                        >
+                          取消加急
+                        </Button>
+                      ) : (
+                        <Button 
+                          type="link" 
+                          size="small"
+                          style={{padding: '0', color: '#E64C38'}}
+                          onClick={async () => {
+                            try {
+                              const response = await orderApi.updateOrderUrgent({
+                                orderNo: order.orderNo,
+                                isUrgent: true
+                              });
+                              if (response.success) {
+                                message.success('设置加急成功');
+                                fetchData(searchText);
+                                // 更新弹窗内的数据
+                                if (expandedCustomer) {
+                                  setExpandedCustomer({
+                                    ...expandedCustomer,
+                                    orderInfoList: expandedCustomer.orderInfoList.map(o => 
+                                      o.orderNo === order.orderNo 
+                                        ? { ...o, isUrgent: true } 
+                                        : o
+                                    )
+                                  });
+                                }
+                              } else {
+                                message.error(response.displayMsg || '设置加急失败');
+                              }
+                            } catch (error) {
+                              message.error('设置加急失败：' + (error as Error).message);
+                            }
+                          }}
+                        >
+                          加急
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
+                  <div style={{ width: '100%' }}>
+                    {order.totalObjectCount > 0 && (
+                      <div style={{
+                        width: '100%',
+                        height: '6px',
+                        backgroundColor: '#EEEEEE',
+                        borderRadius: '3px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${(order.deliveryCount / order.totalObjectCount) * 100}%`,
+                          height: '100%',
+                          backgroundColor: order.isUrgent ? '#FA9C90' : '#7EE7AA',
+                          transition: 'width 0.3s ease'
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
 
-          {customer.orderInfoList.length > 2 && (
+              {customer.orderInfoList.length > 2 && (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '8px 0',
+                  color: '#999',
+                  fontSize: '12px',
+                  borderBottom: '1px solid #f0f0f0'
+                }}>
+                  ···
+                </div>
+              )}
+            </>
+          ) : (
             <div style={{ 
-              textAlign: 'center', 
-              padding: '8px 0',
-              color: '#999',
-              fontSize: '12px',
-              borderBottom: '1px solid #f0f0f0'
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              padding: '24px 0'
             }}>
-              ···
+              <img src="/assets/emptyOrder.png" alt="无供货单" style={{ width: 66, height: 43, marginBottom: 8 }} />
+              <span style={{ color: '#999', fontSize: 14 }}>无供货单</span>
             </div>
           )}
         </div>
 
-        {/* 底部按钮 */}
-        <Button 
-          type="dashed" 
-          style={{
-            color: '#434B57'
-          }}
-          block
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsAddModalVisible(true);
-            setSelectedCustomer({
-              userId: customer.userId,
-              userName: customer.userName,
-              mobile: customer.mobile,
-              label: `${customer.userName || '未命名客户'} (${formatPhone(customer.mobile || '')})`
-            });
-          }}
-        >
-          新建供货单
-        </Button>
-        {/* Display remarks for the first two orders */}
-        {customer.orderInfoList.slice(0, 2).map(order => (
-          order.remark && (
-            <div key={order.orderNo} style={{ marginTop: '4px', fontSize: '12px', color: '#8D93A0' }}>
-              备注({order.orderNo}):{order.remark}
-            </div>
-          )
-        ))}
+        {/* 底部按钮和备注 */}
+        <div style={{ flexShrink: 0 }}>  {/* 防止底部内容被压缩 */}
+          <Button 
+            type="dashed" 
+            style={{
+              color: '#434B57'
+            }}
+            block
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsAddModalVisible(true);
+              setSelectedCustomer({
+                userId: customer.userId,
+                userName: customer.userName,
+                mobile: customer.mobile,
+                label: `${customer.userName || '未命名客户'} (${formatPhone(customer.mobile || '')})`
+              });
+            }}
+          >
+            新建供货单
+          </Button>
+          {/* Display remarks for the first two orders */}
+          {customer.orderInfoList.slice(0, 2).map(order => (
+            order.remark && (
+              <div key={order.orderNo} style={{ marginTop: '4px', fontSize: '12px', color: '#8D93A0' }}>
+                备注({order.orderNo}):{order.remark}
+              </div>
+            )
+          ))}
+        </div>
       </div>
+
+      {/* 添加完成图标 */}
+      {customer.orderInfoList.length > 0 && customer.orderInfoList.every(order => order.orderStatusName === '已完成') && (
+        <div style={{
+          position: 'absolute',
+          right: 16,
+          bottom: 16,
+          zIndex: 1
+        }}>
+          <img 
+            src="/assets/completeOrder.png" 
+            alt="已完成" 
+            style={{ width: 132, height: 132 }} 
+          />
+        </div>
+      )}
     </div>
   );
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Form
-        form={form}
-        layout="inline"
-        style={{ marginBottom: 16 }}
-        preserve={false}
-      >
-        <Form.Item name="keyword">
-          <Input
-            placeholder="搜索姓名或手机号"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onPressEnter={handleSearch}
-            style={{ width: 200 }}
-            allowClear
-          />
-        </Form.Item>
+      <div style={{ 
+        background: '#fff',
+        padding: '0 16px 16px 16px',
+        marginBottom: '16px'
+      }}>
+        <Form
+          form={form}
+          layout="inline"
+          preserve={false}
+        >
+          <Form.Item>
+            <DatePicker
+              value={selectedDate}
+              onChange={handleDateChange}
+              allowClear={false}
+              style={{
+                fontSize: '14px',  // 调整字体大小
+                padding: '4px 11px',  // 调整内边距
+                width: 'auto',
+                minWidth: '200px'
+              }}
+              format="YYYY年MM月DD日"
+              popupStyle={{
+                fontSize: '14px'
+              }}
+              className="custom-datepicker"
+              disabledDate={getDisabledDate}
+            />
+            {isToday && (
+              <Tag 
+                color="red" 
+                style={{ 
+                  fontSize: '16px',
+                  padding: '4px 8px',
+                  margin: 0,
+                  marginLeft: '8px',
+                  borderRadius: '4px'
+                }}
+              >
+                今天
+              </Tag>
+            )}
+          </Form.Item>
 
-        <Form.Item>
-          <Space>
-            <Button
-              type="primary"
-              icon={<SearchOutlined />}
-              onClick={handleSearch}
-            >
-              搜索
-            </Button>
-            <Button onClick={handleReset}>重置</Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setIsAddModalVisible(true)}
-            >
-              添加供货单
-            </Button>
-            <Button
-              type={autoRefresh ? "primary" : "default"}
-              onClick={() => setAutoRefresh(!autoRefresh)}
-            >
-              {autoRefresh ? '停止刷新' : '开始刷新'}
-            </Button>
-          </Space>
-        </Form.Item>
-      </Form>
+          <Form.Item name="keyword">
+            <Input
+              placeholder="搜索姓名或手机号"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onPressEnter={handleSearch}
+              style={{ width: 200 }}
+              allowClear
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                onClick={handleSearch}
+              >
+                搜索
+              </Button>
+              <Button onClick={handleReset}>重置</Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setIsAddModalVisible(true)}
+              >
+                添加供货单
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </div>
 
       {/* 客户列表 */}
       <Row 

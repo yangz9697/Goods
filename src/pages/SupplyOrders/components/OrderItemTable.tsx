@@ -31,8 +31,8 @@ interface TableOrderItem {
   count: number | undefined;         // 实际数量
   isEmptyRow?: boolean;  // 是否是空行
   jinPerBox?: number;    // 斤/箱
-  piecePerBox?: number;  // 个/箱
-  deliveryUpdateTime?: number;
+  amountPerBox?: number;  // 个/箱
+  deliverUpdateTime?: number;
 }
 
 interface OrderItemTableProps {
@@ -44,12 +44,12 @@ interface OrderItemTableProps {
   onEdit: (values: {
     id: string;
     objectDetailId: number;
-    count: number | undefined;
-    price: number;
+    count?: number | undefined;
+    price?: number;
     totalPrice?: number;
-    remark: string;
+    remark?: string;
     deliveryName?: string;
-    unitName: string;
+    unitName?: string;
     remarkCount?: string;
     planCount?: number;
   }) => void;
@@ -222,7 +222,10 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             objectDetailName: value,
             amountForBox: 1,  // 默认每箱1个
             jinForBox: 1,     // 默认每箱1斤
-            he: 1             // 默认每箱1盒
+            he: 1,             // 默认每箱1盒
+            box: 1, 
+            jin: 1,
+            amount: 1
           });
 
           if (createRes.success) {
@@ -243,7 +246,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   };
 
   // 处理报单数量的输入
-  const handleRemarkCountChange = (record: TableOrderItem, value: string) => {
+  const handleRemarkCountChange = async (record: TableOrderItem, value: string) => {
     // 如果值没有变化，直接返回
     if (value === record.remarkCount) {
       return;
@@ -279,16 +282,77 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       .map(num => Number(num) || 0)
       .reduce((sum, num) => sum + num, 0);
 
-    onEdit({
-      id: record.id,
-      objectDetailId: record.objectDetailId,
-      remarkCount: newValue,
-      planCount,
-      count: planCount,
-      price: record.price,
-      remark: record.remark,
-      unitName: record.unit
-    });
+    try {
+      const checkRes = await orderObjectApi.checkObjectDetailInventory({
+        count: planCount,
+        id: record.objectDetailId,
+        unitName: record.unit
+      });
+
+      if (checkRes.success) {
+        if (checkRes.data < 0) {
+          // 库存为负，弹窗提示
+          Modal.confirm({
+            title: '库存警告',
+            content: `${record.name} 库存将变为负数 (${checkRes.data})，是否继续填写？`,
+            onOk: () => {
+              // 用户确认，调用 onEdit
+              onEdit({
+                id: record.id,
+                objectDetailId: record.objectDetailId,
+                remarkCount: newValue,
+                planCount,
+                count: planCount,
+                // price: record.price,
+                // remark: record.remark,
+                // unitName: record.unit
+              });
+            },
+            onCancel: () => {
+              // 用户取消，不做任何操作
+            }
+          });
+        } else {
+          // 库存不为负，直接调用 onEdit
+          onEdit({
+            id: record.id,
+            objectDetailId: record.objectDetailId,
+            remarkCount: newValue,
+            planCount,
+            count: planCount,
+            // price: record.price,
+            // remark: record.remark,
+            // unitName: record.unit
+          });
+        }
+      } else {
+        // 接口调用失败，提示错误信息但仍然允许修改
+        message.error(checkRes.displayMsg || '检查库存失败');
+        onEdit({
+          id: record.id,
+          objectDetailId: record.objectDetailId,
+          remarkCount: newValue,
+          planCount,
+          count: planCount,
+          // price: record.price,
+          // remark: record.remark,
+          // unitName: record.unit
+        });
+      }
+    } catch (error) {
+      message.error('检查库存发生错误：' + (error as Error).message);
+      // 发生错误时也允许修改
+      onEdit({
+        id: record.id,
+        objectDetailId: record.objectDetailId,
+        remarkCount: newValue,
+        planCount,
+        count: planCount,
+        // price: record.price,
+        // remark: record.remark,
+        // unitName: record.unit
+      });
+    }
   };
 
   const handleInputFocus = (key: string | number) => {
@@ -306,19 +370,130 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
     }, 0);
   };
 
-  const handleInputBlur = (key: string | number, record: TableOrderItem) => {
+  const handleInputBlur = async (key: string | number, record: TableOrderItem) => {
     // 更新表单数据
     const newValue = countValues[key] ?? record.count;
+    // 确保 newValue 是一个有效的数字，否则不进行库存检查和更新
+    if (typeof newValue !== 'number' || isNaN(newValue)) {
+       // 清除本地状态
+        setCountValues(prev => {
+          const updated = { ...prev };
+          delete updated[key];
+          return updated;
+        });
+        // 延迟隐藏按钮，给点击事件一个执行的机会
+        setTimeout(() => {
+          if (activeInputKey === key) {
+            setActiveInputKey(null);
+            setShowButtonMap(prev => ({
+              ...prev,
+              [key]: false
+            }));
+          }
+        }, 200);
+      return;
+    }
+
     if (newValue !== record.count) {
-      onEdit({
-        id: record.id,
-        objectDetailId: record.objectDetailId,
-        count: newValue,
-        price: record.price,
-        remark: record.remark,
-        deliveryName: record.deliveryName,
-        unitName: record.unit
-      });
+
+      try {
+        const checkRes = await orderObjectApi.checkObjectDetailInventory({
+          count: newValue,
+          id: record.objectDetailId, // 假设 objectDetailId 对应接口的 id 参数
+          unitName: record.unit
+        });
+
+        if (checkRes.success) {
+          if (checkRes.data < 0) {
+            // 库存为负，弹窗提示
+            Modal.confirm({
+              title: '库存警告',
+              content: `${record.name} 库存将变为负数 (${checkRes.data})，是否继续填写？`,
+              onOk: () => {
+                // 用户确认，调用 onEdit
+                onEdit({
+                  id: record.id,
+                  objectDetailId: record.objectDetailId,
+                  count: newValue,
+                  // price: record.price,
+                  // remark: record.remark,
+                  // deliveryName: record.deliveryName,
+                  // unitName: record.unit
+                });
+                 // 清除本地状态只有在用户确认修改后进行
+                setCountValues(prev => {
+                  const updated = { ...prev };
+                  delete updated[key];
+                  return updated;
+                });
+              },
+              onCancel: () => {
+                // 用户取消，回滚输入框的值到原始值，并清除本地状态
+                setCountValues(prev => {
+                  const updated = { ...prev };
+                  delete updated[key]; // 清除本地状态，让 InputNumber 回显 record.count
+                  return updated;
+                });
+                // 不需要调用 onEdit
+              }
+            });
+          } else {
+            // 库存不为负，直接调用 onEdit
+             onEdit({
+                id: record.id,
+                objectDetailId: record.objectDetailId,
+                count: newValue,
+                // price: record.price,
+                // remark: record.remark,
+                // deliveryName: record.deliveryName,
+                // unitName: record.unit
+              });
+              // 清除本地状态
+              setCountValues(prev => {
+                const updated = { ...prev };
+                delete updated[key];
+                return updated;
+              });
+          }
+        } else {
+           // 接口调用失败，提示错误信息但仍然允许修改 (或者根据需求选择阻止修改)
+           message.error(checkRes.displayMsg || '检查库存失败');
+            onEdit({
+              id: record.id,
+              objectDetailId: record.objectDetailId,
+              count: newValue,
+              // price: record.price,
+              // remark: record.remark,
+              // deliveryName: record.deliveryName,
+              // unitName: record.unit
+            });
+             // 清除本地状态
+            setCountValues(prev => {
+              const updated = { ...prev };
+              delete updated[key];
+              return updated;
+            });
+        }
+       } catch (error) {
+          message.error('检查库存发生错误：' + (error as Error).message);
+          // 发生错误时也允许修改 (或者选择阻止)
+          onEdit({
+            id: record.id,
+            objectDetailId: record.objectDetailId,
+            count: newValue,
+            // price: record.price,
+            // remark: record.remark,
+            // deliveryName: record.deliveryName,
+            // unitName: record.unit
+          });
+           // 清除本地状态
+          setCountValues(prev => {
+            const updated = { ...prev };
+            delete updated[key];
+            return updated;
+          });
+       }
+
     }
 
     // 延迟隐藏按钮，给点击事件一个执行的机会
@@ -345,10 +520,10 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         id: record.id,
         objectDetailId: record.objectDetailId,
         count: undefined,
-        price: record.price,
-        remark: record.remark,
-        deliveryName: record.deliveryName,
-        unitName: record.unit
+        // price: record.price,
+        // remark: record.remark,
+        // deliveryName: record.deliveryName,
+        // unitName: record.unit
       });
       return;
     }
@@ -364,17 +539,12 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         id: record.id,
         objectDetailId: record.objectDetailId,
         count: weightValue,
-        price: record.price,
-        remark: record.remark,
-        deliveryName: record.deliveryName,
-        unitName: record.unit
+        // price: record.price,
+        // remark: record.remark,
+        // deliveryName: record.deliveryName,
+        // unitName: record.unit
       });
     }
-  };
-
-  // 修改重置方法
-  const handleResetScale = async () => {
-    //Todo
   };
 
   const scrollToLastDeliveryItem = () => {
@@ -574,19 +744,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   >
                     代入
                   </Button>
-                  <Button
-                    type="link"
-                    size="small"
-                    danger
-                    style={{
-                      padding: '0 4px',
-                      height: '22px',
-                      lineHeight: '22px'
-                    }}
-                    onClick={handleResetScale}
-                  >
-                    重置
-                  </Button>
                 </div>
               )}
             </div>
@@ -623,10 +780,10 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                     onEdit({
                       id: record.id,
                       objectDetailId: record.objectDetailId,
-                      count: record.count,
-                      price: record.price,
-                      remark: record.remark,
-                      deliveryName: record.deliveryName,
+                      // count: record.count,
+                      // price: record.price,
+                      // remark: record.remark,
+                      // deliveryName: record.deliveryName,
                       unitName: value
                     });
                   }
@@ -640,7 +797,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
               {record.unit === '箱' && (
                 <span style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>
                   {record.jinPerBox || 0}斤/箱、
-                  {record.piecePerBox || 0}个/箱
+                  {record.amountPerBox || 0}个/箱
                 </span>
               )}
             </div>
@@ -679,10 +836,10 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   onEdit({
                     id: record.id,
                     objectDetailId: record.objectDetailId,
-                    count: record.count,
-                    price: record.price,
+                    // count: record.count,
+                    // price: record.price,
                     remark: newValue,
-                    unitName: record.unit
+                    // unitName: record.unit
                   });
                 }
               }}
@@ -715,11 +872,11 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   onEdit({
                     id: record.id,
                     objectDetailId: record.objectDetailId,
-                    count: record.count,
-                    price: record.price,
-                    remark: record.remark,
+                    // count: record.count,
+                    // price: record.price,
+                    // remark: record.remark,
                     deliveryName: value,
-                    unitName: record.unit
+                    // unitName: record.unit
                   });
                 }
               });
@@ -733,11 +890,11 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
               onEdit({
                 id: record.id,
                 objectDetailId: record.objectDetailId,
-                count: record.count,
-                price: record.price,
-                remark: record.remark,
+                // count: record.count,
+                // price: record.price,
+                // remark: record.remark,
                 deliveryName: value,
-                unitName: record.unit
+                // unitName: record.unit
               });
             }
           };
@@ -763,14 +920,14 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                 }
               />
-              {record.deliveryUpdateTime && (
+              {record.deliverUpdateTime && (
                 <div style={{ 
-                  fontSize: '12px', 
+                  fontSize: '10px', 
                   color: '#999',
                   marginTop: '4px',
                   marginLeft: '8px'
                 }}>
-                  {dayjs(record.deliveryUpdateTime).format('YYYY-MM-DD HH:mm:ss')}
+                  {dayjs(record.deliverUpdateTime).format('YYYY-MM-DD HH:mm:ss')}
                 </div>
               )}
             </div>
@@ -814,11 +971,11 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                       onEdit({
                         id: record.id,
                         objectDetailId: record.objectDetailId,
-                        count: record.count,
+                        // count: record.count,
                         price: newValue,
-                        remark: record.remark,
-                        deliveryName: record.deliveryName,
-                        unitName: record.unit
+                        // remark: record.remark,
+                        // deliveryName: record.deliveryName,
+                        // unitName: record.unit
                       });
                     }
                   }}
@@ -860,12 +1017,12 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                     onEdit({
                       id: record.id,
                       objectDetailId: record.objectDetailId,
-                      count: record.count,
-                      price: record.price,
+                      // count: record.count,
+                      // price: record.price,
                       totalPrice: newValue,
-                      remark: record.remark,
-                      deliveryName: record.deliveryName,
-                      unitName: record.unit
+                      // remark: record.remark,
+                      // deliveryName: record.deliveryName,
+                      // unitName: record.unit
                     });
                   }
                 }}

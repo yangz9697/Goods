@@ -43,13 +43,13 @@ export interface AddOrderObjectRequest {
 export interface UpdateOrderObjectRequest {
   orderNo: string;
   objectDetailName: string;
-  unitName: string;
+  unitName?: string;
   id: string;
   objectDetailId: number;
-  count: number | undefined;
-  price: number;
+  count?: number | undefined;
+  price?: number;
   totalPrice?: number;
-  remark: string;
+  remark?: string;
   deliveryName?: string;
   remarkCount?: string;
   planCount?: number;
@@ -75,6 +75,18 @@ interface CreateObjectResponse extends BaseResponse {
   data: {
     objectDetailId: number;
   };
+}
+
+interface CheckInventoryParams {
+  count: number;
+  id: number; // 对应 objectDetailId
+  unitName: string;
+}
+
+interface CheckInventoryResponse {
+  success: boolean;
+  data: number; // 返回的库存数量
+  displayMsg?: string;
 }
 
 export const orderObjectApi = {
@@ -157,5 +169,17 @@ export const orderObjectApi = {
     } catch (error) {
       throw new Error('创建货品失败：' + (error as Error).message);
     }
-  }
+  },
+
+  checkObjectDetailInventory: async (params: CheckInventoryParams): Promise<CheckInventoryResponse> => {
+    try {
+      const response = await request.post<CheckInventoryResponse>(
+        '/erp/orderObject/checkObjectDetailInventory',
+        params
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('检查商品库存失败：' + (error as Error).message);
+    }
+  },
 }; 

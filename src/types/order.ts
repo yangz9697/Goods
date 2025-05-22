@@ -86,6 +86,7 @@ export interface OrderDetailItem {
   remarkCount?: string;
   count: number;
   jinPerBox?: number;
+  deliverUpdateTime?: number;
 }
 
 export interface OrderInfo {

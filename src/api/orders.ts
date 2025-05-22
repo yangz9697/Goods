@@ -282,6 +282,7 @@ export interface GetOrderInfoResponse {
       planCount?: number;
       remarkCount?: string;
       jinPerBox?: number;
+      deliverUpdateTime?: number;
     }> | null;
     orderTotalPrice: number | null;
   };
