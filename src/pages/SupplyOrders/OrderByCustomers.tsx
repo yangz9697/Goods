@@ -240,7 +240,7 @@ const SupplyOrderList: React.FC = () => {
         <div style={{ 
           marginBottom: 16,
           flex: 1,  // 让列表区域占满剩余空间
-          overflow: 'auto'  // 内容过多时可滚动
+          overflow: customer.orderInfoList.length > 0 ? 'auto' : 'visible'  // 只在有订单时启用滚动
         }}>
           {customer.orderInfoList.length > 0 ? (
             <>
@@ -376,9 +376,9 @@ const SupplyOrderList: React.FC = () => {
               flexDirection: 'column', 
               alignItems: 'center', 
               justifyContent: 'center',
-              padding: '24px 0'
+              padding: '18px 0',
             }}>
-              <img src="/assets/emptyOrder.png" alt="无供货单" style={{ width: 66, height: 43, marginBottom: 8 }} />
+              <img src="/emptyOrder.png" alt="无供货单" style={{ width: 66, height: 43, marginBottom: 8 }} />
               <span style={{ color: '#999', fontSize: 14 }}>无供货单</span>
             </div>
           )}
@@ -425,7 +425,7 @@ const SupplyOrderList: React.FC = () => {
           zIndex: 1
         }}>
           <img 
-            src="/assets/completeOrder.png" 
+            src="/completeOrder.png" 
             alt="已完成" 
             style={{ width: 132, height: 132 }} 
           />

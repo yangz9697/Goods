@@ -46,7 +46,7 @@ const OrderDetail: React.FC = () => {
       display: 'flex', 
       flexDirection: 'column',
     }}>
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '12px' }}>
         <OrderHeader
           order={order}
           statusList={statusList}

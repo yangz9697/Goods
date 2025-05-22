@@ -202,7 +202,7 @@ const AppLayout: React.FC = () => {
       {role !== 'employee' && (
         <Sider trigger={null} collapsible collapsed={collapsed} style={{ background: '#fff', filter: 'drop-shadow(0px 0px 12px rgba(68, 62, 132, 0.12))' }}>
           <div style={{ height: '65px', display: 'flex', alignItems: 'center', paddingLeft: '24px', borderBottom: '1px solid #F4F6FA' }}>
-            <img src="/assets/logo.png" alt="logo" style={{ width: '22px', height: '19px', marginRight: '12px' }} />
+            <img src="/logo.png" alt="logo" style={{ width: '22px', height: '19px', marginRight: '12px' }} />
             <div style={{ color: '#35324D', fontWeight: 'bold', fontSize: '20px' }}>仓库管理系统</div>
           </div>
           <Menu
@@ -212,7 +212,7 @@ const AppLayout: React.FC = () => {
             items={menuItems}
             onClick={({ key }) => navigate(key)}
           />
-          <img src="/assets/comi.png" alt="decoration" style={{ width: '100%', height: 'auto', position: 'absolute', bottom: '20px' }} />
+          <img src="/comi.png" alt="decoration" style={{ width: '100%', height: 'auto', position: 'absolute', bottom: '20px' }} />
         </Sider>
       )}
       <AntLayout>
@@ -253,7 +253,7 @@ const AppLayout: React.FC = () => {
         </Header>
         <Content
           style={{
-            padding: 24,
+            padding: 12,
             minHeight: 280,
             overflow: 'auto',
             // backgroundColor: '#ffffff'

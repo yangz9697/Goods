@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { Order, OrderStatus, OrderStatusCode } from '@/types/order';
 import { orderApi } from '@/api/orders';
 import { PrinterOutlined } from '@ant-design/icons';
+import DigitalDisplay from '@/components/DigitalDisplay';
 
 // 扩展 Order 类型，确保包含所有需要的属性
 interface ExtendedOrder extends Order {
@@ -42,9 +43,9 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   onDeleteSuccess,
   onWeightChange
 }) => {
-  const [weight, setWeight] = useState<string>('0');
+  const [weight, setWeight] = useState<string>('0.0');
   const [port, setPort] = useState<SerialPort | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(true);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
   const isConnectingRef = useRef<boolean>(false);
 
@@ -204,7 +205,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
               const weight = parseFloat(weightStr);
 
               if (!isNaN(weight)) {
-                const newWeight = (weight * 2).toFixed(3);
+                const newWeight = (weight * 2).toFixed(1);
                 setWeight(newWeight);
                 onWeightChange(newWeight);
                 console.log(`解析重量: ${newWeight}斤`);
@@ -358,19 +359,19 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* 第一块：客户信息和操作按钮 */}
       <div style={{ 
         background: '#fff',
         borderRadius: '4px',
-        padding: '16px'
+        padding: '12px'
       }}>
         <Form layout="inline" style={{ width: '100%' }}>
           <Row style={{ width: '100%', alignItems: 'center' }}>
             {/* 左侧 Logo */}
             <Col>
               <img 
-                src="/assets/avatar.png" 
+                src="/assets/avatar.png"
                 alt="logo" 
                 style={{ 
                   width: 48, 
@@ -464,56 +465,54 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
       </div>
 
       {/* 第二块：电子秤、配货进度和结算信息 */}
-      <div style={{ display: 'flex', gap: '24px' }}>
+      <div style={{ display: 'flex', gap: '12px' }}>
         {/* 1. 电子秤部分 */}
         <div style={{ 
-          flex: 1,
-          background: '#2759CD',
+          flex: '0 0 auto',  // 改为不伸缩，根据内容自适应
+          /* 使用图片中的蓝色调作为背景 */
+          background: '#2759CD', 
           borderRadius: '6px',
-          padding: '16px 20px',
+          padding: '12px 24px', /* 调整内边距 */
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid #ffffff'
+          justifyContent: 'flex-start', /* 靠左对齐 */
+          gap: '24px', /* 调整计重/单位 和 数字显示 的间距 */
+          minWidth: 'fit-content'  // 确保宽度至少能容纳内容
         }}>
-          <div style={{ textAlign: 'center', width: '100%' }}>
-            {isConnected ? (
-            <div style={{ 
-                padding: '16px',
-                background: '#fff',
-                borderRadius: '4px',
+          {isConnected ? (
+            <> {/* 使用 Fragment 包裹 */}
+              <div style={{
                 display: 'flex',
-                alignItems: 'baseline',
-                justifyContent: 'center',
-                gap: '4px'
+                flexDirection: 'row',  // 横向排列
+                alignItems: 'baseline',  // 基线对齐
+                gap: '4px',  // 减小间距
+                whiteSpace: 'nowrap'  // 防止文字换行
               }}>
                 <span style={{ 
-                  fontSize: '40px',
+                  fontSize: '32px',
                   fontWeight: 'bold',
-                  color: '#1890ff'
+                  color: '#fff',
+                  lineHeight: 1,  // 确保行高为1
+                  whiteSpace: 'nowrap'  // 防止文字换行
                 }}>
                   计重
                 </span>
                 <span style={{ 
-                  fontSize: '13px',
-                  color: '#1890ff'
+                  fontSize: '14px',
+                  color: '#fff',
+                  lineHeight: 1  // 确保行高为1
                 }}>
                   (斤)
                 </span>
-                <span style={{ 
-                  fontSize: '36px',
-              fontWeight: 'bold',
-                  color: '#1890ff'
-            }}>
-                  {weight}
-                </span>
-            </div>
-            ) : (
-              <Button type="primary" onClick={handleReconnect}>
-                连接电子秤
-              </Button>
-            )}
-          </div>
+              </div>
+              {/* 使用新的 DigitalDisplay 组件 */}
+              <DigitalDisplay value={weight} /> 
+            </>
+          ) : (
+            <Button style={{width: '100%', color: "#ffffff"}} type="text" onClick={handleReconnect}>
+              连接电子秤
+            </Button>
+          )}
         </div>
 
         {/* 2. 配货进度部分 */}
@@ -522,7 +521,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
           // background: '#f6ffed',
           backgroundImage: 'linear-gradient(to bottom, #F3FAFF 0%, #ffffff 100%)',
           borderRadius: '6px',
-          padding: '16px 20px',
+          padding: '12px',
           display: 'flex',
           flexDirection: 'column',  // 改为纵向排列
           gap: '12px',  // 添加间距
@@ -573,7 +572,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
             flex: 1,
             backgroundImage: 'linear-gradient(to bottom, #FFF4F4 0%, #ffffff 100%)',
             borderRadius: '6px',
-            padding: '16px 20px',
+            padding: '12px',
             display: 'flex',
             flexDirection: 'column',  // 改为纵向排列
             gap: '12px',  // 添加间距

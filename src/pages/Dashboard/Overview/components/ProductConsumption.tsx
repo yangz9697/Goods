@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, DatePicker, Table, Row, Col, Button, message, Popover } from 'antd';
+import { Card, DatePicker, Table, Button, message, Space, Radio, Spin, Modal } from 'antd';
 import { Line } from '@ant-design/plots';
 import dayjs from 'dayjs';
 import { dashboardApi } from '@/api/dashboard';
@@ -23,6 +23,249 @@ interface ProductDetail {
   }>;
 }
 
+// 添加新的接口类型定义
+interface TrendData {
+  count: string;
+  orderDate: string;
+}
+
+interface PriceData {
+  price: string;
+  orderDate: string;
+}
+
+interface TrendResponse {
+  amountCountRank: TrendData[];
+  jinCountRank: TrendData[];
+  boxCountRank: TrendData[];
+  heCountRank: TrendData[];
+  priceRank: PriceData[];
+}
+
+interface UnitPriceData {
+  price: string;
+  orderDate: string;
+}
+
+interface UnitPriceResponse {
+  amountUnitPriceRank: UnitPriceData[];
+  jinUnitPriceRank: UnitPriceData[];
+  boxUnitPriceRank: UnitPriceData[];
+  heUnitPriceRank: UnitPriceData[];
+}
+
+const TrendCharts: React.FC<{ 
+  record: ProductDetail; 
+  visible: boolean; 
+  onClose: () => void;
+  dateRange: [dayjs.Dayjs, dayjs.Dayjs];  // 添加日期范围参数
+}> = ({ 
+  record, 
+  visible, 
+  onClose,
+  dateRange
+}) => {
+  const [trendData, setTrendData] = useState<TrendResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [unit, setUnit] = useState<'amount' | 'jin' | 'box' | 'he'>('amount');
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const response = await dashboardApi.getProductTrend({
+          objectDetailId: record.objectDetailId,
+          startTime: dateRange[0].startOf('day').valueOf(),
+          endTime: dateRange[1].endOf('day').valueOf(),
+          tenant: localStorage.getItem('tenant') || undefined
+        });
+
+        if (response.success) {
+          setTrendData(response.data);
+        } else {
+          message.error(response.displayMsg || '获取趋势数据失败');
+        }
+      } catch (error) {
+        console.error('获取趋势数据失败:', error);
+        message.error('获取趋势数据失败：' + (error as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (visible) {
+      loadData();
+    }
+  }, [record.objectDetailId, visible, dateRange]);  // 添加 dateRange 依赖
+
+  const getChartData = () => {
+    if (!trendData) return [];
+    
+    const dataMap = {
+      amount: trendData.amountCountRank,
+      jin: trendData.jinCountRank,
+      box: trendData.boxCountRank,
+      he: trendData.heCountRank
+    };
+
+    return dataMap[unit].map(item => ({
+      '销售日期': item.orderDate,
+      '消耗量': parseFloat(item.count)
+    }));
+  };
+
+  const getPriceData = () => {
+    if (!trendData) return [];
+    
+    return trendData.priceRank.map(item => ({
+      '销售日期': item.orderDate,
+      '销售额': parseFloat(item.price)
+    }));
+  };
+
+  return (
+    <Modal
+      title={`${record.objectDetailName}的销售数据`}
+      open={visible}
+      onCancel={onClose}
+      width="100%"
+      style={{ top: 20 }}
+      bodyStyle={{ height: 'calc(100vh - 200px)', overflow: 'auto' }}
+      footer={null}
+    >
+      <Spin spinning={loading}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0 }}>消耗量趋势</h3>
+              <Radio.Group value={unit} onChange={e => setUnit(e.target.value)}>
+                <Radio.Button value="amount">个</Radio.Button>
+                <Radio.Button value="jin">斤</Radio.Button>
+                <Radio.Button value="box">箱</Radio.Button>
+                <Radio.Button value="he">盒</Radio.Button>
+              </Radio.Group>
+            </div>
+            <div style={{ height: 300 }}>
+              <Line
+                data={getChartData()}
+                xField="销售日期"
+                yField="消耗量"
+                smooth
+                point={{
+                  size: 5,
+                  shape: 'diamond',
+                }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <h3 style={{ marginBottom: 16 }}>销售额趋势</h3>
+            <div style={{ height: 300 }}>
+              <Line
+                data={getPriceData()}
+                xField="销售日期"
+                yField="销售额"
+                smooth
+                point={{
+                  size: 5,
+                  shape: 'diamond',
+                }}
+              />
+            </div>
+          </div>
+        </Space>
+      </Spin>
+    </Modal>
+  );
+};
+
+const PriceTrendCharts: React.FC<{ 
+  record: ProductDetail; 
+  visible: boolean; 
+  onClose: () => void;
+  dateRange: [dayjs.Dayjs, dayjs.Dayjs];  // 添加日期范围参数
+}> = ({ 
+  record, 
+  visible, 
+  onClose,
+  dateRange
+}) => {
+  const [priceData, setPriceData] = useState<UnitPriceResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const response = await dashboardApi.getUnitPriceTrend({
+          objectDetailId: record.objectDetailId,
+          startTime: dateRange[0].startOf('day').valueOf(),
+          endTime: dateRange[1].endOf('day').valueOf(),
+          tenant: localStorage.getItem('tenant') || undefined
+        });
+
+        if (response.success) {
+          setPriceData(response.data);
+        } else {
+          message.error(response.displayMsg || '获取历史价格数据失败');
+        }
+      } catch (error) {
+        console.error('获取历史价格数据失败:', error);
+        message.error('获取历史价格数据失败：' + (error as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (visible) {
+      loadData();
+    }
+  }, [record.objectDetailId, visible, dateRange]);  // 添加 dateRange 依赖
+
+  const getChartData = () => {
+    if (!priceData) return [];
+    
+    // 只使用斤作为单位
+    return priceData.jinUnitPriceRank.map(item => ({
+      '销售日期': item.orderDate,
+      '单价': parseFloat(item.price)
+    }));
+  };
+
+  return (
+    <Modal
+      title={`${record.objectDetailName}的历史价格`}
+      open={visible}
+      onCancel={onClose}
+      width="100%"
+      style={{ top: 20 }}
+      bodyStyle={{ height: '350px', overflow: 'auto' }}
+      footer={null}
+    >
+      <Spin spinning={loading}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div>
+            <h3 style={{ marginBottom: 16 }}>历史价格趋势</h3>
+            <div style={{ height: 300 }}>
+              <Line
+                data={getChartData()}
+                xField="销售日期"
+                yField="单价"
+                smooth
+                point={{
+                  size: 5,
+                  shape: 'diamond',
+                }}
+              />
+            </div>
+          </div>
+        </Space>
+      </Spin>
+    </Modal>
+  );
+};
+
 const ProductConsumption: React.FC = () => {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().subtract(7, 'days'),
@@ -31,6 +274,9 @@ const ProductConsumption: React.FC = () => {
   const [monthValue, setMonthValue] = useState<dayjs.Dayjs | null>(null);
   const [loading, setLoading] = useState(false);
   const [productData, setProductData] = useState<ProductDetail[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<ProductDetail | null>(null);
+  const [trendVisible, setTrendVisible] = useState(false);
+  const [priceVisible, setPriceVisible] = useState(false);
 
   const handleMonthChange = (date: dayjs.Dayjs | null) => {
     setMonthValue(date);
@@ -78,51 +324,6 @@ const ProductConsumption: React.FC = () => {
     fetchProductData();
   }, [dateRange]);
 
-  // 图表配置
-  const getChartConfig = (data: any[], xField: string, yField: string) => ({
-    data: data?.map(item => ({
-      日期: item.orderDate,
-      [yField]: item[xField]
-    })),
-    xField: '日期',
-    yField,
-    point: {
-      size: 3,
-      shape: 'circle',
-    },
-    smooth: true,
-    height: 200,
-    width: 500,  // 添加固定宽度
-  });
-
-  // 渲染图表内容
-  const renderCharts = (product: ProductDetail) => (
-    <div style={{ width: 1000 }}>  {/* 设置固定宽度 */}
-      <Row gutter={[16, 16]}>
-        <Col span={12}>
-          <Card 
-            size="small" 
-            title="消耗量趋势"
-            bodyStyle={{ padding: '12px 0' }}
-            headStyle={{ padding: '0 12px' }}
-          >
-            <Line {...getChartConfig(product.countRank, 'count', '数量')} />
-          </Card>
-        </Col>
-        <Col span={12}>
-          <Card 
-            size="small" 
-            title="销售额趋势"
-            bodyStyle={{ padding: '12px 0' }}
-            headStyle={{ padding: '0 12px' }}
-          >
-            <Line {...getChartConfig(product.priceRank, 'price','价格')} />
-          </Card>
-        </Col>
-      </Row>
-    </div>
-  );
-
   const columns = [
     {
       title: '商品名',
@@ -165,50 +366,43 @@ const ProductConsumption: React.FC = () => {
       render: (amount: string) => `¥${amount}`,
     },
     {
-      title: '消耗量',
+      title: '消耗趋势',
       key: 'action',
       width: 100,
       render: (_: any, record: ProductDetail) => (
-        <Popover
-          content={renderCharts(record)}
-          title={`${record.objectDetailName}的详细数据`}
-          trigger="click"
-          placement="right"
-          overlayStyle={{ maxWidth: 'none' }}  // 允许 Popover 内容超出默认宽度
+        <Button 
+          type="link" 
+          onClick={() => {
+            setSelectedRecord(record);
+            setTrendVisible(true);
+          }}
         >
-          <Button type="link">
-            查看趋势
-          </Button>
-        </Popover>
+          查看
+        </Button>
       ),
       onCell: () => ({ style: { padding: 0 } })
     },
     {
-      title: '历史价格',
+      title: '价格趋势',
       key: 'action',
       width: 100,
       render: (_: any, record: ProductDetail) => (
-        // <Popover
-        //   content={renderCharts(record)}
-        //   title={`${record.objectDetailName}的详细数据`}
-        //   trigger="click"
-        //   placement="right"
-        //   overlayStyle={{ maxWidth: 'none' }}  // 允许 Popover 内容超出默认宽度
-        // >
-        //   <Button type="link">
-        //     查看趋势
-        //   </Button>
-        // </Popover>
-        <Button type="link">
-        查看趋势
-      </Button>
+        <Button 
+          type="link"
+          onClick={() => {
+            setSelectedRecord(record);
+            setPriceVisible(true);
+          }}
+        >
+          查看
+        </Button>
       ),
       onCell: () => ({ style: { padding: 0 } })
     },
   ];
 
   return (
-    <Card title="商品消耗统计">
+    <Card title="商品统计">
       <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
         <RangePicker
           value={dateRange}
@@ -241,6 +435,29 @@ const ProductConsumption: React.FC = () => {
         rowKey="objectDetailId"
         pagination={false}
       />
+
+      {selectedRecord && (
+        <>
+          <TrendCharts
+            record={selectedRecord}
+            visible={trendVisible}
+            onClose={() => {
+              setTrendVisible(false);
+              setSelectedRecord(null);
+            }}
+            dateRange={dateRange}  // 传递日期范围
+          />
+          <PriceTrendCharts
+            record={selectedRecord}
+            visible={priceVisible}
+            onClose={() => {
+              setPriceVisible(false);
+              setSelectedRecord(null);
+            }}
+            dateRange={dateRange}  // 传递日期范围
+          />
+        </>
+      )}
     </Card>
   );
 };
