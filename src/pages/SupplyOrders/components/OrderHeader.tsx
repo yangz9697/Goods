@@ -43,9 +43,9 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   onDeleteSuccess,
   onWeightChange
 }) => {
-  const [weight, setWeight] = useState<string>('0.0');
+  const [weight, setWeight] = useState<string>('000.0');
   const [port, setPort] = useState<SerialPort | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(true);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
   const isConnectingRef = useRef<boolean>(false);
 

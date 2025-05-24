@@ -193,6 +193,7 @@ const PriceTrendCharts: React.FC<{
 }) => {
   const [priceData, setPriceData] = useState<UnitPriceResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [unit, setUnit] = useState<'amount' | 'jin' | 'box' | 'he'>('amount');
 
   useEffect(() => {
     const loadData = async () => {
@@ -226,8 +227,14 @@ const PriceTrendCharts: React.FC<{
   const getChartData = () => {
     if (!priceData) return [];
     
-    // 只使用斤作为单位
-    return priceData.jinUnitPriceRank.map(item => ({
+    const dataMap = {
+      amount: priceData.amountUnitPriceRank,
+      jin: priceData.jinUnitPriceRank,
+      box: priceData.boxUnitPriceRank,
+      he: priceData.heUnitPriceRank
+    };
+
+    return dataMap[unit].map(item => ({
       '销售日期': item.orderDate,
       '单价': parseFloat(item.price)
     }));
@@ -246,7 +253,15 @@ const PriceTrendCharts: React.FC<{
       <Spin spinning={loading}>
         <Space direction="vertical" style={{ width: '100%' }}>
           <div>
-            <h3 style={{ marginBottom: 16 }}>历史价格趋势</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0 }}>历史价格趋势</h3>
+              <Radio.Group value={unit} onChange={e => setUnit(e.target.value)}>
+                <Radio.Button value="amount">个</Radio.Button>
+                <Radio.Button value="jin">斤</Radio.Button>
+                <Radio.Button value="box">箱</Radio.Button>
+                <Radio.Button value="he">盒</Radio.Button>
+              </Radio.Group>
+            </div>
             <div style={{ height: 300 }}>
               <Line
                 data={getChartData()}

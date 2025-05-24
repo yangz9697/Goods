@@ -256,27 +256,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
     }
 
     let newValue = value;
-    
-    // 只有当newValue不为空时才进行数字处理
-    if (newValue) {
-      // 如果输入的是数字
-      if (/^\d*\.?\d*$/.test(value)) {
-        if (record.remarkCount) {
-          // 如果当前值已经包含加号，更新最后一个数字
-          if (record.remarkCount.includes('+')) {
-            const parts = record.remarkCount.split('+');
-            parts[parts.length - 1] = value;
-            newValue = parts.join('+');
-          } else {
-            // 如果当前值不包含加号，添加加号
-            newValue = `${record.remarkCount}+${value}`;
-          }
-        } else {
-          // 如果没有当前值，直接使用输入的数字
-          newValue = value;
-        }
-      }
-    }
 
     // 计算报单总数
     const planCount = parseFloat(newValue
@@ -696,6 +675,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   }));
                 }}
                 onBlur={() => {
+                  console.log("!", remarkInputValues[key]);
                   const value = remarkInputValues[key];
                   // 如果值发生变化（包括清空），则更新
                   if (value !== record.remarkCount) {

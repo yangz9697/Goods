@@ -73,6 +73,7 @@ export const useOrderDetail = (orderNo: string | undefined) => {
           createTime: item.createTime,
           updateTime: item.updateTime,
           jinPerBox: item.jinPerBox || 0,
+          amountPerBox: item.amountPerBox || 0,
           deliverUpdateTime: item.deliverUpdateTime
         })),
         payStatusName: orderRes.data.payStatusName,

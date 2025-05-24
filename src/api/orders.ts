@@ -282,6 +282,7 @@ export interface GetOrderInfoResponse {
       planCount?: number;
       remarkCount?: string;
       jinPerBox?: number;
+      amountPerBox?: number;
       deliverUpdateTime?: number;
     }> | null;
     orderTotalPrice: number | null;
@@ -518,7 +519,8 @@ export const orderApi = {
   batchPrintOrderToPDF: async (params: { orderNoList: string[] }) => {
     try {
       const response = await request.post('/erp/order/batchPrintObjectPDF', params, {
-        responseType: 'blob'
+        responseType: 'blob',
+        timeout: 30000
       });
       return response.data;
     } catch (error) {
@@ -528,7 +530,8 @@ export const orderApi = {
   batchExportOrderToExcel: async (params: { orderNoList: string[] }) => {
     try {
       const response = await request.post('/erp/order/batchExportObjectExcel', params, {
-        responseType: 'blob'
+        responseType: 'blob',
+        timeout: 30000
       });
       return response.data;
     } catch (error) {
