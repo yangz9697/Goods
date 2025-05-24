@@ -79,7 +79,7 @@ interface CreateObjectResponse extends BaseResponse {
 
 interface CheckInventoryParams {
   count: number;
-  id: number; // 对应 objectDetailId
+  id: string;
   unitName: string;
 }
 

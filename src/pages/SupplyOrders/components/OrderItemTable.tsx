@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Table, InputNumber, Input, Select, Space, Tag, Button, message, Modal } from 'antd';
+import { Table, InputNumber, Input, Select, Space, Button, message, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
@@ -215,6 +215,8 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
     Modal.confirm({
       title: '确认创建',
       content: '仓库无此商品，是否继续创建？',
+      okText: '确认',
+      cancelText: '取消',
       onOk: async () => {
         try {
           // 使用 addObject 创建新货品，设置默认值
@@ -225,7 +227,8 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             he: 1,             // 默认每箱1盒
             box: 1, 
             jin: 1,
-            amount: 1
+            amount: 1,
+            isTemp: true
           });
 
           if (createRes.success) {
@@ -276,16 +279,17 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
     }
 
     // 计算报单总数
-    const planCount = newValue
+    const planCount = parseFloat(newValue
       .split('+')
       .filter(Boolean)
       .map(num => Number(num) || 0)
-      .reduce((sum, num) => sum + num, 0);
+      .reduce((sum, num) => sum + num, 0)
+      .toFixed(1));
 
     try {
       const checkRes = await orderObjectApi.checkObjectDetailInventory({
         count: planCount,
-        id: record.objectDetailId,
+        id: record.id,
         unitName: record.unit
       });
 
@@ -295,6 +299,8 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           Modal.confirm({
             title: '库存警告',
             content: `${record.name} 库存将变为负数 (${checkRes.data})，是否继续填写？`,
+            okText: '确认',
+            cancelText: '取消',
             onOk: () => {
               // 用户确认，调用 onEdit
               onEdit({
@@ -399,7 +405,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       try {
         const checkRes = await orderObjectApi.checkObjectDetailInventory({
           count: newValue,
-          id: record.objectDetailId, // 假设 objectDetailId 对应接口的 id 参数
+          id: record.id, // 假设 objectDetailId 对应接口的 id 参数
           unitName: record.unit
         });
 
@@ -409,6 +415,8 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             Modal.confirm({
               title: '库存警告',
               content: `${record.name} 库存将变为负数 (${checkRes.data})，是否继续填写？`,
+              okText: '确认',
+              cancelText: '取消',
               onOk: () => {
                 // 用户确认，调用 onEdit
                 onEdit({
@@ -572,7 +580,14 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '货品',
         dataIndex: 'name',
         key: 'name',
-        width: 140,
+        width: 150,
+        onCell: (record) => ({
+          style: {
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            verticalAlign: record.isEmptyRow ? 'top' : 'middle'
+          }
+        }),
         render: (_, record: TableOrderItem) => {
           // 如果是已有记录，显示名称
           if (!record.isEmptyRow) {
@@ -623,7 +638,14 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '报单数量',
         dataIndex: 'remarkCount',
         key: 'remarkCount',
-        width: 120,
+        width: 200,
+        onCell: () => ({
+          style: {
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            verticalAlign: 'top'
+          }
+        }),
         render: (_, record) => {
           const key = record.id;
           const inputValue = remarkInputValues[key] ?? record.remarkCount;
@@ -632,7 +654,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Input.TextArea
                 autoSize={{ minRows: 1, maxRows: 3 }}
-                style={{ width: 120 }}
                 value={inputValue}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -703,7 +724,14 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '实际数量',
         dataIndex: 'count',
         key: 'count',
-        width: 120,
+        width: 80,
+        onCell: () => ({
+          style: {
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            verticalAlign: 'top'
+          }
+        }),
         render: (_, record) => {
           const key = record.id;
           const currentValue = countValues[key] ?? record.count;
@@ -754,7 +782,14 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '单位',
         dataIndex: 'unit',
         key: 'unit',
-        width: 80,
+        width: 90,
+        onCell: () => ({
+          style: {
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            verticalAlign: 'top'
+          }
+        }),
         render: (_, record) => (
           type === 'bulk' ? (
             // 大货固定为箱
@@ -805,53 +840,17 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         ),
       },
       {
-        title: '备注',
-        dataIndex: 'remark',
-        key: 'remark',
-        width: 100,
-        render: (_, record) => {
-          const key = record.id;
-          const currentValue = remarkValues[key] ?? record.remark;
-
-          return (
-            <Input
-              style={{ width: '100%' }}
-              value={currentValue}
-              onChange={(e) => {
-                setRemarkValues(prev => ({
-                  ...prev,
-                  [key]: e.target.value
-                }));
-              }}
-              onBlur={(e) => {
-                const newValue = e.target.value;
-                // 清除本地状态
-                setRemarkValues(prev => {
-                  const updated = { ...prev };
-                  delete updated[key];
-                  return updated;
-                });
-                // 只在值发生变化时才调用 onEdit
-                if (newValue !== record.remark) {
-                  onEdit({
-                    id: record.id,
-                    objectDetailId: record.objectDetailId,
-                    // count: record.count,
-                    // price: record.price,
-                    remark: newValue,
-                    // unitName: record.unit
-                  });
-                }
-              }}
-            />
-          );
-        },
-      },
-      {
         title: '配货员',
         dataIndex: 'deliveryName',
         key: 'deliveryName',
-        width: 100,
+        width: 120,
+        onCell: () => ({
+          style: {
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            verticalAlign: 'top'
+          }
+        }),
         render: (_, record) => {
           const key = record.id;
           const currentValue = deliveryValues[key] ?? record.deliveryName;
@@ -862,6 +861,8 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
               Modal.confirm({
                 title: '确认修改',
                 content: `${record.name}已配货，是否需要继续修改？`,
+                okText: '确认',
+                cancelText: '取消',
                 onOk: () => {
                   // 更新本地状态
                   setDeliveryValues(prev => ({
@@ -924,8 +925,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                 <div style={{ 
                   fontSize: '10px', 
                   color: '#999',
-                  marginTop: '4px',
-                  marginLeft: '8px'
+                  marginTop: '2px'
                 }}>
                   {dayjs(record.deliverUpdateTime).format('YYYY-MM-DD HH:mm:ss')}
                 </div>
@@ -936,6 +936,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       }
     ];
 
+    // 管理员可见的列
     if (isAdmin) {
       baseColumns.push(
         {
@@ -943,12 +944,19 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           dataIndex: 'price',
           key: 'price',
           width: 100,
+          onCell: () => ({
+            style: {
+              paddingTop: '8px',
+              paddingBottom: '8px',
+              verticalAlign: 'top'
+            }
+          }),
           render: (_, record) => {
             const key = record.id;
             const currentValue = priceValues[key] ?? record.price;
 
             return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column'}}>
                 <InputNumber
                   value={currentValue}
                   min={0}
@@ -980,7 +988,11 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                     }
                   }}
                 />
-                <Tag color="blue" style={{ margin: 0, alignSelf: 'flex-start' }}>当日价: {record.unitPrice}</Tag>
+                {!record.isEmptyRow && (
+                  <span style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                    当日价: <span style={{ color: '#0099CC' }}>{record.unitPrice ? '¥':''}{record.unitPrice}</span>
+                  </span>
+                )}
               </div>
             );
           },
@@ -989,7 +1001,14 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           title: '金额',
           dataIndex: 'totalPrice',
           key: 'totalPrice',
-          width: 80,
+          width: 100,
+          onCell: () => ({
+            style: {
+              paddingTop: '8px',
+              paddingBottom: '8px',
+              verticalAlign: 'top'
+            }
+          }),
           render: (_, record: any) => {
             const key = record.id;
             const currentValue = totalPriceValues[key] ?? record.totalPrice;
@@ -1033,12 +1052,72 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       );
     }
 
+    // 备注列（所有用户可见）
+    baseColumns.push({
+      title: '备注',
+      dataIndex: 'remark',
+      key: 'remark',
+      width: 100,
+      onCell: () => ({
+        style: {
+          paddingTop: '8px',
+          paddingBottom: '8px',
+          verticalAlign: 'top'
+        }
+      }),
+      render: (_, record) => {
+        const key = record.id;
+        const currentValue = remarkValues[key] ?? record.remark;
+
+        return (
+          <Input
+            style={{ width: '100%' }}
+            value={currentValue}
+            onChange={(e) => {
+              setRemarkValues(prev => ({
+                ...prev,
+                [key]: e.target.value
+              }));
+            }}
+            onBlur={(e) => {
+              const newValue = e.target.value;
+              // 清除本地状态
+              setRemarkValues(prev => {
+                const updated = { ...prev };
+                delete updated[key];
+                return updated;
+              });
+              // 只在值发生变化时才调用 onEdit
+              if (newValue !== record.remark) {
+                onEdit({
+                  id: record.id,
+                  objectDetailId: record.objectDetailId,
+                  // count: record.count,
+                  // price: record.price,
+                  remark: newValue,
+                  // unitName: record.unit
+                });
+              }
+            }}
+          />
+        );
+      }
+    });
+
+    // 操作列
     baseColumns.push({
       title: '操作',
       dataIndex: 'action',
       key: 'action',
       width: 80,
-      onCell: () => ({ style: { padding: 0 } }),
+      onCell: () => ({
+        style: {
+          paddingTop: '8px',
+          paddingBottom: '8px',
+          verticalAlign: 'middle',
+          padding: 0
+        }
+      }),
       render: (_, record) => {
         return (
           <Button 
@@ -1049,7 +1128,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             删除
           </Button>
         );
-      },
+      }
     });
 
     return baseColumns;

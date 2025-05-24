@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, DatePicker, Table, Button, message, Space, Radio, Spin, Modal } from 'antd';
+import { Card, DatePicker, Table, Button, message, Space, Radio, Spin, Modal, Input, Select } from 'antd';
 import { Line } from '@ant-design/plots';
 import dayjs from 'dayjs';
 import { dashboardApi } from '@/api/dashboard';
@@ -267,16 +267,17 @@ const PriceTrendCharts: React.FC<{
 };
 
 const ProductConsumption: React.FC = () => {
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(7, 'days'),
-    dayjs()
-  ]);
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([dayjs().subtract(7, 'days'), dayjs()]);
   const [monthValue, setMonthValue] = useState<dayjs.Dayjs | null>(null);
   const [loading, setLoading] = useState(false);
   const [productData, setProductData] = useState<ProductDetail[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<ProductDetail | null>(null);
   const [trendVisible, setTrendVisible] = useState(false);
   const [priceVisible, setPriceVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [searchValue, setSearchValue] = useState('');  // 新增：用于存储实际的搜索值
+  const [orderByUnitName, setOrderByUnitName] = useState<'个' | '斤' | '箱' | '盒'>('个');
+  const [orderType, setOrderType] = useState<'asc' | 'desc'>('desc');
 
   const handleMonthChange = (date: dayjs.Dayjs | null) => {
     setMonthValue(date);
@@ -299,30 +300,46 @@ const ProductConsumption: React.FC = () => {
     }
   };
 
-  const fetchProductData = async () => {
+  const handleSearch = (value: string) => {
+    setSearchValue(value);  // 只在搜索时更新实际的搜索值
+  };
+
+  const handleOrderByUnitNameChange = (value: '个' | '斤' | '箱' | '盒') => {
+    setOrderByUnitName(value);
+  };
+
+  const handleOrderTypeChange = () => {
+    setOrderType(orderType === 'desc' ? 'asc' : 'desc');
+  };
+
+  const fetchData = async () => {
     setLoading(true);
     try {
       const response = await dashboardApi.getProductDetail({
         startTime: dateRange[0].startOf('day').valueOf(),
         endTime: dateRange[1].endOf('day').valueOf(),
-        tenant: localStorage.getItem('tenant') || undefined
+        tenant: localStorage.getItem('tenant') || undefined,
+        objectDetailName: searchValue || undefined,  // 使用 searchValue 而不是 searchText
+        orderByUnitName: orderByUnitName,
+        orderType: orderType,
       });
 
       if (response.success) {
         setProductData(response.data);
       } else {
-        message.error(response.displayMsg || '获取商品消耗数据失败');
+        message.error(response.displayMsg || '获取商品统计失败');
       }
     } catch (error) {
-      message.error('获取商品消耗数据失败：' + (error as Error).message);
+      console.error('获取商品统计失败:', error);
+      message.error('获取商品统计失败：' + (error as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProductData();
-  }, [dateRange]);
+    fetchData();
+  }, [dateRange, searchValue, orderByUnitName, orderType]);  // 使用 searchValue 作为依赖
 
   const columns = [
     {
@@ -403,7 +420,7 @@ const ProductConsumption: React.FC = () => {
 
   return (
     <Card title="商品统计">
-      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <RangePicker
           value={dateRange}
           onChange={handleDateRangeChange}
@@ -426,6 +443,31 @@ const ProductConsumption: React.FC = () => {
           format="YYYY年MM月"
           locale={locale}
         />
+        <Input.Search
+          placeholder="搜索商品名称"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          onSearch={handleSearch}
+          style={{ width: 200 }}
+          allowClear
+          enterButton
+        />
+        <Select
+          value={orderByUnitName}
+          onChange={handleOrderByUnitNameChange}
+          style={{ width: 120 }}
+        >
+          <Select.Option value="个">按个排序</Select.Option>
+          <Select.Option value="斤">按斤排序</Select.Option>
+          <Select.Option value="箱">按箱排序</Select.Option>
+          <Select.Option value="盒">按盒排序</Select.Option>
+        </Select>
+        <Button
+          type={orderType === 'desc' ? 'primary' : 'default'}
+          onClick={handleOrderTypeChange}
+        >
+          {orderType === 'desc' ? '降序' : '升序'}
+        </Button>
       </div>
 
       <Table 

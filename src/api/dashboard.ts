@@ -144,6 +144,9 @@ export const dashboardApi = {
     startTime: number;
     endTime: number;
     tenant?: string;
+    objectDetailName?: string;
+    orderByUnitName?: '个' | '斤' | '箱' | '盒';
+    orderType?: 'asc' | 'desc';
   }): Promise<GetProductDetailResponse> => {
     try {
       const response = await request.post('/erp/index/orderObjectDetailInfo', params);

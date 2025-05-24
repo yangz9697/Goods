@@ -126,6 +126,8 @@ const Customers: React.FC = () => {
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除客户"${record.name}"吗？`,
+      okText: '确认',
+      cancelText: '取消',
       onOk: async () => {
         try {
           const response = await deleteUser(record.userId);

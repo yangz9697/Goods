@@ -75,7 +75,7 @@ const SupplyOrders: React.FC = () => {
       return false; // 管理员可以选择任意日期
     }
     // 非管理员用户最早只能选择前天
-    return current && current < dayjs().subtract(2, 'day').startOf('day');
+    return current && current < dayjs().subtract(1, 'day').startOf('day');
   };
 
   return (

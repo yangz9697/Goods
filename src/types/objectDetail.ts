@@ -7,6 +7,7 @@ export interface ObjectDetailRequest {
   amount?: number;
   objectDetailName: string;
   tenant?: string;
+  isTemp?: boolean;
 }
 
 export interface UpdateTime {
