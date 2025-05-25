@@ -110,7 +110,7 @@ const TrendCharts: React.FC<{
 
     return dataMap[unit].map(item => ({
       '销售日期': item.orderDate,
-      '消耗量': parseFloat(item.count)
+      '消耗量': item.count
     }));
   };
 
@@ -119,7 +119,7 @@ const TrendCharts: React.FC<{
     
     return trendData.priceRank.map(item => ({
       '销售日期': item.orderDate,
-      '销售额': parseFloat(item.price)
+      '销售额': item.price
     }));
   };
 
@@ -236,7 +236,7 @@ const PriceTrendCharts: React.FC<{
 
     return dataMap[unit].map(item => ({
       '销售日期': item.orderDate,
-      '单价': parseFloat(item.price)
+      '单价': item.price
     }));
   };
 

@@ -4,12 +4,12 @@
 set -e
 
 # 定义变量
-SERVER="root@139.224.63.0"
+SERVER="ubuntu@121.4.104.221"  # 生产环境服务器地址
 REMOTE_DIR="/var/www/html"
 DIST_DIR="./dist"
-SSH_KEY="./goods"  # 新添加的 SSH 密钥路径
+SSH_KEY="./goods-prod"  # 使用新的生产环境 SSH 密钥
 
-echo "开始部署..."
+echo "开始部署到生产环境..."
 
 # 检查构建文件夹是否存在
 if [ ! -d "$DIST_DIR" ]; then
@@ -21,9 +21,9 @@ fi
 echo "压缩 dist 目录..."
 tar -czf dist.tar.gz dist/
 
-# 检查并创建远程目录
+# 检查并创建远程目录，并设置正确的权限
 echo "检查远程目录..."
-ssh -i $SSH_KEY $SERVER "sudo mkdir -p $REMOTE_DIR && sudo chown -R root:root $REMOTE_DIR"
+ssh -i $SSH_KEY $SERVER "sudo mkdir -p $REMOTE_DIR && sudo chown -R ubuntu:ubuntu $REMOTE_DIR"
 
 # 上传到服务器
 echo "上传文件到服务器..."
@@ -51,4 +51,4 @@ ENDSSH
 # 清理本地文件
 rm dist.tar.gz
 
-echo "部署完成!"
+echo "生产环境部署完成!" 

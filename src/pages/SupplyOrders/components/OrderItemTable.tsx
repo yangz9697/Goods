@@ -913,6 +913,56 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             </div>
           );
         },
+      },
+      {
+        title: '备注',
+        dataIndex: 'remark',
+        key: 'remark',
+        width: 100,
+        onCell: () => ({
+          style: {
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            verticalAlign: 'top'
+          }
+        }),
+        render: (_, record) => {
+          const key = record.id;
+          const currentValue = remarkValues[key] ?? record.remark;
+  
+          return (
+            <Input
+              style={{ width: '100%' }}
+              value={currentValue}
+              onChange={(e) => {
+                setRemarkValues(prev => ({
+                  ...prev,
+                  [key]: e.target.value
+                }));
+              }}
+              onBlur={(e) => {
+                const newValue = e.target.value;
+                // 清除本地状态
+                setRemarkValues(prev => {
+                  const updated = { ...prev };
+                  delete updated[key];
+                  return updated;
+                });
+                // 只在值发生变化时才调用 onEdit
+                if (newValue !== record.remark) {
+                  onEdit({
+                    id: record.id,
+                    objectDetailId: record.objectDetailId,
+                    // count: record.count,
+                    // price: record.price,
+                    remark: newValue,
+                    // unitName: record.unit
+                  });
+                }
+              }}
+            />
+          );
+        }
       }
     ];
 
@@ -1031,58 +1081,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         }
       );
     }
-
-    // 备注列（所有用户可见）
-    baseColumns.push({
-      title: '备注',
-      dataIndex: 'remark',
-      key: 'remark',
-      width: 100,
-      onCell: () => ({
-        style: {
-          paddingTop: '8px',
-          paddingBottom: '8px',
-          verticalAlign: 'top'
-        }
-      }),
-      render: (_, record) => {
-        const key = record.id;
-        const currentValue = remarkValues[key] ?? record.remark;
-
-        return (
-          <Input
-            style={{ width: '100%' }}
-            value={currentValue}
-            onChange={(e) => {
-              setRemarkValues(prev => ({
-                ...prev,
-                [key]: e.target.value
-              }));
-            }}
-            onBlur={(e) => {
-              const newValue = e.target.value;
-              // 清除本地状态
-              setRemarkValues(prev => {
-                const updated = { ...prev };
-                delete updated[key];
-                return updated;
-              });
-              // 只在值发生变化时才调用 onEdit
-              if (newValue !== record.remark) {
-                onEdit({
-                  id: record.id,
-                  objectDetailId: record.objectDetailId,
-                  // count: record.count,
-                  // price: record.price,
-                  remark: newValue,
-                  // unitName: record.unit
-                });
-              }
-            }}
-          />
-        );
-      }
-    });
 
     // 操作列
     baseColumns.push({

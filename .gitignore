@@ -41,4 +41,10 @@ yarn-error.log*
 pnpm-debug.log*
 
 # TypeScript
-*.tsbuildinfo 
+*.tsbuildinfo
+
+# SSH 密钥文件
+goods
+goods.pub
+goods-prod
+goods-prod.pub 

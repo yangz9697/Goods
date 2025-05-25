@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "deploy": "npm run build && ./deploy.sh",
-    "deploy:only": "./deploy.sh",
+    "deploy:dev": "./deploy.sh",
+    "deploy:prod": "./deploy-prod.sh",
+    "deploy:all": "./deploy.sh && ./deploy-prod.sh",
     "preview": "vite preview"
   },
   "dependencies": {
