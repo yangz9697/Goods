@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "deploy": "npm run build && ./deploy.sh",
+    "deploy": "npm run build && ./deploy.sh && ./deploy-prod.sh",
     "deploy:dev": "./deploy.sh",
     "deploy:prod": "./deploy-prod.sh",
     "deploy:all": "./deploy.sh && ./deploy-prod.sh",

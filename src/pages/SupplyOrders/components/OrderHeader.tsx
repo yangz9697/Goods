@@ -371,7 +371,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
             {/* 左侧 Logo */}
             <Col>
               <img 
-                src="/assets/avatar.png"
+                src="/avatar.png"
                 alt="logo" 
                 style={{ 
                   width: 48, 

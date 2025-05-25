@@ -51,4 +51,4 @@ ENDSSH
 # 清理本地文件
 rm dist.tar.gz
 
-echo "部署完成!"
+echo "开发环境部署完成!"
