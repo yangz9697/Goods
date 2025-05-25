@@ -675,7 +675,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   }));
                 }}
                 onBlur={() => {
-                  console.log("!", remarkInputValues[key]);
                   const value = remarkInputValues[key];
                   // 如果值发生变化（包括清空），则更新
                   if (value !== record.remarkCount) {

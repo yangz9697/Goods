@@ -1,3 +1,26 @@
+2024-12-12 联调issue记录
+1.库存列表：
+- [x] 列表查询、添加、编辑、删除完成初步调试
+- [ ] 添加及编辑菜品库存时需要支持数量
+- [ ] 缺少操作记录的返回
+- [ ] updater展示（后续登陆功能完成后再调试）
+2.价格列表
+- [ ] 查询列表报错
+    curl --location 'http://139.224.63.0:8000/erp/objectDetail/pageObjectPrice' \
+    --header 'x-domain-id: 1000' \
+    --header 'Content-Type: application/json' \
+    --data '{
+    "currentPage": 1,
+    "filters": {},
+    "pageSize": 10
+    }'
+- [ ] filters参数缺少起始时间筛选，而且应该为必需
+- [ ] 缺少修改售价的接口
+- [ ] 根据不同的单位查询物品价格 /erp/objectDetail/queryObjectPriceByUnit，用在哪里？
+3. 客户列表
+- [x] 列表查询、添加、编辑完成初步调试
+- [ ] 缺少删除客户的接口
+
 // 首先列出所有串口
 async function listPorts() {
     const ports = await navigator.serial.getPorts();

@@ -45,8 +45,6 @@ const Pricing: React.FC = () => {
         filters.priceIsEmpty = priceIsEmpty;
       }
 
-      console.log('请求参数:', filters);
-
       const response = await pageObjectPrice({
         currentPage: page,
         pageSize: size,
@@ -59,8 +57,6 @@ const Pricing: React.FC = () => {
           updateTime: new Date(item.updateTime).getTime(),
           createTime: new Date(item.createTime).getTime()
         }));
-
-        console.log('响应数据:', items);
 
         setPriceData(items);
         setTotal(response.data.total);
