@@ -1045,7 +1045,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             return (
               <InputNumber
                 value={currentValue}
-                min={0}
                 precision={2}
                 style={{ width: '100%' }}
                 onChange={(value) => {

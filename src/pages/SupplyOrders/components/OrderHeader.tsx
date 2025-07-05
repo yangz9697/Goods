@@ -197,7 +197,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
 
             const potentialFrame = buffer.slice(start, start + 18);
 
-            if (potentialFrame.endsWith('kg\r\n')) {
+            if (potentialFrame.endsWith('kg\r\n') || potentialFrame.endsWith('kg\r')) {
               console.log('收到完整数据帧:', potentialFrame);
 
               // 提取重量字符串
@@ -211,7 +211,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                 console.log(`解析重量: ${newWeight}斤`);
               }
             } else {
-              console.warn('发现无效数据帧:', potentialFrame);
+              console.warn('发现无效数据帧:', potentialFrame, '16进制:', Array.from(potentialFrame).map(char => char.charCodeAt(0).toString(16).padStart(2, '0')).join(' '));
             }
 
             // 移除已处理内容
