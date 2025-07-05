@@ -3,11 +3,16 @@ import { Row, Col, Space, Input, Button, message, Tag, Modal, Form, DatePicker }
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
 import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';  // 导入中文语言包
+import locale from 'antd/es/date-picker/locale/zh_CN';  // 导入 DatePicker 的中文配置
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import AddOrderModal from './components/AddOrderModal';
 import { formatPhone } from '@/utils/format';
 import { OrderStatusMap } from '@/types/order';
 import { OrderInfo } from '@/api/orders';
+
+// 设置 dayjs 默认语言为中文
+dayjs.locale('zh-cn');
 
 interface ContextType {
   selectedDate: dayjs.Dayjs;
@@ -463,6 +468,7 @@ const SupplyOrderList: React.FC = () => {
               }}
               className="custom-datepicker"
               disabledDate={getDisabledDate}
+              locale={locale}
             />
             {isToday && (
               <Tag 
