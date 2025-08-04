@@ -102,7 +102,7 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, startTime, endTim
   };
 
   const unpaidOrders = orderList.filter(order => order.orderPayStatusCode === 'waitPay');
-  const totalUnpaid = unpaidOrders.reduce((sum, order) => sum + order.orderPrice, 0);
+  const totalUnpaid = Number(unpaidOrders.reduce((sum, order) => sum + order.orderPrice, 0).toFixed(2));
 
   const columns = [
     {

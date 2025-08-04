@@ -991,6 +991,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   min={0}
                   precision={2}
                   style={{ width: '100%' }}
+                  className={currentValue === 0 ? 'zero-value-input' : ''}
                   onChange={(value) => {
                     setPriceValues(prev => ({
                       ...prev,
@@ -1047,6 +1048,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                 value={currentValue}
                 precision={2}
                 style={{ width: '100%' }}
+                className={currentValue === 0 ? 'zero-value-input' : ''}
                 onChange={(value) => {
                   setTotalPriceValues(prev => ({
                     ...prev,
@@ -1116,6 +1118,13 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
 
   return (
     <div style={{ height: '100%', width: '100%' }}>
+      <style>
+        {`
+          .zero-value-input .ant-input-number-input {
+            color: #ff4d4f !important;
+          }
+        `}
+      </style>
       <Table
         ref={tableRef}
         columns={getColumns()}
@@ -1128,6 +1137,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         scroll={{ y: '100%' }}
         style={{ height: '100%' }}
         sticky
+        virtual
         size="small"
       />
       <CreateObjectModal
