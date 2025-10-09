@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { message, Button } from 'antd';
+import { message, Button, Input } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import { useOrderDetail } from './hooks/useOrderDetail';
 import { OrderItemTable, OrderItemTableRef } from './components/OrderItemTable';
 import { OrderHeader } from '@/pages/SupplyOrders/components/OrderHeader';
@@ -8,7 +9,8 @@ import { OrderHeader } from '@/pages/SupplyOrders/components/OrderHeader';
 const OrderDetail: React.FC = () => {
   const { id: orderNo } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('all');
-  const role = localStorage.getItem('role');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const role = localStorage.getItem('role') || undefined;
   const isAdmin = role === 'admin';
   const navigate = useNavigate();
   const [weight, setWeight] = useState<string>('0');
@@ -35,6 +37,19 @@ const OrderDetail: React.FC = () => {
       tableRef.current.scrollToLastDeliveryItem();
     }
   };
+
+  // 过滤货品列表
+  const filteredItems = useMemo(() => {
+    if (!order?.items) return [];
+    
+    if (!searchKeyword.trim()) {
+      return order.items;
+    }
+    
+    return order.items.filter(item => 
+      item.name.toLowerCase().includes(searchKeyword.toLowerCase())
+    );
+  }, [order?.items, searchKeyword]);
 
   if (!order) {
     return null;
@@ -74,30 +89,42 @@ const OrderDetail: React.FC = () => {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <div style={{ display: 'flex' }}>
-            <div
-              style={{
-                padding: '12px 16px',
-                cursor: 'pointer',
-                borderBottom: activeTab === 'all' ? '2px solid #1890ff' : 'none',
-                color: activeTab === 'all' ? '#1890ff' : 'inherit',
-                marginBottom: '-1px'
-              }}
-              onClick={() => setActiveTab('all')}
-            >
-              全部
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ display: 'flex' }}>
+              <div
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'all' ? '2px solid #1890ff' : 'none',
+                  color: activeTab === 'all' ? '#1890ff' : 'inherit',
+                  marginBottom: '-1px'
+                }}
+                onClick={() => setActiveTab('all')}
+              >
+                全部
+              </div>
+              <div
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'box' ? '2px solid #1890ff' : 'none',
+                  color: activeTab === 'box' ? '#1890ff' : 'inherit',
+                  marginBottom: '-1px'
+                }}
+                onClick={() => setActiveTab('box')}
+              >
+                大货
+              </div>
             </div>
-            <div
-              style={{
-                padding: '12px 16px',
-                cursor: 'pointer',
-                borderBottom: activeTab === 'box' ? '2px solid #1890ff' : 'none',
-                color: activeTab === 'box' ? '#1890ff' : 'inherit',
-                marginBottom: '-1px'
-              }}
-              onClick={() => setActiveTab('box')}
-            >
-              大货
+            <div style={{ marginLeft: '24px' }}>
+              <Input
+                placeholder="搜索货品名称"
+                prefix={<SearchOutlined />}
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                style={{ width: 200 }}
+                allowClear
+              />
             </div>
           </div>
           <Button type="primary" onClick={handleJumpToLastDelivery}>
@@ -113,11 +140,12 @@ const OrderDetail: React.FC = () => {
             <OrderItemTable
               ref={tableRef}
               type="all"
-              items={order.items.map(item => ({
+              items={filteredItems.map(item => ({
                 ...item,
                 count: item.count || 0
               }))}
               isAdmin={isAdmin}
+              role={role}
               deliveryUsers={deliveryUsers}
               weight={weight}
               onEdit={handleEdit}
@@ -129,13 +157,14 @@ const OrderDetail: React.FC = () => {
             <OrderItemTable
               ref={tableRef}
               type="bulk"
-              items={order.items
+              items={filteredItems
                 .filter(item => item.unit === '箱')
                 .map(item => ({
                   ...item,
                   count: item.count || 0
                 }))}
               isAdmin={isAdmin}
+              role={role}
               deliveryUsers={deliveryUsers}
               weight={weight}
               onEdit={handleEdit}

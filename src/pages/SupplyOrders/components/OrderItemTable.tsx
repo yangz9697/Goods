@@ -5,6 +5,7 @@ import { ObjectOption } from '@/types/order';
 import { orderObjectApi } from '@/api/orderObject';
 import { addObject } from '@/api/objectDetail';
 import CreateObjectModal from '@/components/CreateObjectModal';
+import CustomInputNumber from '@/components/CustomInputNumber';
 import dayjs from 'dayjs';
 
 interface TableOrderItem {
@@ -39,6 +40,7 @@ interface OrderItemTableProps {
   items: TableOrderItem[];
   type: 'all' | 'bulk';
   isAdmin: boolean;
+  role?: string;
   deliveryUsers: { label: string; value: string }[];
   weight: string;
   onEdit: (values: {
@@ -80,6 +82,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   items,
   type,
   isAdmin,
+  role,
   deliveryUsers,
   weight,
   onEdit,
@@ -113,22 +116,44 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   const [activeInputKey, setActiveInputKey] = useState<string | number | null>(null);
   const isSelectingOptionRef = useRef(false);
   const tableRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [bodyHeight, setBodyHeight] = useState<number>(500);
 
+  // todo: 不需要滚动到底部
+  // useEffect(() => {
+  //   // 延迟执行，等待表格渲染完成
+  //   setTimeout(() => {
+  //     // 滚动到底部
+  //     tableRef.current.scrollTo({
+  //       index: items.length, // 减去一行，因为 index 是从 0 开始的
+  //       behavior: 'smooth'
+  //     });
+
+  //     setTimeout(() => {
+  //       // 聚焦到最后一行的货品搜索框
+  //       const lastRow = document.querySelector('.ant-table-row:last-child .ant-select-selector');
+  //       if (lastRow) {
+  //         (lastRow as HTMLElement).click();
+  //       }
+  //     });
+  //   }, 100);
+  // }, []);
+
+  // 计算容器高度，提供数值像素给 virtual 表格
   useEffect(() => {
-    // 延迟执行，等待表格渲染完成
-    setTimeout(() => {
-      // 滚动到底部
-      const tableBody = document.querySelector('.ant-table-body');
-      if (tableBody) {
-        tableBody.scrollTop = tableBody.scrollHeight;
-      }
-      
-      // 聚焦到最后一行的货品搜索框
-      const lastRow = document.querySelector('.ant-table-row:last-child .ant-select-selector');
-      if (lastRow) {
-        (lastRow as HTMLElement).click();
-      }
-    }, 100);
+    const el = containerRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const reserved = 50; // 如有表头/分页需要预留可调整
+      const next = Math.max(0, el.clientHeight - reserved);
+      setBodyHeight(next);
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   const searchObjects = async (keyword: string) => {
@@ -150,7 +175,17 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
 
   const handleDeleteRow = (record: TableOrderItem) => {
     const hasContent = record.id;
-    hasContent && onDelete(record.id);
+    if (hasContent) {
+      Modal.confirm({
+        title: '确认删除',
+        content: '确定要删除这一行数据吗？',
+        okText: '确定',
+        cancelText: '取消',
+        onOk() {
+          onDelete(record.id);
+        },
+      });
+    }
   };
 
   const handleObjectSelect = async (value: number, option: any) => {
@@ -559,7 +594,8 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '货品',
         dataIndex: 'name',
         key: 'name',
-        width: 150,
+        width: 140,
+        minWidth: 100,
         onCell: (record) => ({
           style: {
             paddingTop: '8px',
@@ -567,10 +603,34 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             verticalAlign: record.isEmptyRow ? 'top' : 'middle'
           }
         }),
-        render: (_, record: TableOrderItem) => {
+        render: (_, record: TableOrderItem, index: number) => {
           // 如果是已有记录，显示名称
           if (!record.isEmptyRow) {
-            return record.name;
+            return (
+              <div style={{ 
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '4px',
+                maxWidth: '100%',
+                lineHeight: '1.4'
+              }}>
+                <div style={{ 
+                  color: '#ccc',
+                  flexShrink: 0
+                }}>
+                  {index + 1}.
+                </div>
+                <div style={{ 
+                  wordBreak: 'break-all', 
+                  wordWrap: 'break-word',
+                  whiteSpace: 'normal',
+                  flex: 1,
+                  minWidth: 0
+                }}>
+                  {record.name}
+                </div>
+              </div>
+            );
           }
           
           // 如果是空行，显示搜索选择框
@@ -617,7 +677,6 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '报单数量',
         dataIndex: 'remarkCount',
         key: 'remarkCount',
-        width: 200,
         onCell: () => ({
           style: {
             paddingTop: '8px',
@@ -703,7 +762,12 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '实际数量',
         dataIndex: 'count',
         key: 'count',
-        width: 80,
+        width: 130,
+        onHeaderCell: () => ({
+          style: {
+            textAlign: 'center'
+          }
+        }),
         onCell: () => ({
           style: {
             paddingTop: '8px',
@@ -718,7 +782,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <InputNumber
+              <CustomInputNumber
                 style={{ width: '100%' }}
                 min={0}
                 step={0.1}
@@ -729,6 +793,22 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                     ...prev,
                     [key]: value || 0
                   }));
+                }}
+                onButtonChange={(value) => {
+                  setCountValues(prev => ({
+                    ...prev,
+                    [key]: value || 0
+                  }));
+                  // 立即调用接口更新
+                  onEdit({
+                    id: record.id,
+                    objectDetailId: record.objectDetailId,
+                    count: value || 0,
+                    // price: record.price,
+                    // remark: record.remark,
+                    // deliveryName: record.deliveryName,
+                    // unitName: record.unit
+                  });
                 }}
                 onFocus={(e) => {
                   handleInputFocus(key);
@@ -761,7 +841,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '单位',
         dataIndex: 'unit',
         key: 'unit',
-        width: 90,
+        width: 80,
         onCell: () => ({
           style: {
             paddingTop: '8px',
@@ -822,7 +902,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '配货员',
         dataIndex: 'deliveryName',
         key: 'deliveryName',
-        width: 120,
+        width: 110,
         onCell: () => ({
           style: {
             paddingTop: '8px',
@@ -835,6 +915,35 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           const currentValue = deliveryValues[key] ?? record.deliveryName;
 
           const handleDeliveryChange = (value: string | undefined) => {
+            // 如果选择"无货"，显示二次确认
+            if (value === '无货') {
+              Modal.confirm({
+                title: '确认设为无货',
+                content: `确定要将 ${record.name} 设为无货吗？`,
+                okText: '确认',
+                cancelText: '取消',
+                onOk: () => {
+                  // 更新本地状态
+                  setDeliveryValues(prev => ({
+                    ...prev,
+                    [key]: value || ''
+                  }));
+                  // 调用 onEdit
+                  onEdit({
+                    id: record.id,
+                    objectDetailId: record.objectDetailId,
+                    // count: record.count,
+                    price: 0,
+                    // remark: record.remark,
+                    deliveryName: value,
+                    // unitName: record.unit
+                    totalPrice: 0
+                  });
+                }
+              });
+              return;
+            }
+
             // 如果当前已有配货员，且选择了新的配货员，则显示确认提示
             if (record.deliveryName && value && value !== record.deliveryName) {
               Modal.confirm({
@@ -886,7 +995,10 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                 style={{ width: '100%' }}
                 placeholder="选择配货员"
                 value={currentValue}
-                options={deliveryUsers}
+                options={[
+                  ...deliveryUsers,
+                  { label: '无货', value: '无货' }
+                ]}
                 onChange={handleDeliveryChange}
                 onBlur={() => {
                   // 清除本地状态
@@ -917,7 +1029,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         title: '备注',
         dataIndex: 'remark',
         key: 'remark',
-        width: 100,
+        width: 120,
         onCell: () => ({
           style: {
             paddingTop: '8px',
@@ -972,7 +1084,12 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           title: '单价',
           dataIndex: 'price',
           key: 'price',
-          width: 100,
+          width: 130,
+          onHeaderCell: () => ({
+            style: {
+              textAlign: 'center'
+            }
+          }),
           onCell: () => ({
             style: {
               paddingTop: '8px',
@@ -986,9 +1103,10 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column'}}>
-                <InputNumber
+                <CustomInputNumber
                   value={currentValue}
                   min={0}
+                  step={0.1}
                   precision={2}
                   style={{ width: '100%' }}
                   className={currentValue === 0 ? 'zero-value-input' : ''}
@@ -998,8 +1116,24 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                       [key]: value || 0
                     }));
                   }}
-                  onBlur={(e) => {
-                    const newValue = parseFloat(e.target.value);
+                  onButtonChange={(value) => {
+                    setPriceValues(prev => ({
+                      ...prev,
+                      [key]: value || 0
+                    }));
+                    // 立即调用接口更新
+                    onEdit({
+                      id: record.id,
+                      objectDetailId: record.objectDetailId,
+                      // count: record.count,
+                      price: value || 0,
+                      // remark: record.remark,
+                      // deliveryName: record.deliveryName,
+                      // unitName: record.unit
+                    });
+                  }}
+                  onBlur={() => {
+                    const newValue = priceValues[key] ?? record.price;
                     setPriceValues(prev => {
                       const updated = { ...prev };
                       delete updated[key];
@@ -1019,7 +1153,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   }}
                 />
                 {!record.isEmptyRow && (
-                  <span style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                  <span style={{ fontSize: '12px', color: '#999', marginTop: '2px', textAlign: 'center' }}>
                     当日价: <span style={{ color: '#0099CC' }}>{record.unitPrice ? '¥':''}{record.unitPrice}</span>
                   </span>
                 )}
@@ -1031,7 +1165,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           title: '金额',
           dataIndex: 'totalPrice',
           key: 'totalPrice',
-          width: 100,
+          width: 120,
           onCell: () => ({
             style: {
               paddingTop: '8px',
@@ -1082,32 +1216,35 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       );
     }
 
-    // 操作列
-    baseColumns.push({
-      title: '操作',
-      dataIndex: 'action',
-      key: 'action',
-      width: 80,
-      onCell: () => ({
-        style: {
-          paddingTop: '8px',
-          paddingBottom: '8px',
-          verticalAlign: 'middle',
-          padding: 0
+    // 操作列 - 只有管理员和经理领导才能看到
+    const canDelete = role === 'admin' || role === 'managerLeader';
+    if (canDelete) {
+      baseColumns.push({
+        title: '操作',
+        dataIndex: 'action',
+        key: 'action',
+        width: 80,
+        onCell: () => ({
+          style: {
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            verticalAlign: 'middle',
+            padding: 0
+          }
+        }),
+        render: (_, record) => {
+          return (
+            <Button 
+              type="link" 
+              danger
+              onClick={() => handleDeleteRow(record)}
+            >
+              删除
+            </Button>
+          );
         }
-      }),
-      render: (_, record) => {
-        return (
-          <Button 
-            type="link" 
-            danger
-            onClick={() => handleDeleteRow(record)}
-          >
-            删除
-          </Button>
-        );
-      }
-    });
+      });
+    }
 
     return baseColumns;
   };
@@ -1117,11 +1254,26 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   }));
 
   return (
-    <div style={{ height: '100%', width: '100%' }}>
+    <div ref={containerRef} style={{ height: '100%', width: '100%' }}>
       <style>
         {`
           .zero-value-input .ant-input-number-input {
             color: #ff4d4f !important;
+          }
+          .ant-input-number-handler-wrap {
+            width: 22px !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+          }
+          .ant-input-number-handler {
+            width: 22px !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+          }
+          .ant-input-number-handler-up,
+          .ant-input-number-handler-down {
+            width: 22px !important;
+            height: 11px !important;
           }
         `}
       </style>
@@ -1134,7 +1286,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         ]}
         rowKey="rowId"
         pagination={false}
-        scroll={{ y: '100%' }}
+        scroll={{ y: bodyHeight }}
         style={{ height: '100%' }}
         sticky
         virtual
