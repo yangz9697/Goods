@@ -51,6 +51,13 @@ const OrderDetail: React.FC = () => {
     );
   }, [order?.items, searchKeyword]);
 
+  // 计算大货的实际数量总和
+  const bulkItemsTotalCount = useMemo(() => {
+    return filteredItems
+      .filter(item => item.unit === '箱')
+      .reduce((sum, item) => sum + (item.count || 0), 0);
+  }, [filteredItems]);
+
   if (!order) {
     return null;
   }
@@ -167,6 +174,7 @@ const OrderDetail: React.FC = () => {
               role={role}
               deliveryUsers={deliveryUsers}
               weight={weight}
+              totalCount={bulkItemsTotalCount}
               onEdit={handleEdit}
               onDelete={handleDeleteItem}
               onAdd={handleAdd}

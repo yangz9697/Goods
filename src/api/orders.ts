@@ -219,6 +219,7 @@ export interface OrderListFilters {
   endTime: number;
   userId?: number;
   keyword?: string;
+  objectDetailName?: string;
 }
 
 interface OrderListParams {

@@ -43,6 +43,7 @@ interface OrderItemTableProps {
   role?: string;
   deliveryUsers: { label: string; value: string }[];
   weight: string;
+  totalCount?: number;
   onEdit: (values: {
     id: string;
     objectDetailId: number;
@@ -85,6 +86,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   role,
   deliveryUsers,
   weight,
+  totalCount,
   onEdit,
   onDelete,
   onAdd
@@ -687,13 +689,20 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         render: (_, record) => {
           const key = record.id;
           const inputValue = remarkInputValues[key] ?? record.remarkCount;
+          const isReadOnly = role !== 'admin';
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Input.TextArea
                 autoSize={{ minRows: 1, maxRows: 3 }}
                 value={inputValue}
+                readOnly={isReadOnly}
+                style={{
+                  backgroundColor: isReadOnly ? '#f5f5f5' : 'inherit',
+                  cursor: isReadOnly ? 'not-allowed' : 'text'
+                }}
                 onKeyDown={(e) => {
+                  if (isReadOnly) return;
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     // 找到最后一行的商品搜索框并聚焦
@@ -704,6 +713,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   }
                 }}
                 onFocus={() => {
+                  if (isReadOnly) return;
                   // 延迟添加加号，避免影响光标位置
                   setTimeout(() => {
                     if (record.remarkCount && !record.remarkCount.endsWith('+')) {
@@ -715,6 +725,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   }, 50);
                 }}
                 onChange={(e) => {
+                  if (isReadOnly) return;
                   // 先按加号分割
                   const parts = e.target.value.split('+');
                   // 对每个部分单独处理
@@ -734,6 +745,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                   }));
                 }}
                 onBlur={() => {
+                  if (isReadOnly) return;
                   const value = remarkInputValues[key];
                   // 如果值发生变化（包括清空），则更新
                   if (value !== record.remarkCount) {
@@ -759,7 +771,9 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         },
       },
       {
-        title: '实际数量',
+        title: type === 'bulk' && totalCount !== undefined 
+          ? `实际数量（${totalCount}）` 
+          : '实际数量',
         dataIndex: 'count',
         key: 'count',
         width: 130,
@@ -944,8 +958,34 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
               return;
             }
 
+            // 如果当前已有配货员，且要清空配货员，则显示确认提示
+            if (record.deliveryName && !value) {
+              Modal.confirm({
+                title: '确认清空',
+                content: `${record.name}已配货，确定要清空配货员吗？`,
+                okText: '确认',
+                cancelText: '取消',
+                onOk: () => {
+                  // 更新本地状态
+                  setDeliveryValues(prev => ({
+                    ...prev,
+                    [key]: value || ''
+                  }));
+                  // 调用 onEdit
+                  onEdit({
+                    id: record.id,
+                    objectDetailId: record.objectDetailId,
+                    // count: record.count,
+                    // price: record.price,
+                    // remark: record.remark,
+                    deliveryName: '',
+                    // unitName: record.unit
+                  });
+                }
+              });
+            }
             // 如果当前已有配货员，且选择了新的配货员，则显示确认提示
-            if (record.deliveryName && value && value !== record.deliveryName) {
+            else if (record.deliveryName && value && value !== record.deliveryName) {
               Modal.confirm({
                 title: '确认修改',
                 content: `${record.name}已配货，是否需要继续修改？`,

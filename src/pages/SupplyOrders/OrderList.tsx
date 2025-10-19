@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Table, Space, Button, Tag, Input, message, Form, Popconfirm, DatePicker } from 'antd';
+import { Table, Space, Button, Tag, Input, message, Form, Popconfirm, DatePicker, Select, AutoComplete } from 'antd';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderApi } from '@/api/orders';
+import { orderObjectApi } from '@/api/orderObject';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';  // 导入中文语言包
@@ -48,10 +49,14 @@ const OrderList: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [printLoading, setPrintLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [searchType, setSearchType] = useState<'keyword' | 'objectDetailName'>('keyword');
+  const [searchOptions, setSearchOptions] = useState<Array<{ objectDetailId: number; objectDetailName: string }>>([]);
+  const [searchValue, setSearchValue] = useState('');
 
   // 初始化表单默认值
   const initialValues = {
-    keyword: ''
+    keyword: '',
+    objectDetailName: ''
   };
 
   const fetchOrders = async (page: number, size: number) => {
@@ -59,14 +64,22 @@ const OrderList: React.FC = () => {
     try {
       const values = form.getFieldsValue();
       
+      const filters: any = {
+        startTime: selectedDate.startOf('day').valueOf(),
+        endTime: selectedDate.endOf('day').valueOf()
+      };
+      
+      // 根据搜索类型设置不同的查询参数
+      if (searchType === 'keyword') {
+        filters.keyword = values.keyword;
+      } else if (searchType === 'objectDetailName') {
+        filters.objectDetailName = values.objectDetailName;
+      }
+      
       const res = await orderApi.pageOrder({
         currentPage: page,
         pageSize: size,
-        filters: {
-          startTime: selectedDate.startOf('day').valueOf(),
-          endTime: selectedDate.endOf('day').valueOf(),
-          keyword: values.keyword
-        }
+        filters
       });
       if (res.success) {
         setOrders(res.data.items);
@@ -107,9 +120,33 @@ const OrderList: React.FC = () => {
 
   const handleReset = () => {
     form.resetFields();
+    setSearchType('keyword');
+    setSearchValue('');
+    setSearchOptions([]);
     setCurrentPage(1);
     fetchOrders(1, pageSize);
   };
+
+  // 菜品搜索防抖函数
+  const searchObjects = useCallback(
+    debounce(async (keyword: string) => {
+      if (!keyword) {
+        setSearchOptions([]);
+        return;
+      }
+      try {
+        const response = await orderObjectApi.selectObjectByName(keyword);
+        if (response.success) {
+          setSearchOptions(response.data || []);
+        } else {
+          message.error(response.displayMsg || '搜索菜品失败');
+        }
+      } catch (error) {
+        message.error('搜索菜品失败：' + (error as Error).message);
+      }
+    }, 300),
+    []
+  );
 
   const handlePageChange = (page: number, size: number) => {
     setCurrentPage(page);
@@ -238,6 +275,18 @@ const OrderList: React.FC = () => {
       title: '供货单号',
       dataIndex: 'orderNo',
       key: 'orderNo',
+      render: (orderNo: string) => (
+        <Button
+          type="link"
+          onClick={() => {
+            const url = `/supply-orders/detail/${orderNo}`;
+            window.open(url, '_blank');
+          }}
+          style={{ padding: 0, height: 'auto' }}
+        >
+          {orderNo}
+        </Button>
+      ),
     },
     {
       title: '客户姓名',
@@ -364,13 +413,53 @@ const OrderList: React.FC = () => {
             )}
           </Form.Item>
 
-          <Form.Item name="keyword">
-            <Input
-              placeholder="搜索姓名或手机号"
-              style={{ width: 200 }}
-              allowClear
-            />
+          <Form.Item style={{ marginRight: 8 }}>
+            <Select
+              value={searchType}
+              onChange={(value) => {
+                setSearchType(value);
+                form.setFieldsValue({ keyword: '', objectDetailName: '' });
+                setSearchValue('');
+                setSearchOptions([]);
+              }}
+              style={{ width: 120 }}
+            >
+              <Select.Option value="keyword">姓名/手机号</Select.Option>
+              <Select.Option value="objectDetailName">菜品名称</Select.Option>
+            </Select>
           </Form.Item>
+
+          {searchType === 'keyword' ? (
+            <Form.Item name="keyword" style={{ marginRight: 8 }}>
+              <Input
+                placeholder="搜索姓名或手机号"
+                style={{ width: 200 }}
+                allowClear
+              />
+            </Form.Item>
+          ) : (
+            <Form.Item name="objectDetailName" style={{ marginRight: 8 }}>
+              <AutoComplete
+                value={searchValue}
+                onChange={(value) => {
+                  setSearchValue(value);
+                  searchObjects(value);
+                }}
+                onSelect={(value) => {
+                  setSearchValue(value);
+                  form.setFieldsValue({ objectDetailName: value });
+                }}
+                options={searchOptions.map(item => ({
+                  value: item.objectDetailName,
+                  label: item.objectDetailName
+                }))}
+                placeholder="搜索菜品名称"
+                style={{ width: 200 }}
+                allowClear
+                filterOption={false}
+              />
+            </Form.Item>
+          )}
 
           <Form.Item>
             <Space>
