@@ -114,6 +114,18 @@ const OrderDetail: React.FC = () => {
                 style={{
                   padding: '12px 16px',
                   cursor: 'pointer',
+                  borderBottom: activeTab === 'small' ? '2px solid #1890ff' : 'none',
+                  color: activeTab === 'small' ? '#1890ff' : 'inherit',
+                  marginBottom: '-1px'
+                }}
+                onClick={() => setActiveTab('small')}
+              >
+                小货
+              </div>
+              <div
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
                   borderBottom: activeTab === 'box' ? '2px solid #1890ff' : 'none',
                   color: activeTab === 'box' ? '#1890ff' : 'inherit',
                   marginBottom: '-1px'
@@ -175,6 +187,25 @@ const OrderDetail: React.FC = () => {
               deliveryUsers={deliveryUsers}
               weight={weight}
               totalCount={bulkItemsTotalCount}
+              onEdit={handleEdit}
+              onDelete={handleDeleteItem}
+              onAdd={handleAdd}
+            />
+          )}
+          {activeTab === 'small' && (
+            <OrderItemTable
+              ref={tableRef}
+              type="small"
+              items={filteredItems
+                .filter(item => item.unit !== '箱')
+                .map(item => ({
+                  ...item,
+                  count: item.count || 0
+                }))}
+              isAdmin={isAdmin}
+              role={role}
+              deliveryUsers={deliveryUsers}
+              weight={weight}
               onEdit={handleEdit}
               onDelete={handleDeleteItem}
               onAdd={handleAdd}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { Table, InputNumber, Input, Select, Space, Button, message, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ObjectOption } from '@/types/order';
@@ -38,7 +38,7 @@ interface TableOrderItem {
 
 interface OrderItemTableProps {
   items: TableOrderItem[];
-  type: 'all' | 'bulk';
+  type: 'all' | 'bulk' | 'small';
   isAdmin: boolean;
   role?: string;
   deliveryUsers: { label: string; value: string }[];
@@ -97,7 +97,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
     rowId: 'empty',
     id: '',
     name: '',
-    unit: '斤',
+    unit: type === 'bulk' ? '箱' : '斤',
     price: 0,
     unitPrice: 0,
     remark: '',
@@ -120,6 +120,13 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
   const tableRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [bodyHeight, setBodyHeight] = useState<number>(500);
+  const [deliveryDropdownOpen, setDeliveryDropdownOpen] = useState<Record<string | number, boolean>>({});
+
+  // 检测是否为iPad设备
+const isPad = useMemo(() => {
+  if (typeof window === 'undefined') return false;
+  return navigator.maxTouchPoints > 1;
+}, []);
 
   // todo: 不需要滚动到底部
   // useEffect(() => {
@@ -205,7 +212,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         rowId: `empty-${Date.now()}`, // 更新 id 触发重新渲染
         id: '',
         name: '',
-        unit: '斤',
+        unit: type === 'bulk' ? '箱' : '斤',
         price: 0,
         unitPrice: 0,
         remark: '',
@@ -583,9 +590,15 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
       if (index !== -1) {
         // 使用 Table 的 scrollTo 方法
         tableRef.current.scrollTo({
-          index: index - 1, // 减去一行，因为 index 是从 0 开始的
+          index: -1, // 减去一行，因为 index 是从 0 开始的
           behavior: 'smooth'
         });
+        setTimeout(()=>{
+          tableRef.current.scrollTo({
+            index: index, // 减去一行，因为 index 是从 0 开始的
+            behavior: 'smooth'
+          });
+        },0)
       }
     }
   };
@@ -686,6 +699,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             verticalAlign: 'top'
           }
         }),
+        width: 150,
         render: (_, record) => {
           const key = record.id;
           const inputValue = remarkInputValues[key] ?? record.remarkCount;
@@ -863,23 +877,9 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
             verticalAlign: 'top'
           }
         }),
-        render: (_, record) => (
-          type === 'bulk' ? (
-            // 大货固定为箱
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <Select
-                value="箱"
-                disabled
-                style={{ width: '100%' }}
-                options={[{ label: '箱', value: '箱' }]}
-              />
-              {record.jinPerBox && record.jinPerBox > 0 && (
-                <span style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-                  {record.jinPerBox}斤/箱
-                </span>
-              )}
-            </div>
-          ) : (
+        render: (_, record) => {
+          // 大货和小货都可以选择所有单位，只是默认值不同
+          return (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <Select
                 value={record.unit}
@@ -888,20 +888,13 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                     onEdit({
                       id: record.id,
                       objectDetailId: record.objectDetailId,
-                      // count: record.count,
-                      // price: record.price,
-                      // remark: record.remark,
-                      // deliveryName: record.deliveryName,
                       unitName: value
                     });
                   }
                 }}
                 options={UNIT_OPTIONS}
                 style={{ width: '100%' }}
-              >
-                <Select.Option value="斤">斤</Select.Option>
-                <Select.Option value="箱">箱</Select.Option>
-              </Select>
+              />
               {record.unit === '箱' && (
                 <span style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>
                   {record.jinPerBox || 0}斤/箱、
@@ -909,8 +902,8 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                 </span>
               )}
             </div>
-          )
-        ),
+          );
+        },
       },
       {
         title: '配货员',
@@ -929,6 +922,12 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           const currentValue = deliveryValues[key] ?? record.deliveryName;
 
           const handleDeliveryChange = (value: string | undefined) => {
+            // 关闭下拉面板
+            setDeliveryDropdownOpen(prev => ({
+              ...prev,
+              [key]: false
+            }));
+
             // 如果选择"无货"，显示二次确认
             if (value === '无货') {
               Modal.confirm({
@@ -958,30 +957,18 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
               return;
             }
 
-            // 如果当前已有配货员，且要清空配货员，则显示确认提示
+            // 如果当前已有配货员，且要清空配货员，直接清空（不需要确认）
             if (record.deliveryName && !value) {
-              Modal.confirm({
-                title: '确认清空',
-                content: `${record.name}已配货，确定要清空配货员吗？`,
-                okText: '确认',
-                cancelText: '取消',
-                onOk: () => {
-                  // 更新本地状态
-                  setDeliveryValues(prev => ({
-                    ...prev,
-                    [key]: value || ''
-                  }));
-                  // 调用 onEdit
-                  onEdit({
-                    id: record.id,
-                    objectDetailId: record.objectDetailId,
-                    // count: record.count,
-                    // price: record.price,
-                    // remark: record.remark,
-                    deliveryName: '',
-                    // unitName: record.unit
-                  });
-                }
+              // 更新本地状态
+              setDeliveryValues(prev => ({
+                ...prev,
+                [key]: value || ''
+              }));
+              // 调用 onEdit
+              onEdit({
+                id: record.id,
+                objectDetailId: record.objectDetailId,
+                deliveryName: '',
               });
             }
             // 如果当前已有配货员，且选择了新的配货员，则显示确认提示
@@ -1031,10 +1018,16 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
           return (
             <div>
               <Select
-                allowClear
                 style={{ width: '100%' }}
                 placeholder="选择配货员"
                 value={currentValue}
+                open={deliveryDropdownOpen[key] || false}
+                onDropdownVisibleChange={(open) => {
+                  setDeliveryDropdownOpen(prev => ({
+                    ...prev,
+                    [key]: open
+                  }));
+                }}
                 options={[
                   ...deliveryUsers,
                   { label: '无货', value: '无货' }
@@ -1051,6 +1044,102 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
                 filterOption={(input, option) =>
                   (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                 }
+                dropdownStyle={{ 
+                  minWidth: '240px',
+                }}
+                dropdownRender={() => (
+                  <div style={{ padding: '8px', width: '100%' }}>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: '1fr 1fr', 
+                      gap: '8px',
+                      overflowY: 'auto'
+                    }}>
+                      {/* 清空选项 - 只在有选中配货员时显示 */}
+                      {currentValue && (
+                        <div
+                          key="clear"
+                          style={{
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            backgroundColor: '#fafafa',
+                            border: '1px solid #d9d9d9',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            minHeight: '32px',
+                            justifyContent: 'center',
+                            gridColumn: '1 / -1', // 占满整行
+                            marginBottom: '4px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f0f0f0';
+                            e.currentTarget.style.borderColor = '#bfbfbf';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#fafafa';
+                            e.currentTarget.style.borderColor = '#d9d9d9';
+                          }}
+                          onClick={() => handleDeliveryChange(undefined)}
+                        >
+                          <div style={{ 
+                            fontWeight: 500, 
+                            color: '#999',
+                            fontSize: '12px'
+                          }}>
+                            ✕ 清空
+                          </div>
+                        </div>
+                      )}
+                      {/* 配货员选项 */}
+                      {[
+                        ...deliveryUsers,
+                        { label: '无货', value: '无货' }
+                      ].map((user) => (
+                        <div
+                          key={user.value}
+                          style={{
+                            padding: '8px',
+                            cursor: 'pointer',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            backgroundColor: currentValue === user.value ? '#e6f7ff' : 'transparent',
+                            border: currentValue === user.value ? '1px solid #1890ff' : '1px solid #f0f0f0',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            minHeight: '40px',
+                            justifyContent: 'center'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (currentValue !== user.value) {
+                              e.currentTarget.style.backgroundColor = '#f5f5f5';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (currentValue !== user.value) {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
+                          }}
+                          onClick={() => handleDeliveryChange(user.value)}
+                        >
+                          <div style={{ 
+                            fontWeight: 500, 
+                            color: user.value === '无货' ? '#ff4d4f' : 'inherit'
+                          }}>
+                            {user.label}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               />
               {record.deliverUpdateTime && (
                 <div style={{ 
@@ -1329,7 +1418,7 @@ export const OrderItemTable = forwardRef<OrderItemTableRef, OrderItemTableProps>
         scroll={{ y: bodyHeight }}
         style={{ height: '100%' }}
         sticky
-        virtual
+        virtual={!isPad || items.length > 85}
         size="small"
       />
       <CreateObjectModal
