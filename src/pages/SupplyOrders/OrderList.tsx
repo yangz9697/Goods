@@ -157,10 +157,6 @@ const OrderList: React.FC = () => {
   // 使用防抖包装打印函数
   const debouncedPrint = useCallback(
     debounce(async () => {
-      if (selectedRowKeys.length > 10) {
-        message.warning('一次最多只能打印10个供货单');
-        return;
-      }
       setPrintLoading(true);
       try {
         const blob = await orderApi.batchPrintOrderToPDF({
@@ -200,10 +196,6 @@ const OrderList: React.FC = () => {
   // 使用防抖包装导出函数
   const debouncedExport = useCallback(
     debounce(async () => {
-      if (selectedRowKeys.length > 10) {
-        message.warning('一次最多只能导出10个供货单');
-        return;
-      }
       setExportLoading(true);
       try {
         const blob = await orderApi.batchExportOrderToExcel({
@@ -233,18 +225,8 @@ const OrderList: React.FC = () => {
   const rowSelection: TableRowSelection<PageOrderItem> = {
     selectedRowKeys,
     onChange: (selectedRowKeys: React.Key[]) => {
-      // 限制选择数量
-      if (selectedRowKeys.length > 10) {
-        message.warning('一次最多只能选择10个供货单');
-        // 只保留前10个选中项
-        setSelectedRowKeys(selectedRowKeys.slice(0, 10) as string[]);
-        return;
-      }
       setSelectedRowKeys(selectedRowKeys as string[]);
     },
-    getCheckboxProps: (record: PageOrderItem) => ({
-      disabled: selectedRowKeys.length >= 10 && !selectedRowKeys.includes(record.orderNo)
-    }),
     // 自定义全选框的属性
     checkStrictly: true,  // 不关联父子选择状态
     selections: [
@@ -252,12 +234,7 @@ const OrderList: React.FC = () => {
         key: 'SELECT_ALL',
         text: '全选当页',
         onSelect: (changeableRowKeys: React.Key[]) => {
-          // 如果可选的行数超过10个，只选择前10个
-          const rowKeys = changeableRowKeys.slice(0, 10);
-          setSelectedRowKeys(rowKeys as string[]);
-          if (changeableRowKeys.length > 10) {
-            message.warning('已自动选择前10个供货单');
-          }
+          setSelectedRowKeys(changeableRowKeys as string[]);
         }
       },
       {

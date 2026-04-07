@@ -5,6 +5,8 @@ interface QueryObjectOrderRequest {
   startTime: number;
   endTime: number;
   keyWord?: string;
+  // 是否大货/小货筛选：true=大货，false=小货，未传/undefined=全部
+  isBox?: boolean | null;
 }
 
 export interface OrderInfo {

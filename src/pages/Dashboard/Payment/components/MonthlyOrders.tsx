@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Tag, message, Button, Space } from 'antd';
 import type { TableRowSelection } from 'antd/es/table/interface';
 import { orderApi } from '@/api/orders';
+import { debounce } from 'lodash';
 import dayjs from 'dayjs';
 
 interface MonthlyOrdersProps {
@@ -22,6 +23,8 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, startTime, endTim
   const [loading, setLoading] = useState(false);
   const [orderList, setOrderList] = useState<OrderInfo[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [printLoading, setPrintLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   
   useEffect(() => {
     if (!userId) return;
@@ -104,6 +107,102 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, startTime, endTim
   const unpaidOrders = orderList.filter(order => order.orderPayStatusCode === 'waitPay');
   const totalUnpaid = Number(unpaidOrders.reduce((sum, order) => sum + order.orderPrice, 0).toFixed(2));
 
+  const debouncedPrint = useCallback(
+    debounce(async () => {
+      if (selectedOrders.length === 0) {
+        message.warning('请选择要打印的订单');
+        return;
+      }
+
+      // 从选中的行中获取所有订单号数组并合并
+      const orderNoList = selectedOrders.reduce<string[]>((acc, curr) => {
+        const selectedRecord = orderList.find(item => item.orderNoList.join(',') === curr);
+        if (selectedRecord) {
+          return [...acc, ...selectedRecord.orderNoList];
+        }
+        return acc;
+      }, []);
+
+      setPrintLoading(true);
+      try {
+        const blob = await orderApi.batchPrintOrderToPDF({
+          orderNoList
+        });
+
+        const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = 'none';
+        document.body.appendChild(printFrame);
+
+        printFrame.onload = () => {
+          try {
+            printFrame.contentWindow?.print();
+          } catch (error) {
+            message.error('打印失败：' + (error as Error).message);
+          }
+        };
+
+        printFrame.src = url;
+      } catch (error) {
+        message.error('批量打印失败：' + (error as Error).message);
+      } finally {
+        setPrintLoading(false);
+      }
+    }, 300),
+    [selectedOrders, orderList]
+  );
+
+  const debouncedExport = useCallback(
+    debounce(async () => {
+      if (selectedOrders.length === 0) {
+        message.warning('请选择要导出的订单');
+        return;
+      }
+
+      const orderNoList = selectedOrders.reduce<string[]>((acc, curr) => {
+        const selectedRecord = orderList.find(item => item.orderNoList.join(',') === curr);
+        if (selectedRecord) {
+          return [...acc, ...selectedRecord.orderNoList];
+        }
+        return acc;
+      }, []);
+
+      if (orderNoList.length === 0) {
+        message.warning('未找到可导出的订单');
+        return;
+      }
+
+      setExportLoading(true);
+      try {
+        const blob = await orderApi.batchExportOrderToExcel({
+          orderNoList
+        });
+        const url = window.URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `供货单批量导出_${dayjs().format('YYYYMMDD')}.zip`;
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      } catch (error) {
+        message.error('批量导出失败：' + (error as Error).message);
+      } finally {
+        setExportLoading(false);
+      }
+    }, 300),
+    [selectedOrders, orderList]
+  );
+
   const columns = [
     {
       title: '订单日期',
@@ -163,13 +262,29 @@ const MonthlyOrders: React.FC<MonthlyOrdersProps> = ({ userId, startTime, endTim
               ¥{totalUnpaid}
             </span>
           </span>
-          <Button
-            type="primary"
-            disabled={selectedOrders.length === 0}
-            onClick={handleBatchSettle}
-          >
-            批量结算
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              disabled={selectedOrders.length === 0}
+              onClick={handleBatchSettle}
+            >
+              批量结算
+            </Button>
+            <Button
+              onClick={debouncedPrint}
+              disabled={selectedOrders.length === 0}
+              loading={printLoading}
+            >
+              批量打印
+            </Button>
+            <Button
+              onClick={debouncedExport}
+              disabled={selectedOrders.length === 0}
+              loading={exportLoading}
+            >
+              批量导出
+            </Button>
+          </Space>
         </div>
       }
       loading={loading}

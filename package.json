@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "deploy": "npm run build && ./deploy.sh && ./deploy-prod.sh",
     "deploy:dev": "npm run build && ./deploy.sh",
-    "deploy:prod": "./deploy-prod.sh",
+    "deploy:prod": "npm run build && ./deploy-prod.sh",
     "deploy:all": "./deploy.sh && ./deploy-prod.sh",
     "preview": "vite preview"
   },

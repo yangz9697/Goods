@@ -50,6 +50,13 @@ const SupplyOrderList: React.FC = () => {
   const [expandedCustomer, setExpandedCustomer] = useState<CustomerOrder | null>(null);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isBox, setIsBox] = useState<boolean | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const saved = localStorage.getItem('orderByCustomers_isBox');
+    if (saved === 'true') return true;
+    if (saved === 'false') return false;
+    return null;
+  });
 
   // 添加一个标记首次加载的 ref
   const isFirstLoad = useRef(true);
@@ -62,7 +69,8 @@ const SupplyOrderList: React.FC = () => {
       const response = await orderApi.queryObjectOrder({
         startTime: selectedDate.startOf('day').valueOf(),
         endTime: selectedDate.endOf('day').valueOf(),
-        keyWord: keyword || undefined
+        keyWord: keyword || undefined,
+        isBox: isBox
       });
 
       if (response.success) {
@@ -77,7 +85,7 @@ const SupplyOrderList: React.FC = () => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [selectedDate, isRefreshing]);
+  }, [selectedDate, isRefreshing, isBox]);
 
   useEffect(() => {
     if (isFirstLoad.current) {
@@ -85,6 +93,16 @@ const SupplyOrderList: React.FC = () => {
       isFirstLoad.current = false;
     }
   }, [fetchData]);
+
+  // isBox 变化时记住当前筛选
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isBox === null) {
+      localStorage.removeItem('orderByCustomers_isBox');
+    } else {
+      localStorage.setItem('orderByCustomers_isBox', String(isBox));
+    }
+  }, [isBox]);
 
   // 监听日期变化
   useEffect(() => {
@@ -116,6 +134,7 @@ const SupplyOrderList: React.FC = () => {
       dateRange: dayjs()
     });
     setSearchText('');
+    setIsBox(null);
     fetchData('');
   };
 
@@ -513,6 +532,38 @@ const SupplyOrderList: React.FC = () => {
                 onClick={() => setIsAddModalVisible(true)}
               >
                 添加供货单
+              </Button>
+            </Space>
+          </Form.Item>
+
+          <Form.Item style={{ width: '100%', marginTop: 8 }}>
+            <Space>
+              <Button
+                type={isBox === false ? 'primary' : 'default'}
+                onClick={() => {
+                  setIsBox(false);
+                  fetchData(searchText);
+                }}
+              >
+                小货
+              </Button>
+              <Button
+                type={isBox === true ? 'primary' : 'default'}
+                onClick={() => {
+                  setIsBox(true);
+                  fetchData(searchText);
+                }}
+              >
+                大货
+              </Button>
+              <Button
+                type={isBox === null ? 'primary' : 'default'}
+                onClick={() => {
+                  setIsBox(null);
+                  fetchData(searchText);
+                }}
+              >
+                全部
               </Button>
             </Space>
           </Form.Item>
