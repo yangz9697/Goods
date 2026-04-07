@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { message, Button, Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useOrderDetail } from './hooks/useOrderDetail';
@@ -8,7 +8,10 @@ import { OrderHeader } from '@/pages/SupplyOrders/components/OrderHeader';
 
 const OrderDetail: React.FC = () => {
   const { id: orderNo } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState('all');
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const initialTab = (searchParams.get('tab') as 'all' | 'small' | 'box' | null) || 'all';
+  const [activeTab, setActiveTab] = useState<'all' | 'small' | 'box'>(initialTab);
   const [searchKeyword, setSearchKeyword] = useState('');
   const role = localStorage.getItem('role') || undefined;
   const isAdmin = role === 'admin';

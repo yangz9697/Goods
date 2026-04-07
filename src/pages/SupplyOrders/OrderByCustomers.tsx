@@ -138,10 +138,17 @@ const SupplyOrderList: React.FC = () => {
     fetchData('');
   };
 
+  const getTabFromIsBox = () => {
+    if (isBox === true) return 'box';
+    if (isBox === false) return 'small';
+    return 'all';
+  };
+
   const handleOrderListClick = (customer: CustomerOrder) => {
     // 如果只有一个订单，直接跳转到订单详情
     if (customer.orderInfoList.length === 1) {
-      navigate(`/supply-orders/detail/${customer.orderInfoList[0].orderNo}`);
+      const tab = getTabFromIsBox();
+      navigate(`/supply-orders/detail/${customer.orderInfoList[0].orderNo}?tab=${tab}`);
       return;
     }
     // 否则展开订单列表
@@ -647,7 +654,8 @@ const SupplyOrderList: React.FC = () => {
                   alignItems: 'center'
                 }}
                 onClick={() => {
-                  navigate(`/supply-orders/detail/${order.orderNo}`);  // 直接导航到订单详情
+                  const tab = getTabFromIsBox();
+                  navigate(`/supply-orders/detail/${order.orderNo}?tab=${tab}`);  // 直接导航到订单详情并携带tab
                   setExpandedCustomer(null);  // 关闭弹窗
                 }}
               >
