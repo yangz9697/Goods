@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 export const BASE_URL = import.meta.env.DEV
-  ? '/'  // 开发环境通过 Vite 代理
-  : '/';    // 生产环境走相对路径，由线上环境反向代理
+  ? 'https://wwdtest.cn/api'  // 开发环境直连测试服务器
+  : 'https://wwdtest.cn/api';    // 生产环境走相对路径，由线上环境反向代理
 
 // 创建axios实例
 const request = axios.create({

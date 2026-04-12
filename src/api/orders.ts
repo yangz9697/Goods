@@ -339,6 +339,44 @@ interface SelectDeliveryResponse {
   displayMsg?: string;
 }
 
+export interface RecognizedDraftItem {
+  remark: string;
+  remarkCount: string;
+  serviceObjectId: number;
+  serviceObjectName: string;
+  totalCount: number;
+  unitName: string;
+}
+
+interface RecognizeTextResponse {
+  success: boolean;
+  data: RecognizedDraftItem[];
+  displayMsg?: string;
+}
+
+interface ConfirmDraftRequest {
+  orderNo: string;
+  items: RecognizedDraftItem[];
+}
+
+interface ConfirmDraftResponse {
+  success: boolean;
+  data: any;
+  displayMsg?: string;
+}
+
+interface BatchImportDraftResponse {
+  success: boolean;
+  data: RecognizedDraftItem[];
+  displayMsg?: string;
+}
+
+interface RecognizeAudioResponse {
+  success: boolean;
+  data: RecognizedDraftItem[];
+  displayMsg?: string;
+}
+
 export const orderApi = {
   pageOrder: async (params: OrderListParams): Promise<OrderListResponse> => {
     try {
@@ -550,6 +588,74 @@ export const orderApi = {
       return response.data;
     } catch (error) {
       throw new Error('批量更新订单支付状态失败：' + (error as Error).message);
+    }
+  },
+  recognizeText: async (text: string): Promise<RecognizeTextResponse> => {
+    try {
+      const response = await request.post<RecognizeTextResponse>(
+        '/erp/draft/recognizeText',
+        { text },
+        { timeout: 30000 }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('文字识别失败：' + (error as Error).message);
+    }
+  },
+  confirmDraft: async (params: ConfirmDraftRequest): Promise<ConfirmDraftResponse> => {
+    try {
+      const response = await request.post<ConfirmDraftResponse>('/erp/draft/confirm', params);
+      return response.data;
+    } catch (error) {
+      throw new Error('草稿确认失败：' + (error as Error).message);
+    }
+  },
+  downloadDraftTemplate: async () => {
+    try {
+      const response = await request.get('/erp/draft/template', {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error('下载Excel模版失败：' + (error as Error).message);
+    }
+  },
+  batchImportDraft: async (file: File): Promise<BatchImportDraftResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await request.post<BatchImportDraftResponse>(
+        '/erp/draft/batchImport',
+        formData,
+        {
+          timeout: 30000,
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('Excel导入失败：' + (error as Error).message);
+    }
+  },
+  recognizeAudio: async (file: File): Promise<RecognizeAudioResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await request.post<RecognizeAudioResponse>(
+        '/erp/draft/recognizeAudio',
+        formData,
+        {
+          timeout: 30000,
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error('语音识别失败：' + (error as Error).message);
     }
   },
 };

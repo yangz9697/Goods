@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Form, Row, Col, Select, Space, Button, Popconfirm, message } from 'antd';
+import { Form, Row, Col, Select, Space, Button, Popconfirm, message, Modal, Input, InputNumber, Table, Tag } from 'antd';
 import { formatPhone } from '@/utils/format';
 import dayjs from 'dayjs';
 import { Order, OrderStatus, OrderStatusCode } from '@/types/order';
-import { orderApi } from '@/api/orders';
+import { orderApi, RecognizedDraftItem } from '@/api/orders';
+import { orderObjectApi } from '@/api/orderObject';
 import { PrinterOutlined } from '@ant-design/icons';
 import DigitalDisplay from '@/components/DigitalDisplay';
 
@@ -34,6 +35,22 @@ interface OrderHeaderProps {
   onWeightChange: (weight: string) => void;
 }
 
+interface EditableDraftItem extends RecognizedDraftItem {
+  key: string;
+}
+
+interface ObjectSearchOption {
+  objectDetailId: number;
+  objectDetailName: string;
+}
+
+const UNIT_OPTIONS = [
+  { label: '个', value: '个' },
+  { label: '斤', value: '斤' },
+  { label: '盒', value: '盒' },
+  { label: '箱', value: '箱' }
+];
+
 export const OrderHeader: React.FC<OrderHeaderProps> = ({
   order,
   statusList,
@@ -46,8 +63,30 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
   const [weight, setWeight] = useState<string>('000.0');
   const [port, setPort] = useState<SerialPort | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isTextInputModalOpen, setIsTextInputModalOpen] = useState<boolean>(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
+  const [textInputValue, setTextInputValue] = useState<string>('');
+  const [isRecognizingText, setIsRecognizingText] = useState<boolean>(false);
+  const [isImportingExcel, setIsImportingExcel] = useState<boolean>(false);
+  const [isRecognizingAudio, setIsRecognizingAudio] = useState<boolean>(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordSeconds, setRecordSeconds] = useState<number>(0);
+  const [isDraftConfirmModalOpen, setIsDraftConfirmModalOpen] = useState<boolean>(false);
+  const [isConfirmingDraft, setIsConfirmingDraft] = useState<boolean>(false);
+  const [recognizedDraftItems, setRecognizedDraftItems] = useState<EditableDraftItem[]>([]);
+  const [objectSearchOptions, setObjectSearchOptions] = useState<ObjectSearchOption[]>([]);
   const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
   const isConnectingRef = useRef<boolean>(false);
+  const excelFileInputRef = useRef<HTMLInputElement | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const pcmChunksRef = useRef<Float32Array[]>([]);
+  const sampleRateRef = useRef<number>(44100);
+  const recordedAudioBlobRef = useRef<Blob | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const shouldAutoSubmitOnStopRef = useRef<boolean>(false);
 
   // 清理函数
   const cleanup = useCallback(async () => {
@@ -247,6 +286,24 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
     };
   }, [initSerialPort, cleanup]);
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current);
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      try {
+        scriptProcessorRef.current?.disconnect();
+        sourceNodeRef.current?.disconnect();
+        audioContextRef.current?.close();
+      } catch (error) {
+        console.error('卸载时清理录音资源失败:', error);
+      }
+    };
+  }, []);
+
   // 手动重连函数
   const handleReconnect = useCallback(async () => {
     try {
@@ -358,6 +415,314 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
     }
   };
 
+  const openDraftConfirmModal = (items: RecognizedDraftItem[]) => {
+    setRecognizedDraftItems(
+      (items || []).map((item, index) => ({
+        ...item,
+        key: `${Date.now()}-${index}`
+      }))
+    );
+    setIsDraftConfirmModalOpen(true);
+  };
+
+  const handleTextInputSubmit = async () => {
+    const text = textInputValue.trim();
+    if (!text) {
+      message.warning('请输入文字内容');
+      return;
+    }
+
+    try {
+      setIsRecognizingText(true);
+      const response = await orderApi.recognizeText(text);
+      if (response.success) {
+        message.success(response.displayMsg || `文字识别成功，共${response.data?.length || 0}条`);
+        setIsTextInputModalOpen(false);
+        setTextInputValue('');
+        openDraftConfirmModal(response.data || []);
+      } else {
+        message.error(response.displayMsg || '文字识别提交失败');
+      }
+    } catch (error) {
+      message.error((error as Error).message || '文字识别提交失败');
+    } finally {
+      setIsRecognizingText(false);
+    }
+  };
+
+  const handleExcelImportClick = () => {
+    excelFileInputRef.current?.click();
+  };
+
+  const handleExcelFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      setIsImportingExcel(true);
+      const response = await orderApi.batchImportDraft(file);
+      if (response.success) {
+        message.success(response.displayMsg || `Excel导入成功，共${response.data?.length || 0}条`);
+        openDraftConfirmModal(response.data || []);
+      } else {
+        message.error(response.displayMsg || 'Excel导入失败');
+      }
+    } catch (error) {
+      message.error((error as Error).message || 'Excel导入失败');
+    } finally {
+      setIsImportingExcel(false);
+    }
+  };
+
+  const stopAudioRecording = (autoSubmit = false) => {
+    shouldAutoSubmitOnStopRef.current = autoSubmit;
+    try {
+      scriptProcessorRef.current?.disconnect();
+      sourceNodeRef.current?.disconnect();
+      audioContextRef.current?.close();
+    } catch (error) {
+      console.error('停止PCM录音失败:', error);
+    }
+
+    const pcmBlob = buildWavBlobFromPcm();
+    recordedAudioBlobRef.current = pcmBlob;
+    pcmChunksRef.current = [];
+    if (shouldAutoSubmitOnStopRef.current) {
+      shouldAutoSubmitOnStopRef.current = false;
+      uploadRecordedAudio(pcmBlob);
+    }
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    audioContextRef.current = null;
+    scriptProcessorRef.current = null;
+    sourceNodeRef.current = null;
+    setIsRecording(false);
+  };
+
+  const buildWavBlobFromPcm = () => {
+    const pcmData = pcmChunksRef.current;
+    const sampleRate = sampleRateRef.current || 44100;
+    const totalLength = pcmData.reduce((sum, arr) => sum + arr.length, 0);
+    const merged = new Float32Array(totalLength);
+    let offset = 0;
+    pcmData.forEach((chunk) => {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    });
+
+    const buffer = new ArrayBuffer(44 + merged.length * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (pos: number, str: string) => {
+      for (let i = 0; i < str.length; i += 1) {
+        view.setUint8(pos + i, str.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + merged.length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, merged.length * 2, true);
+
+    let index = 44;
+    for (let i = 0; i < merged.length; i += 1) {
+      const sample = Math.max(-1, Math.min(1, merged[i]));
+      view.setInt16(index, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      index += 2;
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  };
+
+  const startAudioRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      message.error('当前浏览器不支持录音');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        throw new Error('当前浏览器不支持AudioContext，无法录音');
+      }
+
+      const audioContext = new AudioContextClass();
+      audioContextRef.current = audioContext;
+      sampleRateRef.current = audioContext.sampleRate;
+      pcmChunksRef.current = [];
+
+      const sourceNode = audioContext.createMediaStreamSource(stream);
+      sourceNodeRef.current = sourceNode;
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      scriptProcessorRef.current = processor;
+
+      processor.onaudioprocess = (event: AudioProcessingEvent) => {
+        const inputData = event.inputBuffer.getChannelData(0);
+        pcmChunksRef.current.push(new Float32Array(inputData));
+      };
+
+      sourceNode.connect(processor);
+      processor.connect(audioContext.destination);
+      recordedAudioBlobRef.current = null;
+      setRecordSeconds(0);
+      setIsRecording(true);
+      timerRef.current = window.setInterval(() => {
+        setRecordSeconds((prev) => {
+          if (prev >= 59) {
+            stopAudioRecording(true);
+            message.info('录音已达到60秒，已自动停止');
+            return 60;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } catch (error) {
+      message.error('无法开始录音：' + (error as Error).message);
+    }
+  };
+
+  const uploadRecordedAudio = async (inputBlob?: Blob) => {
+    const blob = inputBlob || recordedAudioBlobRef.current;
+    if (!blob) {
+      message.warning('请先完成录音');
+      return;
+    }
+    try {
+      setIsRecognizingAudio(true);
+      const extension = blob.type.includes('wav')
+        ? 'wav'
+        : blob.type.includes('webm')
+          ? 'webm'
+          : 'audio';
+      const audioFile = new File([blob], `audio-${Date.now()}.${extension}`, {
+        type: blob.type || 'audio/wav'
+      });
+
+      const response = await orderApi.recognizeAudio(audioFile);
+      if (response.success) {
+        message.success(response.displayMsg || `语音识别成功，共${response.data?.length || 0}条`);
+        setIsVoiceModalOpen(false);
+        openDraftConfirmModal(response.data || []);
+      } else {
+        message.error(response.displayMsg || '语音识别失败');
+      }
+    } catch (error) {
+      message.error((error as Error).message || '语音识别失败');
+    } finally {
+      setIsRecognizingAudio(false);
+    }
+  };
+
+  const handleDraftFieldChange = (
+    key: string,
+    field: keyof RecognizedDraftItem,
+    value: string | number
+  ) => {
+    setRecognizedDraftItems((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleDeleteDraftRow = (key: string) => {
+    setRecognizedDraftItems((prev) => prev.filter((item) => item.key !== key));
+    message.success('已删除该行');
+  };
+
+  const searchObjects = async (keyword: string) => {
+    if (!keyword) {
+      setObjectSearchOptions([]);
+      return;
+    }
+    try {
+      const response = await orderObjectApi.selectObjectByName(keyword);
+      if (response.success) {
+        setObjectSearchOptions(response.data || []);
+      } else {
+        message.error(response.displayMsg || '搜索商品失败');
+      }
+    } catch (error) {
+      message.error('搜索商品失败：' + (error as Error).message);
+    }
+  };
+
+  const handleSelectDraftObject = (key: string, objectDetailId: number, objectDetailName: string) => {
+    setRecognizedDraftItems((prev) =>
+      prev.map((item) =>
+        item.key === key
+          ? {
+              ...item,
+              serviceObjectId: objectDetailId,
+              serviceObjectName: objectDetailName
+            }
+          : item
+      )
+    );
+  };
+
+  const handleAddEmptyDraftRow = () => {
+    setRecognizedDraftItems((prev) => [
+      ...prev,
+      {
+        key: `${Date.now()}-${prev.length}`,
+        serviceObjectId: 0,
+        serviceObjectName: '',
+        totalCount: 0,
+        unitName: '',
+        remark: '',
+        remarkCount: ''
+      }
+    ]);
+  };
+
+  const handleClearAllDraftRows = () => {
+    setRecognizedDraftItems([]);
+    message.success('已清空全部');
+  };
+
+  const handleConfirmDraft = async () => {
+    if (recognizedDraftItems.length === 0) {
+      message.warning('请先添加草稿条目');
+      return;
+    }
+
+    try {
+      setIsConfirmingDraft(true);
+      const items = recognizedDraftItems.map(({ key, ...item }) => item);
+      const response = await orderApi.confirmDraft({
+        orderNo: order.orderNo,
+        items
+      });
+
+      if (response.success) {
+        message.success(response.displayMsg || '草稿确认成功');
+        setIsDraftConfirmModalOpen(false);
+      } else {
+        message.error(response.displayMsg || '草稿确认失败');
+      }
+    } catch (error) {
+      message.error((error as Error).message || '草稿确认失败');
+    } finally {
+      setIsConfirmingDraft(false);
+    }
+  };
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* 第一块：客户信息和操作按钮 */}
@@ -442,6 +807,9 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
             {/* 右侧操作按钮 */}
             <Col>
               <Space>
+                <Button loading={isImportingExcel} onClick={handleExcelImportClick}>Excel导入</Button>
+                <Button onClick={() => setIsVoiceModalOpen(true)}>语音输入</Button>
+                <Button onClick={() => setIsTextInputModalOpen(true)}>文字输入</Button>
                 <Button 
                   type="primary" 
                   icon={<PrinterOutlined />}
@@ -462,7 +830,230 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
             </Col>
           </Row>
         </Form>
+        <input
+          ref={excelFileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: 'none' }}
+          onChange={handleExcelFileChange}
+        />
       </div>
+      <Modal
+        title="语音输入"
+        open={isVoiceModalOpen}
+        onCancel={() => {
+          if (!isRecognizingAudio) {
+            stopAudioRecording(false);
+            setIsVoiceModalOpen(false);
+          }
+        }}
+        footer={[
+          <Button
+            key="record"
+            onClick={() => {
+              if (isRecording) {
+                stopAudioRecording(true);
+              } else {
+                startAudioRecording();
+              }
+            }}
+            disabled={isRecognizingAudio}
+          >
+            {isRecording ? '停止录音' : '开始录音'}
+          </Button>,
+          <Button key="submit" type="primary" onClick={() => uploadRecordedAudio()} loading={isRecognizingAudio}>
+            手动提交
+          </Button>
+        ]}
+        destroyOnClose
+      >
+        <div style={{ lineHeight: 1.8 }}>
+          <div>录音时长：{recordSeconds}s / 60s</div>
+          <div>状态：{isRecording ? '录音中...' : recordedAudioBlobRef.current ? '录音完成，可提交' : '未开始录音'}</div>
+          <div style={{ color: '#999', fontSize: 12 }}>录音限制60秒，超过会自动停止。</div>
+        </div>
+      </Modal>
+      <Modal
+        title="文字输入"
+        open={isTextInputModalOpen}
+        onCancel={() => {
+          if (!isRecognizingText) {
+            setIsTextInputModalOpen(false);
+          }
+        }}
+        onOk={handleTextInputSubmit}
+        okText="提交"
+        cancelText="取消"
+        confirmLoading={isRecognizingText}
+        destroyOnClose
+      >
+        <Input.TextArea
+          value={textInputValue}
+          onChange={(e) => setTextInputValue(e.target.value)}
+          rows={6}
+          placeholder="请输入需要识别的文字"
+          maxLength={3000}
+          showCount
+          disabled={isRecognizingText}
+        />
+      </Modal>
+      <Modal
+        title={
+          <Space size={16}>
+            <span>确认录入清单</span>
+            <Tag color="blue">共识别 {recognizedDraftItems.length} 条</Tag>
+            <Tag color={recognizedDraftItems.length > 0 ? 'green' : 'default'}>
+              可确认 {recognizedDraftItems.length} 条
+            </Tag>
+          </Space>
+        }
+        open={isDraftConfirmModalOpen}
+        onCancel={() => setIsDraftConfirmModalOpen(false)}
+        width={1100}
+        footer={[
+          <Space key="left-actions">
+            <Button onClick={handleAddEmptyDraftRow}>新增一行</Button>
+            <Popconfirm
+              title="确认清空"
+              description="确定要清空所有草稿行吗？"
+              okText="清空"
+              cancelText="取消"
+              onConfirm={handleClearAllDraftRows}
+            >
+              <Button danger>清空全部</Button>
+            </Popconfirm>
+          </Space>,
+          <Button
+            key="confirm"
+            type="primary"
+            disabled={recognizedDraftItems.length === 0}
+            loading={isConfirmingDraft}
+            onClick={handleConfirmDraft}
+          >
+            确认录入
+          </Button>,
+          <Button key="cancel" onClick={() => setIsDraftConfirmModalOpen(false)}>
+            关闭
+          </Button>
+        ]}
+        destroyOnClose
+      >
+        <Table<EditableDraftItem>
+          rowKey="key"
+          dataSource={recognizedDraftItems}
+          pagination={false}
+          scroll={{ y: 420 }}
+          columns={[
+            {
+              title: '行',
+              width: 60,
+              render: (_, __, index) => index + 1
+            },
+            {
+              title: '商品',
+              dataIndex: 'serviceObjectName',
+              key: 'serviceObjectName',
+              render: (_value: string, record) => (
+                <Select<number>
+                  showSearch
+                  value={record.serviceObjectId || undefined}
+                  placeholder="搜索选择商品"
+                  style={{ width: '100%' }}
+                  filterOption={false}
+                  onSearch={searchObjects}
+                  onChange={(selectedValue, option) => {
+                    const selectedOption = option as { value: number; label: string };
+                    handleSelectDraftObject(record.key, selectedValue, selectedOption.label);
+                  }}
+                  onClear={() => handleSelectDraftObject(record.key, 0, '')}
+                  options={[
+                    ...(record.serviceObjectId
+                      ? [{ label: record.serviceObjectName, value: record.serviceObjectId }]
+                      : []),
+                    ...objectSearchOptions.map((opt) => ({
+                      label: opt.objectDetailName,
+                      value: opt.objectDetailId
+                    }))
+                  ]}
+                  allowClear
+                />
+              )
+            },
+            {
+              title: '数量',
+              dataIndex: 'totalCount',
+              key: 'totalCount',
+              width: 120,
+              render: (value: number, record) => (
+                <InputNumber
+                  value={value}
+                  min={0}
+                  precision={2}
+                  style={{ width: '100%' }}
+                  onChange={(newValue) => handleDraftFieldChange(record.key, 'totalCount', Number(newValue || 0))}
+                />
+              )
+            },
+            {
+              title: '单位',
+              dataIndex: 'unitName',
+              key: 'unitName',
+              width: 120,
+              render: (value: string, record) => (
+                <Select
+                  value={value || undefined}
+                  placeholder="选择单位"
+                  style={{ width: '100%' }}
+                  options={UNIT_OPTIONS}
+                  onChange={(newValue) => handleDraftFieldChange(record.key, 'unitName', newValue)}
+                  allowClear
+                />
+              )
+            },
+            {
+              title: '备注',
+              dataIndex: 'remark',
+              key: 'remark',
+              render: (value: string, record) => (
+                <Input
+                  value={value}
+                  placeholder="请输入备注"
+                  onChange={(e) => handleDraftFieldChange(record.key, 'remark', e.target.value)}
+                />
+              )
+            },
+            {
+              title: '状态',
+              key: 'status',
+              width: 120,
+              render: (_, record) =>
+                record.serviceObjectName && record.unitName ? (
+                  <Tag color="green">匹配成功</Tag>
+                ) : (
+                  <Tag color="gold">需确认</Tag>
+                )
+            },
+            {
+              title: '操作',
+              key: 'action',
+              width: 90,
+              render: (_, record) => (
+                <Popconfirm
+                  title="确认删除"
+                  description="确定要删除这一行数据吗？"
+                  okText="删除"
+                  cancelText="取消"
+                  onConfirm={() => handleDeleteDraftRow(record.key)}
+                >
+                  <Button danger type="link">
+                    删除
+                  </Button>
+                </Popconfirm>
+              )
+            }
+          ]}
+        />
+      </Modal>
 
       {/* 第二块：电子秤、配货进度和结算信息 */}
       <div style={{ display: 'flex', gap: '12px' }}>

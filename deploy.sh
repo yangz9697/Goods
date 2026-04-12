@@ -4,8 +4,9 @@
 set -e
 
 # 定义变量
-SERVER="root@139.224.63.0"
+SERVER="ubuntu@106.54.0.115"
 REMOTE_DIR="/var/www/html"
+REMOTE_TMP_DIR="/tmp"
 DIST_DIR="./dist"
 SSH_KEY="./goods"  # 新添加的 SSH 密钥路径
 
@@ -23,21 +24,21 @@ tar -czf dist.tar.gz dist/
 
 # 检查并创建远程目录
 echo "检查远程目录..."
-ssh -i $SSH_KEY $SERVER "sudo mkdir -p $REMOTE_DIR && sudo chown -R root:root $REMOTE_DIR"
+ssh -i $SSH_KEY $SERVER "sudo mkdir -p $REMOTE_DIR && mkdir -p $REMOTE_TMP_DIR"
 
 # 上传到服务器
 echo "上传文件到服务器..."
-scp -i $SSH_KEY dist.tar.gz $SERVER:$REMOTE_DIR/
+scp -i $SSH_KEY dist.tar.gz $SERVER:$REMOTE_TMP_DIR/
 
 # SSH 到服务器执行部署
 echo "在服务器上部署..."
 ssh -i $SSH_KEY $SERVER << 'ENDSSH'
 cd /var/www/html
-rm -rf index.html assets
-tar -xzf dist.tar.gz
-mv dist/* ./
-rm -rf dist
-rm dist.tar.gz
+sudo rm -rf index.html assets
+sudo tar -xzf /tmp/dist.tar.gz -C /tmp
+sudo mv /tmp/dist/* /var/www/html/
+sudo rm -rf /tmp/dist
+sudo rm -f /tmp/dist.tar.gz
 
 # 设置正确的权限
 sudo chown -R www-data:www-data /var/www/html
